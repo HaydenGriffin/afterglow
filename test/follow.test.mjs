@@ -214,3 +214,39 @@ test("dated favorites: a save merges newest-per-preset with the account, even a 
     new: { on: true, at: 600 },
   });
 });
+
+test("Music Assistant's own favorites list is folded in and written back", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  t.mock.timers.setTime(5000);
+  const sockets = [];
+  class Fake {
+    constructor(url) { this.url = url; this.sent = []; this.readyState = 1; sockets.push(this); }
+    send(data) { this.sent.push(JSON.parse(data)); }
+    close() { this.readyState = 3; }
+    receive(message) { this.onmessage({ data: JSON.stringify(message) }); }
+  }
+  const relay = { state: "closed", connect() { this.state = "open"; } };
+  const seen = [];
+  const follow = createFollow({ host: "h", token: "tok", pinned: "p", relay, WebSocketImpl: Fake, deviceId: "cx", sharedKeys: ["favoritesMeta"], onRemotePrefs: (s) => seen.push(s.favoritesMeta) });
+  follow.start();
+  sockets[0].receive({ server_version: "2.10.5" });
+  sockets[0].receive({ message_id: "auth", result: { authenticated: true } });
+  // the web interface added "web" and removed "gone" since the app last mirrored ["gone", "keep"]
+  sockets[0].receive({ message_id: "me", result: { preferences: {
+    visualizer_favorites: ["keep", "web"],
+    vizman: { mirrored: ["gone", "keep"], favoritesMeta: { gone: { on: true, at: 1 }, keep: { on: true, at: 1 } } },
+  } } });
+  assert.deepEqual(seen[0], { gone: { on: false, at: 5000 }, keep: { on: true, at: 1 }, web: { on: true, at: 5000 } });
+
+  follow.savePrefs({ favoritesMeta: { gone: { on: false, at: 5000 }, keep: { on: true, at: 1 }, web: { on: true, at: 5000 }, tv: { on: true, at: 6000 } } });
+  t.mock.timers.tick(1500);
+  sockets[0].receive({ message_id: "auth", result: { authenticated: true } });
+  sockets[0].receive({ message_id: "me", result: { preferences: {
+    visualizer_favorites: ["keep", "web"],
+    vizman: { mirrored: ["gone", "keep"], favoritesMeta: { gone: { on: true, at: 1 }, keep: { on: true, at: 1 } } },
+  } } });
+  const save = sockets[0].sent.filter((m) => m.command === "auth/user/update").pop();
+  assert.deepEqual(save.args.preferences.visualizer_favorites, ["keep", "tv", "web"], "the plain list the web interface reads");
+  assert.deepEqual(save.args.preferences.vizman.mirrored, ["keep", "tv", "web"]);
+  assert.equal(save.args.preferences.vizman.favoritesMeta.gone.on, false);
+});

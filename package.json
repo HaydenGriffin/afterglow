@@ -1,6 +1,6 @@
 {
   "name": "viz-man",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "private": true,
   "description": "Music visualizer for LG webOS TVs, driven by Music Assistant",
   "license": "MIT",

@@ -11,6 +11,7 @@ const POLL_MS = 3000;
 const TRACK_POLL_MS = 4000;
 const SAVE_DEBOUNCE_MS = 1500;
 const PREFS_KEY = "vizman"; // our entry in the user's preferences
+const MA_FAVORITES_KEY = "visualizer_favorites"; // Music Assistant's own MilkDrop favorites
 const REMOTE_REFRESH_MS = 60000; // how often another TV's changes are picked up
 const RESUME_MS = 3000; // wait this long after a stream ends before looking elsewhere
 const NO_FRAMES_MS = 5000; // a "playing" queue that sends nothing by then is skipped
@@ -140,6 +141,27 @@ export function createFollow({ host, token, pinned, relay, WebSocketImpl, onStat
     return shared;
   }
 
+  // Music Assistant's own web interface keeps MilkDrop favorites on the same
+  // user as a plain list, `visualizer_favorites`. Whatever it added or removed
+  // since this app last wrote that list (`mirrored`) becomes a dated change,
+  // so a star set in the web interface reaches the TVs and the other way
+  // round. Returns the dated map with those changes folded in.
+  function foldWebFavorites(allPrefs, meta) {
+    const list = allPrefs[MA_FAVORITES_KEY];
+    if (!Array.isArray(list)) return meta;
+    const ours = allPrefs[PREFS_KEY] || {};
+    const map = Object.assign({}, meta || {});
+    const now = Date.now();
+    if (!Array.isArray(ours.mirrored)) return favoritesFromList(list, map); // never mirrored: fold in as old
+    for (const name of list) if (ours.mirrored.indexOf(name) < 0 && !(map[name] && map[name].on)) map[name] = { on: true, at: now };
+    for (const name of ours.mirrored) if (list.indexOf(name) < 0 && map[name] && map[name].on) map[name] = { on: false, at: now };
+    return map;
+  }
+
+  function onNames(meta) {
+    return Object.keys(meta || {}).filter((n) => meta[n] && meta[n].on).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+  }
+
   // How many favorites are on in a dated map, or the length of a list.
   function count(value) {
     if (Array.isArray(value)) return value.length;
@@ -191,6 +213,7 @@ export function createFollow({ host, token, pinned, relay, WebSocketImpl, onStat
   function pushSave() {
     if (!pendingSave || remotePrefs === null || !socket || socket.readyState !== 1 || !authed) return;
     const theirs = sharedOf(remotePrefs[PREFS_KEY] || {});
+    theirs.favoritesMeta = foldWebFavorites(remotePrefs, theirs.favoritesMeta);
     const mine = sharedOf(pendingSave);
     const merged = {};
     for (const key of sharedKeys || []) {
@@ -206,6 +229,11 @@ export function createFollow({ host, token, pinned, relay, WebSocketImpl, onStat
     ours.devices = Object.assign({}, ours.devices || {});
     ours.devices[deviceId] = device;
     const preferences = Object.assign({}, remotePrefs);
+    if (ours.favoritesMeta) {
+      // Music Assistant's web interface reads the plain list.
+      preferences[MA_FAVORITES_KEY] = onNames(ours.favoritesMeta);
+      ours.mirrored = preferences[MA_FAVORITES_KEY];
+    }
     preferences[PREFS_KEY] = ours;
     pendingSave = null;
     socket.send(JSON.stringify({ message_id: "save", command: "auth/user/update", args: { preferences } }));
@@ -252,12 +280,14 @@ export function createFollow({ host, token, pinned, relay, WebSocketImpl, onStat
         // The first read always reaches the page (it restores settings); later
         // ones are skipped while a save is waiting, which gets merged instead.
         note("read " + count(sharedOf(ours).favoritesMeta) + (base === null ? " (first)" : pendingSave ? " (for a save)" : ""));
+        const shared = sharedOf(ours);
+        shared.favoritesMeta = foldWebFavorites(remotePrefs, shared.favoritesMeta);
         if (base === null) {
           base = {}; // nothing merged yet: a first save adds to the account's lists
-          if (onRemotePrefs) onRemotePrefs(sharedOf(ours), (ours.devices || {})[deviceId] || {});
+          if (onRemotePrefs) onRemotePrefs(shared, (ours.devices || {})[deviceId] || {});
         } else if (!pendingSave) {
-          base = sharedOf(ours);
-          if (onRemotePrefs) onRemotePrefs(sharedOf(ours), (ours.devices || {})[deviceId] || {});
+          base = shared;
+          if (onRemotePrefs) onRemotePrefs(shared, (ours.devices || {})[deviceId] || {});
         }
         if (pendingSave) pushSave();
         clearTimeout(refreshTimer);

@@ -65,9 +65,10 @@ Music Assistant's queue, so they are as complete as its metadata.
 Settings are kept on the TV and mirrored to the Music Assistant user the app
 logs in as (in that user's preferences), so a reinstall that wipes the TV's
 app storage gets them back on the next launch. Favorites are shared by every
-TV using the account, and a change made on one TV reaches the others within a
-minute; everything else (sync trim, skipped presets, chosen preset, menu
-settings) is stored per TV.
+TV using the account and with Music Assistant's own MilkDrop favorites for
+that user (the star in its web interface), so they can be marked anywhere; a
+change reaches the other devices within a minute. Everything else (sync trim,
+skipped presets, chosen preset, menu settings) is stored per TV.
 
 ## Settings
 
