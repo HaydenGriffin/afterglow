@@ -1,6 +1,6 @@
 {
   "id": "net.botworth.vizman",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "vendor": "Michael Nestrud",
   "type": "web",
   "main": "index.html",

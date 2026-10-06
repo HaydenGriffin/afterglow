@@ -71,6 +71,7 @@ export function createMilkdropMode(onFail, onNotice) {
   let favorites = favoriteNames(favMeta);
   let onlyFavorites = loadPref("onlyFavorites", loadPref("onlyFavourites", false));
   let rotateSeconds = loadPref("presetRotate", 0);
+  let randomOrder = loadPref("presetRandom", false); // up/down pick at random instead of in order
   // frame-rate watch for the current preset
   let windowTime = 0;
   let windowFrames = 0;
@@ -114,9 +115,11 @@ export function createMilkdropMode(onFail, onNotice) {
     return !onlyFavorites || !favorites.length || favorites.indexOf(name) >= 0;
   }
 
-  // Move to the next listed preset in `direction`.
+  // Move to the next listed preset in `direction`, or to a random one when
+  // browsing in random order.
   function step(direction, blend) {
     if (!visualizer || !names.length) return;
+    if (randomOrder) return random();
     for (let tried = 0; tried < names.length; tried++) {
       index = (index + direction + names.length) % names.length;
       if (listed(names[index])) break;
@@ -237,6 +240,7 @@ export function createMilkdropMode(onFail, onNotice) {
       favorites = favoriteNames(favMeta);
       onlyFavorites = loadPref("onlyFavorites", false);
       rotateSeconds = loadPref("presetRotate", 0);
+      randomOrder = loadPref("presetRandom", false);
     },
     forgetSlow() {
       slow = [];
@@ -267,6 +271,13 @@ export function createMilkdropMode(onFail, onNotice) {
     },
     get slowCount() {
       return slow.length;
+    },
+    get randomOrder() {
+      return randomOrder;
+    },
+    set randomOrder(on) {
+      randomOrder = on;
+      savePref("presetRandom", on);
     },
     get rotateSeconds() {
       return rotateSeconds;

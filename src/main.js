@@ -200,6 +200,12 @@ function boot(event) {
       },
     },
     {
+      label: "Preset order",
+      visible: () => engine.mode === milkdrop,
+      value: () => (milkdrop.randomOrder ? "random" : "in order"),
+      change: () => (milkdrop.randomOrder = !milkdrop.randomOrder),
+    },
+    {
       label: "Change preset",
       visible: () => engine.mode === milkdrop,
       value: () => (milkdrop.rotateSeconds ? "every " + (milkdrop.rotateSeconds < 60 ? milkdrop.rotateSeconds + " s" : milkdrop.rotateSeconds / 60 + " min") : "never"),

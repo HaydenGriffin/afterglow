@@ -43,8 +43,8 @@ needs a long-lived token for a Music Assistant user.
 | Key | Action |
 |---|---|
 | ← / → | Previous / next visualizer |
-| ↑ / ↓ | MilkDrop: next / previous preset, within all presets or just the favorites |
-| OK | Menu: visualizer, preset, favorite, preset list (all / favorites), preset timer, track info, sync trim, Winamp colours, auto level, frame rate cap, hold screen when idle, debug readout |
+| ↑ / ↓ | MilkDrop: next / previous preset, within all presets or just the favorites, in order or at random ("Preset order" in the menu) |
+| OK | Menu: visualizer, preset, favorite, preset list (all / favorites), preset order (in order / random), preset timer, track info, sync trim, Winamp colours, auto level, frame rate cap, hold screen when idle, debug readout |
 | Red / Green | Sync trim −25 ms / +25 ms |
 | Yellow | MilkDrop: add or remove the preset from the favorites |
 | Blue | MilkDrop: switch between all presets and the favorites |
