@@ -30,7 +30,11 @@ Music Assistant's **MilkDrop Visualizer** plugin streams the waveform of
 whatever a player is playing over a WebSocket (`/milkdrop_visualizer`), a few
 seconds ahead of time, along with beats and album colours. The app:
 
-- finds a player whose queue is playing (or uses the one named in `player`),
+- keeps Music Assistant's player and queue lists through its API (events, with
+  a snapshot every 10–30 s) and watches whichever queue is playing, or the one
+  named in `player`,
+- resolves a picked speaker to what sounds on it: in a Sonos group every member
+  sounds the leader's queue, and that is what gets drawn,
 - buffers the frames and shows each when the server's clock reaches it,
 - downsamples hi-res streams (96 kHz, 192 kHz) to about 48 kHz,
 - levels quiet tracks so they still fill the display.
@@ -44,7 +48,7 @@ needs a long-lived token for a Music Assistant user.
 |---|---|
 | ← / → | Previous / next visualizer |
 | ↑ / ↓ | MilkDrop: next / previous preset, within all presets or just the favorites, in order or at random ("Preset order" in the menu) |
-| OK | Menu: visualizer, preset, favorite, preset list (all / favorites), preset order (in order / random), preset timer, track info, sync trim, Winamp colours, auto level, frame rate cap, hold screen when idle, debug readout |
+| OK | Menu: visualizer, player, preset, favorite, preset list (all / favorites), preset order (in order / random), preset timer, track info, sync trim, Winamp colours, auto level, frame rate cap, hold screen when idle, debug readout |
 | Red / Green | Sync trim −25 ms / +25 ms |
 | Yellow | MilkDrop: add or remove the preset from the favorites |
 | Blue | MilkDrop: switch between all presets and the favorites |
@@ -53,6 +57,16 @@ In a browser, F and L stand in for yellow and blue, R and G for red and green;
 arrows, Enter and Escape work as on the remote. Favorites marked in the
 browser sync to the TVs through the account like any other.
 | Back | Close the menu, or leave the app |
+
+"Player" in the menu picks a speaker. "Auto" draws whatever is playing, the
+most recently started queue when several are, and stays with it until it
+stops. A picked speaker is drawn whenever music plays on it, switching to it
+the moment it starts; while it is silent, Auto fills in. Sync groups are
+resolved by Music Assistant: pick any speaker in a group and its group's music
+is drawn, and moving between speakers of one group changes nothing. The list
+holds the real, available speakers (no group entities), and the choice is
+kept per TV. A speaker that claims to play but has nothing Music Assistant
+decodes (a Sonos playing Spotify on its own, a TV input) is passed over.
 
 While music plays the app stops the TV's screensaver from starting; when it
 stops, the screensaver runs as usual unless "Hold screen when idle" is on.
@@ -68,7 +82,7 @@ app storage gets them back on the next launch. Favorites are shared by every
 TV using the account and with Music Assistant's own MilkDrop favorites for
 that user (the star in its web interface), so they can be marked anywhere; a
 change reaches the other devices within a minute. Everything else (sync trim,
-skipped presets, chosen preset, menu settings) is stored per TV.
+picked player, skipped presets, chosen preset, menu settings) is stored per TV.
 
 ## Settings
 
@@ -78,7 +92,7 @@ Copy `config.example.json` to `config.local.json` (git-ignored):
 |---|---|
 | `host` | Music Assistant's address. An IP; `host:port` if it is not on 8095 |
 | `token` | Long-lived Music Assistant token |
-| `player` | Optional: a player id to watch instead of following whatever plays |
+| `player` | Optional: a player id to watch and nothing else (the Player row in the menu is then hidden) |
 | `holdWhenIdle` | Keep the screensaver off while nothing plays |
 | `report` | Address of a running dev server to report to (testing only) |
 

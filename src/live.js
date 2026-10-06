@@ -46,7 +46,10 @@ export function createLive(settings) {
       },
       state(state) {
         if (state === "rejected") problem = "Token rejected or expired. Rebuild with a new token.";
-        else if (state === "open") problem = "";
+        else if (state === "open") {
+          problem = "";
+          follow.noteRelayOpen();
+        }
       },
     },
   });
@@ -55,6 +58,7 @@ export function createLive(settings) {
     host: settings.host,
     token: settings.token,
     pinned: settings.player,
+    preferred: loadPref("preferredPlayer", ""),
     relay,
     onState(state) {
       if (state === "rejected") problem = "Token rejected or expired. Rebuild with a new token.";
@@ -118,6 +122,23 @@ export function createLive(settings) {
     reloadTrim() {
       trimMs = loadPref("trim", 0);
     },
+    // The speakers that can be picked, and the pick ("" for automatic).
+    speakers() {
+      return follow.speakers();
+    },
+    setPreferred(playerId) {
+      follow.setPreferred(playerId);
+    },
+    reloadPreferred() {
+      follow.setPreferred(loadPref("preferredPlayer", ""));
+    },
+    get preferred() {
+      return follow.preferred;
+    },
+    // What is being watched: {queueId, playerId, name, reason}, or null.
+    get following() {
+      return follow.following;
+    },
     nudgeTrim(deltaMs) {
       trimMs = Math.max(-TRIM_LIMIT_MS, Math.min(TRIM_LIMIT_MS, trimMs + deltaMs));
       savePref("trim", trimMs);
@@ -135,7 +156,7 @@ export function createLive(settings) {
       const nowUs = relay.clock.ready ? relay.clock.serverUs(performance.now()) : 0;
       return {
         relay: relay.state + (relay.reconnects ? " (" + relay.reconnects + " reconnects)" : ""),
-        follow: follow.state + (follow.player ? " " + follow.player : ""),
+        follow: follow.state + (follow.following ? " " + follow.following.name + " (" + follow.following.reason + ")" : follow.player ? " " + follow.player : ""),
         clock: relay.clock.ready ? "delay " + relay.clock.delayMs.toFixed(1) + "ms" : "syncing",
         buffer: timeline.buffered + " frames, " + (timeline.leadUs(nowUs) / 1e6).toFixed(1) + "s ahead, " + timeline.sourceRate + "Hz source",
         trim: trimMs + "ms",

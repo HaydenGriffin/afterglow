@@ -122,7 +122,10 @@ function boot(event) {
     holdWhenIdle = loadPref("holdWhenIdle", settings.holdWhenIdle);
     engine.setFpsCap(loadPref("fpsCap", 60));
     milkdrop.reloadPrefs();
-    if (live) live.reloadTrim();
+    if (live) {
+      live.reloadTrim();
+      live.reloadPreferred();
+    }
     // The track card is re-shown only if its setting actually changed, not
     // on every sync with the account.
     const nextTrackMode = loadPref("trackInfo", "start");
@@ -177,6 +180,29 @@ function boot(event) {
       label: "Visualizer",
       value: () => (engine.mode ? engine.mode.name : ""),
       change: (direction) => (direction < 0 ? engine.prev() : engine.next()),
+    },
+    {
+      // Which speaker to draw. Automatic follows whatever plays; a picked
+      // speaker is followed whenever it plays and automatic fills in when it
+      // is silent. What sounds on a speaker in a sync group is its group's
+      // music, which Music Assistant resolves.
+      label: "Player",
+      visible: () => !!live && !settings.player,
+      value: () => {
+        const picked = live.preferred;
+        const now = live.following;
+        if (!picked) return "Auto" + (now ? " \u2192 " + now.name : "");
+        const speaker = live.speakers().filter((s) => s.id === picked)[0];
+        if (!speaker) return picked + " (unavailable)";
+        return speaker.name + (now && now.reason === "preferred" ? " \u25B6" : "");
+      },
+      change(direction) {
+        const ids = [""].concat(live.speakers().map((s) => s.id));
+        const at = Math.max(0, ids.indexOf(live.preferred));
+        const next = ids[(at + direction + ids.length) % ids.length];
+        savePref("preferredPlayer", next);
+        live.setPreferred(next);
+      },
     },
     {
       label: "Preset",
@@ -291,6 +317,7 @@ function boot(event) {
         slowPresets: milkdrop.slowCount,
         favorites: milkdrop.favoriteCount + (milkdrop.onlyFavorites ? " (browsing favorites)" : ""),
         prefsSaved: Object.keys(allPrefs()).length + " keys, device " + settings.deviceId,
+        player: live && live.following ? live.following.name + " / " + live.following.queueId + " (" + live.following.reason + ")" : "-",
         track: live && live.track ? live.track.artist + " / " + live.track.title : "-",
         trackInfo: trackMode + (trackCard.className === "shown" ? ", card shown" : ""),
         fps: engine.fps + " (cap " + engine.fpsCap + ")",

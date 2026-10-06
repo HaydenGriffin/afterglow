@@ -142,6 +142,25 @@ test("the relay authenticates first, then pings and forwards frames", (t) => {
   assert.deepEqual(seen.slice(-2), [["start"], ["wave", 9100000, 77]]);
 });
 
+test("connecting to another player says goodbye on the old socket and ends its stream", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { Fake, made } = fakeSockets();
+  const ends = [];
+  const relay = createRelay({ host: "h", token: "t", WebSocketImpl: Fake, now: () => 0, handlers: { end: () => ends.push(1) } });
+  relay.connect("a");
+  made[0].open();
+  made[0].text({ type: "auth_ok" });
+  relay.connect("b");
+  assert.equal(made.length, 2);
+  assert.equal(made[0].readyState, 3, "the first socket was closed");
+  assert.equal(made[0].sent[made[0].sent.length - 1].type, "client/goodbye");
+  assert.equal(ends.length, 1, "the listener was told the old stream ended");
+  assert.equal(made[1].url, "ws://h:8095/milkdrop_visualizer?player=b");
+  made[0].onclose({ code: 1006 });
+  t.mock.timers.tick(60000);
+  assert.equal(made.length, 2, "the old socket's close did not start a reconnect");
+});
+
 test("a rejected token is not retried; any other close is, with a fresh socket", (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const { Fake, made } = fakeSockets();

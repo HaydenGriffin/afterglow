@@ -199,25 +199,35 @@ export function createRelay({ host, token, handlers, WebSocketImpl, now }) {
     ws.onerror = () => {};
   }
 
+  // Says goodbye on the current socket, if any, and forgets it. The old
+  // socket's callbacks are ignored from here on (the generation moves).
+  function leave() {
+    generation++;
+    stopTimers();
+    const old = socket;
+    socket = null;
+    if (!old) return false;
+    try {
+      old.send(JSON.stringify({ type: "client/goodbye" }));
+      old.close();
+    } catch (e) {
+      // already closed
+    }
+    return true;
+  }
+
   return {
     clock,
+    // Watches a player, dropping the socket to the previous one first so the
+    // server holds one tap per viewer. The stream ends for the listener.
     connect(playerId) {
+      if (leave()) emit("end");
       player = playerId;
       backoffMs = BACKOFF_MIN_MS;
       open();
     },
     close() {
-      generation++;
-      stopTimers();
-      if (socket) {
-        try {
-          socket.send(JSON.stringify({ type: "client/goodbye" }));
-          socket.close();
-        } catch (e) {
-          // already closed
-        }
-      }
-      socket = null;
+      leave();
       setState("closed");
     },
     get state() {

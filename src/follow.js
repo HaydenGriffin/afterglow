@@ -1,13 +1,18 @@
 // Decides which player the relay should watch, and reports what it is
 // playing. The relay binds to one player per connection and never switches,
-// so while nothing is streaming this polls Music Assistant's API socket for a
-// queue that is playing; while streaming it polls that queue for its track.
+// so this keeps Music Assistant's player and queue lists through its API
+// socket (every client gets its events; snapshots reconcile now and then)
+// and asks pick.js what to watch whenever they change. While streaming it
+// also polls the watched queue for its track.
 //   ws://<host>:8095/ws: server info, then {command:"auth"}, then commands.
 
 import { authority } from "./relay.js";
 import { favoritesFromList, mergeFavorites } from "./settings.js";
+import { choose, isSkipped, speakersOf } from "./pick.js";
 
-const POLL_MS = 3000;
+const RECONCILE_MS = 10000; // snapshot of players and queues while waiting
+const RECONCILE_STREAMING_MS = 30000; // and while streaming (events carry the rest)
+const CHOOSE_DEBOUNCE_MS = 300; // events come in bursts
 const TRACK_POLL_MS = 4000;
 const SAVE_DEBOUNCE_MS = 1500;
 const PREFS_KEY = "vizman"; // our entry in the user's preferences
@@ -17,18 +22,31 @@ const RESUME_MS = 3000; // wait this long after a stream ends before looking els
 const NO_FRAMES_MS = 5000; // a "playing" queue that sends nothing by then is skipped
 const RETRY_MS = 3000;
 const HANDSHAKE_MS = 10000; // an API socket must be logged in by then
+const EVENTS = {
+  player_added: "players",
+  player_updated: "players",
+  player_removed: "players",
+  queue_added: "queues",
+  queue_updated: "queues",
+  queue_removed: "queues",
+};
 
-export function createFollow({ host, token, pinned, relay, WebSocketImpl, onState, onTrack, onRemotePrefs, deviceId, sharedKeys }) {
+export function createFollow({ host, token, pinned, preferred, relay, WebSocketImpl, onState, onTrack, onRemotePrefs, deviceId, sharedKeys, now }) {
   const Socket = WebSocketImpl || WebSocket;
+  const clock = now || Date.now;
   let socket = null;
   let generation = 0;
   let active = false;
   let authed = false;
   let streaming = false;
-  let current = "";
-  let connectedAt = 0;
+  let current = ""; // the queue the relay is given
+  let following = null; // {queueId, playerId, name, reason} for the readout
+  let expectFramesAt = 0; // frames are due within NO_FRAMES_MS of this
   let pollTimer = 0;
-  let waitTimer = 0;
+  let trackTimer = 0;
+  let retryTimer = 0;
+  let resumeTimer = 0;
+  let chooseTimer = 0;
   let helloTimer = 0;
   let state = "idle";
   let trackId = null;
@@ -38,7 +56,13 @@ export function createFollow({ host, token, pinned, relay, WebSocketImpl, onStat
   let pendingSave = null;
   let saveTimer = 0;
   let refreshTimer = 0;
-  const skipped = {}; // queue ids that claimed to play but sent no frames
+  let players = {}; // Music Assistant's players by id, kept current
+  let queues = {}; // and its queues
+  const loaded = { players: false, queues: false }; // both snapshots seen once
+  const firstPlaying = {}; // queue id -> when it was first seen playing
+  let skipped = {}; // queue id -> {at, tries}: claimed to play, sent no frames
+  let failures = {}; // queue id -> silent tries so far, for the next wait
+  let wanted = preferred || ""; // the picked speaker, "" for automatic
 
   function setState(next) {
     if (next !== state) {
@@ -50,9 +74,12 @@ export function createFollow({ host, token, pinned, relay, WebSocketImpl, onStat
   function closeApi() {
     generation++;
     clearTimeout(pollTimer);
-    clearTimeout(waitTimer);
+    clearTimeout(trackTimer);
+    clearTimeout(retryTimer);
+    clearTimeout(resumeTimer);
+    clearTimeout(chooseTimer);
     clearTimeout(helloTimer);
-    pollTimer = waitTimer = helloTimer = 0;
+    pollTimer = trackTimer = retryTimer = resumeTimer = chooseTimer = helloTimer = 0;
     authed = false;
     clearTimeout(saveTimer);
     clearTimeout(refreshTimer);
@@ -67,40 +94,121 @@ export function createFollow({ host, token, pinned, relay, WebSocketImpl, onStat
     }
   }
 
-  function choose(queues) {
-    if (pinned) return; // only ever watching the one player
-    const playing = [];
-    for (const queue of queues) {
-      if (queue.state === "playing") playing.push(queue.queue_id);
-      else delete skipped[queue.queue_id];
+  // Keeps the queue bookkeeping as a queue's state changes: when it was first
+  // seen playing, and that a skipped queue gets a fresh chance once it stops.
+  function noteQueueState(id, before, after) {
+    const was = before && before.state === "playing";
+    const is = after && after.state === "playing";
+    if (is && !was) firstPlaying[id] = clock();
+    if (!is) {
+      delete firstPlaying[id];
+      delete skipped[id];
+      delete failures[id];
     }
-    if (current && playing.indexOf(current) >= 0 && !skipped[current]) {
-      if (Date.now() - connectedAt < NO_FRAMES_MS) return;
-      skipped[current] = true; // playing something the relay cannot read
-    }
-    for (const id of playing) {
-      if (skipped[id]) continue;
-      if (id !== current || relay.state === "closed") {
-        current = id;
-        connectedAt = Date.now();
-        relay.connect(id);
-      }
-      setState("watching");
-      return;
-    }
-    setState("waiting");
   }
 
-  function poll(gen) {
+  function applySnapshot(kind, list) {
+    const next = {};
+    const key = kind === "players" ? "player_id" : "queue_id";
+    for (const item of list) if (item && item[key]) next[item[key]] = item;
+    if (kind === "queues") {
+      for (const id in next) noteQueueState(id, queues[id], next[id]);
+      for (const id in queues) if (!next[id]) noteQueueState(id, queues[id], null);
+      queues = next;
+    } else {
+      players = next;
+    }
+    loaded[kind] = true;
+    scheduleChoose();
+  }
+
+  function applyEvent(message) {
+    const kind = EVENTS[message.event];
+    if (!kind) return; // queue_time_updated and the like: nothing to decide on
+    const table = kind === "players" ? players : queues;
+    const id = message.object_id;
+    if (!id) return;
+    if (/_removed$/.test(message.event)) {
+      if (kind === "queues") noteQueueState(id, queues[id], null);
+      delete table[id];
+    } else if (message.data && typeof message.data === "object") {
+      if (kind === "queues") noteQueueState(id, queues[id], message.data);
+      table[id] = message.data;
+      if (kind === "queues" && id === current) sawQueue(message.data);
+    }
+    scheduleChoose();
+  }
+
+  function scheduleChoose() {
+    if (chooseTimer) return;
+    chooseTimer = setTimeout(() => {
+      chooseTimer = 0;
+      if (active) decide();
+    }, CHOOSE_DEBOUNCE_MS);
+  }
+
+  function nameOf(playerId) {
+    const p = players[playerId];
+    if (p && p.name) return p.name;
+    const q = queues[playerId];
+    return (q && q.display_name) || playerId;
+  }
+
+  function switchTo(pick) {
+    current = pick.queueId;
+    streaming = false;
+    trackId = null;
+    expectFramesAt = clock();
+    relay.connect(pick.queueId);
+  }
+
+  // Works out what to watch from the lists as they stand. Runs on every
+  // change, so it must be a no-op when nothing has changed.
+  function decide() {
+    if (pinned || !active || !loaded.players || !loaded.queues) return;
+    const t = clock();
+    // The watched queue claims to play but nothing arrives: not readable.
+    // Only ever judged between streams; while frames flow, the relay is right.
+    // A skipped queue whose wait is over is tried again on the socket that is
+    // still open to it, with its time starting afresh.
+    if (current && !streaming && queues[current] && queues[current].state === "playing") {
+      const entry = skipped[current];
+      if (entry && !isSkipped(skipped, current, t, true)) {
+        delete skipped[current];
+        failures[current] = entry.tries;
+        expectFramesAt = t;
+      } else if (!entry && t - expectFramesAt > NO_FRAMES_MS) {
+        skipped[current] = { at: t, tries: (failures[current] || 0) + 1 };
+      }
+    }
+    const pick = choose({ players, queues, current, streaming, preferred: wanted, skipped, firstPlaying, now: t });
+    if (!pick) {
+      following = null;
+      setState("waiting");
+      return;
+    }
+    following = { queueId: pick.queueId, playerId: pick.playerId, name: nameOf(pick.playerId), reason: pick.reason };
+    if (pick.queueId !== current || relay.state === "closed") switchTo(pick);
+    setState("watching");
+  }
+
+  // Fresh copies of both lists, in case an event was missed.
+  function reconcile(gen) {
     if (gen !== generation || !socket || socket.readyState !== 1) return;
     clearTimeout(pollTimer);
-    if (streaming && current) {
-      socket.send(JSON.stringify({ message_id: "queue", command: "player_queues/get", args: { queue_id: current } }));
-      pollTimer = setTimeout(() => poll(gen), TRACK_POLL_MS);
-    } else {
-      socket.send(JSON.stringify({ message_id: "queues", command: "player_queues/all" }));
-      pollTimer = setTimeout(() => poll(gen), POLL_MS);
-    }
+    socket.send(JSON.stringify({ message_id: "players", command: "players/all" }));
+    socket.send(JSON.stringify({ message_id: "queues", command: "player_queues/all" }));
+    pollTimer = setTimeout(() => reconcile(gen), streaming ? RECONCILE_STREAMING_MS : RECONCILE_MS);
+  }
+
+  // What the watched queue is playing, while it streams.
+  function trackPoll(gen) {
+    if (gen !== generation || !socket || socket.readyState !== 1) return;
+    clearTimeout(trackTimer);
+    trackTimer = 0;
+    if (!streaming || !current) return;
+    socket.send(JSON.stringify({ message_id: "queue", command: "player_queues/get", args: { queue_id: current } }));
+    trackTimer = setTimeout(() => trackPoll(gen), TRACK_POLL_MS);
   }
 
   // What the watched queue is playing, in the shape the track card shows.
@@ -264,16 +372,23 @@ export function createFollow({ host, token, pinned, relay, WebSocketImpl, onStat
           const again = authed;
           authed = true;
           ws.send(JSON.stringify({ message_id: "me", command: "auth/me" }));
-          if (!again) poll(gen);
+          if (!again) {
+            reconcile(gen);
+            if (streaming) trackPoll(gen);
+          }
         } else {
           setState("rejected");
           closeApi();
         }
+      } else if (message.message_id === "players" && Array.isArray(message.result)) {
+        applySnapshot("players", message.result);
       } else if (message.message_id === "queues" && Array.isArray(message.result)) {
-        choose(message.result);
-        for (const queue of message.result) if (queue.queue_id === current) sawQueue(queue);
+        applySnapshot("queues", message.result);
+        if (current && queues[current]) sawQueue(queues[current]);
       } else if (message.message_id === "queue" && message.result) {
         sawQueue(message.result);
+      } else if (message.event) {
+        applyEvent(message);
       } else if (message.message_id === "me" && message.result) {
         remotePrefs = message.result.preferences || {};
         const ours = remotePrefs[PREFS_KEY] || {};
@@ -307,7 +422,9 @@ export function createFollow({ host, token, pinned, relay, WebSocketImpl, onStat
       if (gen !== generation) return;
       socket = null;
       clearTimeout(pollTimer);
-      if (active && state !== "rejected") waitTimer = setTimeout(openApi, RETRY_MS);
+      clearTimeout(trackTimer);
+      pollTimer = trackTimer = 0;
+      if (active && state !== "rejected") retryTimer = setTimeout(openApi, RETRY_MS);
     };
     ws.onerror = () => {};
   }
@@ -329,29 +446,53 @@ export function createFollow({ host, token, pinned, relay, WebSocketImpl, onStat
       active = false;
       closeApi();
       current = "";
+      following = null;
       trackId = null;
+      players = {};
+      queues = {};
+      loaded.players = loaded.queues = false;
+      skipped = {};
+      failures = {};
       setState("idle");
     },
     // The relay delivered a frame: the right player is being watched.
     noteFrame() {
       if (streaming) return;
       streaming = true;
+      delete skipped[current];
+      delete failures[current];
       if (!pinned) setState("watching");
-      poll(generation);
+      trackPoll(generation);
     },
     // The stream stopped. Keep the relay socket (the same player may resume)
-    // and, after a pause, start looking for another one.
+    // and, after a pause, see whether something else should be watched.
     noteEnd() {
       if (!streaming) return;
       streaming = false;
+      expectFramesAt = clock();
       if (active && !pinned) {
-        clearTimeout(waitTimer);
-        waitTimer = setTimeout(() => poll(generation), RESUME_MS);
+        clearTimeout(resumeTimer);
+        resumeTimer = setTimeout(() => {
+          resumeTimer = 0;
+          decide();
+        }, RESUME_MS);
       }
+    },
+    // The relay is logged in (again): give the queue its time to send.
+    noteRelayOpen() {
+      expectFramesAt = clock();
     },
     // A new track is starting on the relay: look up what it is straight away.
     noteClear() {
-      poll(generation);
+      trackPoll(generation);
+    },
+    // The speaker to prefer ("" for automatic); takes effect at once.
+    setPreferred(playerId) {
+      wanted = playerId || "";
+      scheduleChoose();
+    },
+    speakers() {
+      return speakersOf(players);
     },
     // Save a snapshot of the preferences remotely; sent once things settle,
     // and never before the remote copy has been read and merged.
@@ -362,7 +503,9 @@ export function createFollow({ host, token, pinned, relay, WebSocketImpl, onStat
     },
     // The relay refused this player.
     noteError() {
-      if (!pinned && current) skipped[current] = true;
+      if (pinned || !current) return;
+      skipped[current] = { at: clock(), tries: (failures[current] || 0) + 1 };
+      scheduleChoose();
     },
     get state() {
       return state;
@@ -372,6 +515,12 @@ export function createFollow({ host, token, pinned, relay, WebSocketImpl, onStat
     },
     get player() {
       return current;
+    },
+    get preferred() {
+      return wanted;
+    },
+    get following() {
+      return following;
     },
   };
 }

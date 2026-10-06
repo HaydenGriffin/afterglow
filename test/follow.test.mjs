@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createFollow } from "../src/follow.js";
 
-function harness(t, pinned = "", onTrack, onRemotePrefs) {
+function harness(t, pinned = "", onTrack, onRemotePrefs, preferred = "") {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
   const sockets = [];
   class Fake {
@@ -26,13 +26,35 @@ function harness(t, pinned = "", onTrack, onRemotePrefs) {
       this.receive({ server_version: "2.10.5" });
       this.receive({ message_id: "auth", result: { authenticated: true } });
     }
-    queues(states) {
+    // A players snapshot: {id: {name, synced_to, ...}} or a list of ids.
+    players(spec) {
+      const ids = Array.isArray(spec) ? spec : Object.keys(spec);
+      const result = ids.map((id) => Object.assign({ player_id: id, name: id, type: "player", available: true, enabled: true }, Array.isArray(spec) ? {} : spec[id]));
+      this.receive({ message_id: "players", result });
+    }
+    // A queues snapshot, {id: state}. Also sends a matching players snapshot
+    // for any id not yet described, so decisions can be made; settles the
+    // debounce.
+    queues(states, extraPlayers) {
+      this.players(Object.assign({}, Object.fromEntries(Object.keys(states).map((id) => [id, {}])), extraPlayers || {}));
       this.receive({ message_id: "queues", result: Object.keys(states).map((id) => ({ queue_id: id, state: states[id] })) });
+      t.mock.timers.tick(300);
+    }
+    event(name, id, data) {
+      this.receive({ event: name, object_id: id, data });
+      t.mock.timers.tick(300);
     }
   }
-  const relay = { connects: [], state: "closed", connect(id) { this.connects.push(id); this.state = "open"; } };
-  const follow = createFollow({ host: "h", token: "tok", pinned, relay, WebSocketImpl: Fake, onTrack, onRemotePrefs, deviceId: "cx", sharedKeys: ["favorites"] });
-  return { follow, relay, sockets };
+  const relay = {
+    connects: [],
+    state: "closed",
+    connect(id) {
+      this.connects.push(id);
+      this.state = "open";
+    },
+  };
+  const follow = createFollow({ host: "h", token: "tok", pinned, preferred, relay, WebSocketImpl: Fake, onTrack, onRemotePrefs, deviceId: "cx", sharedKeys: ["favorites"] });
+  return { follow, relay, sockets, last: () => sockets[0].sent[sockets[0].sent.length - 1] };
 }
 
 test("a pinned player is connected straight away; the API is only used for track info", (t) => {
@@ -44,34 +66,46 @@ test("a pinned player is connected straight away; the API is only used for track
   assert.deepEqual(relay.connects, ["RINCON_PIN"], "never switches away from the pinned player");
 });
 
-test("it logs in, polls, and connects the relay to the first playing queue", (t) => {
+test("it logs in, asks for players and queues, and connects the relay to the playing queue", (t) => {
   const { follow, relay, sockets } = harness(t);
   follow.start();
   assert.equal(sockets[0].url, "ws://h:8095/ws");
   sockets[0].login();
-  assert.deepEqual(sockets[0].sent.map((m) => m.command), ["auth", "auth/me", "player_queues/all"]);
+  assert.deepEqual(sockets[0].sent.map((m) => m.command), ["auth", "auth/me", "players/all", "player_queues/all"]);
   assert.equal(sockets[0].sent[0].args.token, "tok");
 
   sockets[0].queues({ a: "idle", b: "idle" });
   assert.deepEqual(relay.connects, []);
   assert.equal(follow.state, "waiting");
 
-  t.mock.timers.tick(3000);
-  assert.equal(sockets[0].sent.length, 4, "polled again");
+  t.mock.timers.tick(10000);
+  assert.equal(sockets[0].sent.length, 6, "both lists are fetched again");
   sockets[0].queues({ a: "idle", b: "playing", c: "playing" });
-  assert.deepEqual(relay.connects, ["b"]);
+  assert.deepEqual(relay.connects, ["b"], "same start, so by name");
   assert.equal(follow.state, "watching");
+  assert.deepEqual(follow.following, { queueId: "b", playerId: "b", name: "b", reason: "auto" });
+});
+
+test("nothing is decided until both lists have arrived", (t) => {
+  const { follow, relay, sockets } = harness(t);
+  follow.start();
+  sockets[0].login();
+  sockets[0].receive({ message_id: "queues", result: [{ queue_id: "a", state: "playing" }] });
+  sockets[0].event("queue_updated", "a", { queue_id: "a", state: "playing" });
+  assert.deepEqual(relay.connects, [], "no players yet");
+  sockets[0].players(["a"]);
+  t.mock.timers.tick(300);
+  assert.deepEqual(relay.connects, ["a"]);
 });
 
 test("once frames flow it polls the watched queue for its track; after the stream ends it looks around again", (t) => {
   const tracks = [];
-  const { follow, relay, sockets } = harness(t, "", (track) => tracks.push(track));
+  const { follow, relay, sockets, last } = harness(t, "", (track) => tracks.push(track));
   follow.start();
   sockets[0].login();
   sockets[0].queues({ a: "playing" });
   follow.noteFrame();
   assert.equal(sockets[0].readyState, 1, "API socket stays open while streaming");
-  const last = () => sockets[0].sent[sockets[0].sent.length - 1];
   assert.deepEqual(last(), { message_id: "queue", command: "player_queues/get", args: { queue_id: "a" } });
 
   sockets[0].receive({ message_id: "queue", result: { queue_id: "a", current_item: { queue_item_id: "i1", name: "x", media_item: { name: "Would?", artists: [{ name: "Alice In Chains" }], album: { name: "Dirt", year: 1992 }, metadata: { label: "Columbia" } } } } });
@@ -82,11 +116,15 @@ test("once frames flow it polls the watched queue for its track; after the strea
   t.mock.timers.tick(4000);
   assert.equal(last().command, "player_queues/get", "keeps asking about the track while streaming");
 
+  // An event about the watched queue updates the track at once.
+  sockets[0].event("queue_updated", "a", { queue_id: "a", state: "playing", current_item: { queue_item_id: "i2", name: "y", media_item: { name: "Rooster" } } });
+  assert.equal(tracks[1].title, "Rooster");
+
+  sockets[0].queues({ a: "idle", b: "playing" });
+  assert.deepEqual(relay.connects, ["a"], "while frames flow, the relay decides");
   follow.noteEnd();
   t.mock.timers.tick(3000);
-  assert.equal(last().command, "player_queues/all", "back to looking for a playing queue");
-  sockets[0].queues({ a: "idle", b: "playing" });
-  assert.deepEqual(relay.connects, ["a", "b"]);
+  assert.deepEqual(relay.connects, ["a", "b"], "after the stream ends, the other playing queue is taken");
 });
 
 test("a radio stream's single 'Artist - Title' string is split; no item means no track", (t) => {
@@ -106,24 +144,130 @@ test("a queue that claims to play but sends nothing is skipped until it stops", 
   const { follow, relay, sockets } = harness(t);
   follow.start();
   sockets[0].login();
-  sockets[0].queues({ tv: "playing", office: "playing" });
-  assert.deepEqual(relay.connects, ["tv"]);
+  sockets[0].queues({ office: "playing", tv: "playing" });
+  assert.deepEqual(relay.connects, ["office"]);
 
   t.mock.timers.tick(3000);
-  sockets[0].queues({ tv: "playing", office: "playing" });
-  assert.deepEqual(relay.connects, ["tv"], "still within the grace period");
+  sockets[0].queues({ office: "playing", tv: "playing" });
+  assert.deepEqual(relay.connects, ["office"], "still within the grace period");
 
   t.mock.timers.tick(3000);
-  sockets[0].queues({ tv: "playing", office: "playing" });
-  assert.deepEqual(relay.connects, ["tv", "office"]);
+  sockets[0].queues({ office: "playing", tv: "playing" });
+  assert.deepEqual(relay.connects, ["office", "tv"]);
 
-  // tv stops, then plays again: it gets another chance
+  // office stops, then plays again: it gets another chance
   follow.noteFrame();
   follow.noteEnd();
   t.mock.timers.tick(3000);
-  sockets[0].queues({ tv: "idle", office: "idle" });
-  sockets[0].queues({ tv: "playing", office: "idle" });
-  assert.deepEqual(relay.connects, ["tv", "office", "tv"]);
+  sockets[0].queues({ office: "idle", tv: "idle" });
+  sockets[0].queues({ office: "playing", tv: "idle" });
+  assert.deepEqual(relay.connects, ["office", "tv", "office"]);
+});
+
+test("a stream that ends and resumes on the same queue is not mistaken for a silent one", (t) => {
+  const { follow, relay, sockets } = harness(t);
+  follow.start();
+  sockets[0].login();
+  sockets[0].queues({ a: "playing", b: "playing" });
+  follow.noteFrame();
+  t.mock.timers.tick(60000);
+  follow.noteEnd(); // a pause, or the relay reconnecting
+  t.mock.timers.tick(3000);
+  sockets[0].queues({ a: "playing", b: "playing" });
+  assert.deepEqual(relay.connects, ["a"], "a is kept: its 5 s start again at the end");
+  follow.noteRelayOpen();
+  t.mock.timers.tick(4000);
+  sockets[0].queues({ a: "playing", b: "playing" });
+  assert.deepEqual(relay.connects, ["a"], "and again when the relay logs in");
+  t.mock.timers.tick(6000);
+  sockets[0].queues({ a: "playing", b: "playing" });
+  assert.deepEqual(relay.connects, ["a", "b"], "only after a real silence is it skipped");
+});
+
+test("a skipped queue is tried again while nothing else plays", (t) => {
+  const { follow, relay, sockets } = harness(t);
+  follow.start();
+  sockets[0].login();
+  sockets[0].queues({ a: "playing" });
+  t.mock.timers.tick(6000);
+  sockets[0].queues({ a: "playing" });
+  assert.equal(follow.state, "waiting", "a sent nothing");
+  t.mock.timers.tick(10000);
+  sockets[0].queues({ a: "playing" });
+  assert.equal(follow.state, "waiting", "not yet");
+  t.mock.timers.tick(6000);
+  sockets[0].queues({ a: "playing" });
+  assert.equal(follow.state, "watching", "tried again after 15 s, on the socket that is still open");
+  assert.deepEqual(relay.connects, ["a"]);
+  t.mock.timers.tick(3000);
+  sockets[0].queues({ a: "playing" });
+  assert.equal(follow.state, "watching", "its 5 s start again");
+  t.mock.timers.tick(3000);
+  sockets[0].queues({ a: "playing" });
+  assert.equal(follow.state, "waiting", "silent again: skipped, now for 30 s");
+  t.mock.timers.tick(20000);
+  sockets[0].queues({ a: "playing" });
+  assert.equal(follow.state, "waiting");
+  t.mock.timers.tick(11000);
+  sockets[0].queues({ a: "playing" });
+  assert.equal(follow.state, "watching");
+  follow.noteFrame();
+  assert.equal(follow.state, "watching", "frames at last");
+});
+
+test("the preferred speaker is taken when it starts, even mid-stream, and its group needs no reconnect", (t) => {
+  const { follow, relay, sockets } = harness(t, "", null, null, "office");
+  follow.start();
+  sockets[0].login();
+  sockets[0].queues({ office: "idle", kitchen: "playing" });
+  follow.noteFrame();
+  assert.deepEqual(relay.connects, ["kitchen"]);
+  assert.equal(follow.following.reason, "auto");
+
+  sockets[0].event("queue_updated", "office", { queue_id: "office", state: "playing" });
+  assert.deepEqual(relay.connects, ["kitchen", "office"], "switched as soon as the event came");
+  assert.deepEqual(follow.following, { queueId: "office", playerId: "office", name: "office", reason: "preferred" });
+
+  // The office joins the kitchen's group: it now sounds the kitchen's queue.
+  follow.noteFrame();
+  sockets[0].event("player_updated", "office", { player_id: "office", name: "office", type: "player", available: true, synced_to: "kitchen" });
+  sockets[0].event("queue_updated", "office", { queue_id: "office", state: "idle" });
+  assert.deepEqual(relay.connects, ["kitchen", "office", "kitchen"]);
+  assert.equal(follow.following.playerId, "office", "still the picked speaker");
+  assert.equal(follow.following.queueId, "kitchen");
+
+  // Picking the kitchen itself changes nothing on the wire.
+  follow.setPreferred("kitchen");
+  t.mock.timers.tick(300);
+  assert.deepEqual(relay.connects, ["kitchen", "office", "kitchen"]);
+  assert.equal(follow.following.playerId, "kitchen");
+});
+
+test("a preference set before the lists arrive applies once they do; progress events are ignored", (t) => {
+  const { follow, relay, sockets } = harness(t);
+  follow.start();
+  follow.setPreferred("den");
+  sockets[0].login();
+  sockets[0].queues({ den: "playing", hall: "playing" }, { hall: {} });
+  assert.deepEqual(relay.connects, ["den"]);
+  assert.equal(follow.speakers().map((s) => s.id).join(","), "den,hall");
+  for (let i = 0; i < 20; i++) sockets[0].event("queue_time_updated", "hall", 12.5 + i);
+  assert.deepEqual(relay.connects, ["den"]);
+});
+
+test("the API is reopened after a drop even when the stream ends meanwhile", (t) => {
+  const { follow, relay, sockets } = harness(t);
+  follow.start();
+  sockets[0].login();
+  sockets[0].queues({ a: "playing" });
+  follow.noteFrame();
+  sockets[0].onclose();
+  follow.noteEnd();
+  t.mock.timers.tick(3000);
+  assert.equal(sockets.length, 2, "a new API socket");
+  sockets[1].login();
+  sockets[1].queues({ a: "idle", b: "playing" });
+  assert.deepEqual(relay.connects, ["a", "b"]);
 });
 
 test("a rejected login stops the polling", (t) => {
