@@ -1,21 +1,24 @@
 // MilkDrop presets through Butterchurn (MIT, Jordan Berg). Needs WebGL2, which
 // a TV may lack or run badly, so the library is fetched only once a context
-// has been obtained, and every way it can fail leads back to `onFail`.
+// has been obtained, and every way it can fail leads to `onFail`.
 //
 // Presets differ enormously in cost: on an LG CX some hold 60 fps and others
-// manage 5. A preset that stays slow is skipped and remembered, rather than
-// MilkDrop as a whole being given up on.
-import { favoriteNames, favoritesFromList, loadPref, savePref } from "../settings.js";
+// manage 5. Every preset in the packs is shipped; which ones this TV shows by
+// default is decided by measured frame rate (validation.js), from the preset
+// scan or, until the TV has scanned, from the benchmark shipped with the app.
+import { favoriteNames, favoritesFromList, loadPref, savePref } from "./settings.js";
+import { DEFAULT_VALIDATE_FPS, LISTS, countValidated, describeValidation, isValidated, ratingOf, scanOrder, toggleValidated } from "./validation.js";
 
 const SCRIPTS = ["./vendor/butterchurn.min.js", "./vendor/presets.js"];
 const BLEND_SECONDS = 2.7;
 const PROVEN_FRAMES = 120; // frames rendered before a start counts as survived
 const SCALE = 0.5; // render size relative to the window
 const SLOW_FPS = 20;
-const SLOW_SECONDS = 4; // this long below SLOW_FPS and a preset is skipped
+const SLOW_SECONDS = 4; // this long below SLOW_FPS and a preset is marked slow
 const SETTLE_SECONDS = 4; // not judged while loading and blending in
 const GIVE_UP_AFTER = 8; // this many slow presets in a row and MilkDrop is off
 export const ROTATE_CHOICES = [0, 30, 120, 300]; // seconds; 0 = stay on the chosen preset
+export const DEFAULT_ROTATE = 120;
 
 let probed = null;
 
@@ -65,25 +68,35 @@ export function createMilkdropMode(onFail, onNotice) {
   let failed = false;
   let frames = 0;
   let sincePreset = 0;
-  let slow = loadPref("slowPresets", []);
   // Favorites with the time each was last switched on or off (settings.js).
   let favMeta = loadFavorites();
   let favorites = favoriteNames(favMeta);
-  let onlyFavorites = loadPref("onlyFavorites", loadPref("onlyFavourites", false));
-  let rotateSeconds = loadPref("presetRotate", 0);
-  let randomOrder = loadPref("presetRandom", false); // up/down pick at random instead of in order
+  let list = loadList();
+  let rotateSeconds = loadPref("presetRotate", DEFAULT_ROTATE);
+  let randomOrder = loadPref("presetRandom", true); // up/down pick at random instead of in order
+  // Validation: measurements, the person's overrides, and the threshold.
+  const validation = { rated: loadPref("rated", {}), bench: {}, overrides: loadPref("validatedOverrides", {}), validateFps: loadPref("validateFps", DEFAULT_VALIDATE_FPS) };
+  let ratingsDirty = false;
   // frame-rate watch for the current preset
   let windowTime = 0;
   let windowFrames = 0;
   let slowSeconds = 0;
   let skippedInARow = 0;
   let watching = true;
+  let scanning = false;
 
   function loadFavorites() {
     // The plain list from before the timestamps is folded in whenever present,
     // as is the map saved under its earlier spelling.
     const meta = loadPref("favoritesMeta", null) || loadPref("favouritesMeta", null);
     return favoritesFromList(loadPref("favorites", []) || loadPref("favourites", []), meta);
+  }
+
+  function loadList() {
+    const saved = loadPref("presetList", "");
+    if (LISTS.indexOf(saved) >= 0) return saved;
+    // Before the validated list there was a favorites-only switch.
+    return loadPref("onlyFavorites", false) ? "favorites" : "validated";
   }
 
   function fail(reason) {
@@ -108,11 +121,21 @@ export function createMilkdropMode(onFail, onNotice) {
     onNotice(names[index]);
   }
 
-  // Whether a preset is in the list being browsed: all of them, or the
-  // favorites (when there are any), minus the ones known to be slow.
+  // Whether a preset is in the list being browsed. A favorites list with
+  // nothing in it shows everything rather than nothing.
   function listed(name) {
-    if (slow.indexOf(name) >= 0) return false;
-    return !onlyFavorites || !favorites.length || favorites.indexOf(name) >= 0;
+    if (list === "all") return true;
+    if (list === "favorites") return !favorites.length || favorites.indexOf(name) >= 0;
+    return isValidated(name, validation);
+  }
+
+  function listedNames() {
+    return names.filter(listed);
+  }
+
+  function setList(next) {
+    list = next;
+    savePref("presetList", next);
   }
 
   // Move to the next listed preset in `direction`, or to a random one when
@@ -137,6 +160,15 @@ export function createMilkdropMode(onFail, onNotice) {
     showIndexed(BLEND_SECONDS);
   }
 
+  function commitRatings() {
+    if (!ratingsDirty) return;
+    ratingsDirty = false;
+    savePref("rated", validation.rated);
+  }
+
+  // The runtime safety net: a preset that stays slow is marked as such. The
+  // person's own choices are respected: a favorite, or a preset validated by
+  // hand, is never skipped, only measured.
   function watchFrameRate(dt) {
     windowTime += dt;
     windowFrames++;
@@ -147,10 +179,15 @@ export function createMilkdropMode(onFail, onNotice) {
     slowSeconds = fps < SLOW_FPS ? slowSeconds + 1 : 0;
     if (slowSeconds === 0 && sincePreset > SETTLE_SECONDS * 2) skippedInARow = 0;
     if (slowSeconds < SLOW_SECONDS) return;
-    slow.push(current);
-    savePref("slowPresets", slow);
+    slowSeconds = 0;
+    const name = current;
+    validation.rated = Object.assign({}, validation.rated);
+    validation.rated[name] = Math.round(fps);
+    ratingsDirty = true;
+    commitRatings();
+    if (favorites.indexOf(name) >= 0 || validation.overrides[name] === true || listed(name)) return;
     if (++skippedInARow >= GIVE_UP_AFTER) return fail("too slow on this TV");
-    onNotice("Too slow, skipped: " + current);
+    onNotice("Too slow, skipped: " + name);
     step(1, 0);
   }
 
@@ -162,10 +199,11 @@ export function createMilkdropMode(onFail, onNotice) {
       .then(() => {
         const api = window.butterchurn.default || window.butterchurn;
         presets = window.vizmanPresets || {};
+        validation.bench = window.vizmanPresetBench || {};
         names = Object.keys(presets).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
         if (!names.length) throw new Error("no presets in the package");
         index = Math.max(0, names.indexOf(loadPref("preset", "")));
-        if (slow.indexOf(names[index]) >= 0) index = Math.max(0, names.findIndex((n) => slow.indexOf(n) < 0));
+        if (!listed(names[index])) index = Math.max(0, names.findIndex(listed));
         const options = { width: canvas.width, height: canvas.height, pixelRatio: 1, meshWidth: 32, meshHeight: 24 };
         // Butterchurn only uses the audio context to tap live audio; the
         // waveform is handed to render() instead.
@@ -180,9 +218,6 @@ export function createMilkdropMode(onFail, onNotice) {
   }
 
   return {
-    id: "milkdrop",
-    name: "MilkDrop",
-    gl: true,
     scale: SCALE,
     create({ canvas }) {
       if (visualizer) {
@@ -190,7 +225,7 @@ export function createMilkdropMode(onFail, onNotice) {
         onNotice(current);
       }
       return {
-        draw(ctx, f) {
+        draw(f) {
           // Started on the first frame of audio, not on entering the mode, so
           // an idle screen never counts as a start that failed.
           if (!loading) start(canvas);
@@ -202,6 +237,7 @@ export function createMilkdropMode(onFail, onNotice) {
             return fail(String((error && error.message) || error));
           }
           if (++frames === PROVEN_FRAMES) savePref("milkdropPending", false);
+          if (scanning) return; // the scan does its own timing
           sincePreset += f.dt;
           watchFrameRate(f.dt);
           if (rotateSeconds && sincePreset >= rotateSeconds) random();
@@ -214,8 +250,7 @@ export function createMilkdropMode(onFail, onNotice) {
     select(name) {
       const at = names.indexOf(name);
       if (!visualizer || at < 0) return false;
-      onlyFavorites = false;
-      savePref("onlyFavorites", false);
+      setList("all");
       index = at;
       showIndexed(BLEND_SECONDS);
       return true;
@@ -235,16 +270,14 @@ export function createMilkdropMode(onFail, onNotice) {
     },
     // Re-read the lists after preferences arrived from elsewhere.
     reloadPrefs() {
-      slow = loadPref("slowPresets", []);
       favMeta = loadFavorites();
       favorites = favoriteNames(favMeta);
-      onlyFavorites = loadPref("onlyFavorites", false);
-      rotateSeconds = loadPref("presetRotate", 0);
-      randomOrder = loadPref("presetRandom", false);
-    },
-    forgetSlow() {
-      slow = [];
-      savePref("slowPresets", slow);
+      list = loadList();
+      rotateSeconds = loadPref("presetRotate", DEFAULT_ROTATE);
+      randomOrder = loadPref("presetRandom", true);
+      validation.rated = loadPref("rated", {});
+      validation.overrides = loadPref("validatedOverrides", {});
+      validation.validateFps = loadPref("validateFps", DEFAULT_VALIDATE_FPS);
     },
     // Add or remove the current preset; returns whether it is now a favorite.
     toggleFavorite() {
@@ -256,21 +289,49 @@ export function createMilkdropMode(onFail, onNotice) {
       savePref("favoritesMeta", favMeta);
       return on;
     },
+    // Put the current preset into, or take it out of, the validated list by
+    // hand; returns whether it is now validated.
+    toggleValidated() {
+      if (!current) return false;
+      validation.overrides = toggleValidated(current, validation);
+      savePref("validatedOverrides", validation.overrides);
+      return isValidated(current, validation);
+    },
     get isFavorite() {
       return favorites.indexOf(current) >= 0;
+    },
+    get isValidated() {
+      return !!current && isValidated(current, validation);
+    },
+    // "yes (52 fps)", "no (by you)", "not tested": for the Validated row.
+    get validationText() {
+      return current ? describeValidation(current, validation) : "";
     },
     get favoriteCount() {
       return favorites.length;
     },
-    get onlyFavorites() {
-      return onlyFavorites;
+    get validatedCount() {
+      return countValidated(names, validation);
     },
-    set onlyFavorites(on) {
-      onlyFavorites = on;
-      savePref("onlyFavorites", on);
+    get presetCount() {
+      return names.length;
     },
-    get slowCount() {
-      return slow.length;
+    get list() {
+      return list;
+    },
+    set list(next) {
+      setList(next);
+    },
+    // How many presets the list being browsed holds.
+    get listCount() {
+      return listedNames().length;
+    },
+    get validateFps() {
+      return validation.validateFps;
+    },
+    set validateFps(fps) {
+      validation.validateFps = fps;
+      savePref("validateFps", fps);
     },
     get randomOrder() {
       return randomOrder;
@@ -289,15 +350,56 @@ export function createMilkdropMode(onFail, onNotice) {
     get ready() {
       return visualizer !== null && !failed;
     },
+    get failed() {
+      return failed;
+    },
     get presetName() {
       return visualizer ? current : loading ? "loading" : "";
     },
     // "n/total", counted within the list being browsed.
     get presetPosition() {
       if (!visualizer) return "";
-      const list = names.filter(listed);
-      const at = list.indexOf(current);
-      return at < 0 ? "-/" + list.length : at + 1 + "/" + list.length;
+      const all = listedNames();
+      const at = all.indexOf(current);
+      return at < 0 ? "-/" + all.length : at + 1 + "/" + all.length;
+    },
+
+    // --- the preset scan (scan.js) ---
+    // Every preset name, in the order a scan should measure them.
+    scanOrder() {
+      return scanOrder(names, validation);
+    },
+    // Known frame rate for a preset, or undefined.
+    ratingOf(name) {
+      return ratingOf(name, validation);
+    },
+    // Load a preset for measuring: no blend, no save, no announcement.
+    showForScan(name) {
+      if (!visualizer || !(name in presets)) return false;
+      watching = false;
+      show(name, presets[name], 0);
+      return true;
+    },
+    // Record a measurement; written to the preferences by commitRatings, so a
+    // scan can record hundreds without saving each one.
+    rate(name, fps) {
+      validation.rated = Object.assign({}, validation.rated);
+      validation.rated[name] = Math.round(fps);
+      ratingsDirty = true;
+    },
+    commitRatings,
+    get scanning() {
+      return scanning;
+    },
+    set scanning(on) {
+      scanning = on;
+    },
+    // Back to the chosen preset after a scan; if it fell out of the list being
+    // browsed, on to the next one that is in it.
+    resume() {
+      if (!visualizer) return;
+      if (listed(names[index])) showIndexed(0);
+      else step(1, 0);
     },
   };
 }

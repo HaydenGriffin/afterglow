@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Usage: npm run serve-ipk   (PORT=8138 by default)
 # Serves dist/ so an installer on the TV can fetch a package by URL.
-# Stop it after the install: the package contains the app's token.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PORT="${PORT:-8138}"

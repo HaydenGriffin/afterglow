@@ -2,14 +2,13 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Viz-Man</title>
+<title>viz-man</title>
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
   #stage { position: fixed; left: 0; top: 0; width: 100%; height: 100%; transition: transform 4s linear; }
   #stage canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
-  #gl { display: none; }
   #message {
-    display: none; position: fixed; left: 0; right: 0; top: 46%;
+    display: none; position: fixed; left: 10vw; right: 10vw; top: 46%;
     text-align: center; color: #555; font: 3vh sans-serif; transition: transform 4s linear;
   }
   #hint {
@@ -39,12 +38,44 @@
   #track-title { font-size: 4.6vh; font-weight: bold; }
   #track-album, #track-label { font-size: 3.6vh; color: #eee; }
   #menu {
-    display: none; position: fixed; left: 22vw; top: 20vh; width: 56vw;
+    display: none; position: fixed; left: 22vw; top: 12vh; width: 56vw;
     padding: 2vh 0; background: rgba(0, 0, 0, 0.85); border: 1px solid #333;
-    color: #ddd; font: 2.6vh sans-serif;
+    color: #ddd; font: 2.4vh sans-serif;
   }
-  #menu .row { display: flex; justify-content: space-between; padding: 1.2vh 2vw; }
+  #menu .row { display: flex; justify-content: space-between; padding: 0.9vh 2vw; }
+  #menu .row span:last-child { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 36vw; }
   #menu .row.focus { background: #2a5; color: #000; }
+  #scan {
+    display: none; position: fixed; left: 0; right: 0; bottom: 0; padding: 3vh 6vw 5vh;
+    background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.9) 30%);
+    color: #ddd; font: 2.6vh sans-serif; text-align: center;
+  }
+  #scan .scan-title { font-size: 4vh; margin-bottom: 1vh; }
+  #scan .scan-detail { color: #bbb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #scan .scan-hint { color: #777; font-size: 2.2vh; margin-top: 1.5vh; }
+  #login {
+    display: none; position: fixed; left: 0; top: 0; width: 100%; height: 100%;
+    flex-direction: column; align-items: center; justify-content: center;
+    background: #000; color: #ddd; font: 2.6vh sans-serif;
+  }
+  #login h1 { font-size: 5vh; font-weight: normal; margin: 0 0 1vh; letter-spacing: 0.08em; }
+  #login p { color: #888; margin: 0 0 4vh; }
+  #login .field, #login .button {
+    width: 44vw; margin: 0.8vh 0; padding: 1.2vh 2vw; box-sizing: border-box;
+    border: 1px solid #333; background: rgba(255, 255, 255, 0.04);
+  }
+  #login .field { display: flex; justify-content: space-between; align-items: center; }
+  #login .field label { color: #aaa; }
+  #login .field input {
+    width: 26vw; background: transparent; border: none; border-bottom: 1px solid #444;
+    color: #fff; font: 2.6vh sans-serif; outline: none; padding: 0.4vh 0.5vw;
+  }
+  #login .field input:focus { border-bottom-color: #2a5; }
+  #login .button { text-align: center; margin-top: 2.5vh; }
+  #login .focus { border-color: #2a5; background: rgba(34, 170, 85, 0.15); }
+  #login .button.focus { background: #2a5; color: #000; }
+  #login .login-error { color: #e66; min-height: 3vh; margin-top: 2vh; max-width: 60vw; text-align: center; }
+  #login .login-note { color: #666; font-size: 2vh; margin-top: 4vh; max-width: 60vw; text-align: center; }
   #debug {
     display: none; position: fixed; left: 2vw; top: 3vh; max-width: 90vw;
     padding: 1vh 1vw; background: rgba(0, 0, 0, 0.7); color: #8f8;
@@ -53,7 +84,7 @@
 </style>
 </head>
 <body>
-<div id="stage"><canvas id="canvas"></canvas><canvas id="gl"></canvas></div>
+<div id="stage"><canvas id="gl"></canvas></div>
 <div id="message"></div>
 <div id="hint">OK: menu</div>
 <div id="toast"></div>
@@ -63,6 +94,21 @@
   <div class="line" id="track-album"></div>
   <div class="line" id="track-label"></div>
 </div></div>
+<div id="scan">
+  <div class="scan-title"></div>
+  <div class="scan-detail"></div>
+  <div class="scan-hint"></div>
+</div>
+<div id="login">
+  <h1>viz-man</h1>
+  <p>Sign in to Music Assistant</p>
+  <div class="field"><label for="login-host">Address</label><input id="login-host" type="text" placeholder="192.168.1.10 or host:8095" autocomplete="off" spellcheck="false"></div>
+  <div class="field"><label for="login-user">Username</label><input id="login-user" type="text" autocomplete="off" spellcheck="false"></div>
+  <div class="field"><label for="login-password">Password</label><input id="login-password" type="password"></div>
+  <div class="button">Sign in</div>
+  <div class="login-error"></div>
+  <div class="login-note">This TV gets its own token on the account, named after it. Remove it any time in Music Assistant under Settings, Users, or with Log out in the menu.</div>
+</div>
 <div id="menu"></div>
 <div id="debug"></div>
 <script src="./config.js"></script>

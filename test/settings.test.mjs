@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { allPrefs, hasPref, loadPref, mergePrefs, mergeSettings, normalizeParams, onPrefChange, parseQuery, readLaunchParams, savePref } from "../src/settings.js";
+import { allPrefs, clearPref, hasPref, loadPref, mergePrefs, mergeSettings, normalizeParams, onPrefChange, parseQuery, readLaunchParams, savePref } from "../src/settings.js";
 
 test("query string is parsed, with bare keys meaning on", () => {
   assert.deepEqual(parseQuery("?mock=1&player=RINCON_1&debug"), { mock: "1", player: "RINCON_1", debug: "1" });
@@ -29,11 +29,11 @@ test("query overrides launch parameters, which override the build config", () =>
 });
 
 test("flags become booleans and report=1 means the page's own server", () => {
-  const merged = mergeSettings({ holdWhenIdle: false }, {}, { mock: "1", report: "1" }, "http://192.168.113.31:8137");
+  const merged = mergeSettings({ holdWhenIdle: false }, {}, { mock: "1", report: "1" }, "http://192.168.1.10:8137");
   assert.equal(merged.mock, true);
   assert.equal(merged.debug, false);
   assert.equal(merged.holdWhenIdle, false);
-  assert.equal(merged.report, "http://192.168.113.31:8137");
+  assert.equal(merged.report, "http://192.168.1.10:8137");
   assert.equal(mergeSettings({ report: "http://host:1/" }, {}, {}, "").report, "http://host:1");
   assert.equal(mergeSettings({}, {}, {}, "http://x").report, "");
 });
@@ -67,4 +67,18 @@ test("favorites reconcile per preset by the time of the last change", async () =
   assert.deepEqual(favoritesFromList(["x"]), { x: { on: true, at: 0 } });
   assert.deepEqual(favoritesFromList(["x", "y"], { x: { on: false, at: 5 } }), { x: { on: false, at: 5 }, y: { on: true, at: 0 } }, "folded into an existing map, which keeps its entries");
   assert.deepEqual(favoriteNames(null), []);
+});
+
+test("the login and this TV's bookkeeping never leave the device, and can be forgotten", () => {
+  savePref("auth", { host: "h", token: "t" });
+  savePref("scanCurrent", "a preset");
+  savePref("dimViz", 30);
+  const all = allPrefs();
+  assert.equal("auth" in all, false);
+  assert.equal("scanCurrent" in all, false);
+  assert.equal(all.dimViz, 30);
+  assert.deepEqual(loadPref("auth"), { host: "h", token: "t" }, "still there locally");
+  clearPref("auth");
+  assert.equal(loadPref("auth", null), null);
+  assert.equal(hasPref("auth"), false);
 });

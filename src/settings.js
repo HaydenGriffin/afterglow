@@ -1,5 +1,7 @@
 // Settings come from three places, later ones winning: the build-time config
 // (window.VIS_CONFIG), webOS launch parameters, and the page's query string.
+// `host` and `token` among them are development overrides; on a TV they come
+// from the sign-in form and are kept in the `auth` preference.
 
 const BOOLEANS = ["holdWhenIdle", "mock", "debug", "noWebgl"];
 
@@ -37,6 +39,8 @@ function toBoolean(value) {
 
 export function mergeSettings(config, launch, query, origin) {
   const merged = Object.assign({ host: "", token: "", player: "", report: "" }, config, launch, query);
+  merged.host = String(merged.host || "").trim();
+  merged.token = String(merged.token || "").trim();
   for (const key of BOOLEANS) merged[key] = toBoolean(merged[key]);
   // ?report=1 means "report to the server this page came from".
   if (toBoolean(merged.report)) merged.report = origin || "";
@@ -55,8 +59,11 @@ export function readLaunchParams(win, event) {
 
 // Preferences live in localStorage, which webOS may wipe on an app update and
 // which can be unavailable altogether, so they are also kept in memory here
-// and mirrored to the Music Assistant user account (see follow.js).
+// and mirrored to the Music Assistant user account (see follow.js), except
+// for the ones below, which belong to this TV alone: its login, its identity,
+// and the bookkeeping of a MilkDrop start or a preset scan in progress.
 const PREFIX = "vis.";
+export const LOCAL_PREFS = ["auth", "deviceId", "milkdropPending", "scanCursor", "scanCurrent"];
 const memory = {};
 let changeListener = null;
 
@@ -93,7 +100,7 @@ export function hasPref(key) {
   return stored(key) !== undefined || key in memory;
 }
 
-// Every preference held locally.
+// Every preference held locally that may leave this TV.
 export function allPrefs() {
   const all = Object.assign({}, memory);
   try {
@@ -104,7 +111,18 @@ export function allPrefs() {
   } catch (e) {
     // memory copy only
   }
+  for (const key of LOCAL_PREFS) delete all[key];
   return all;
+}
+
+// Forget a preference on this TV (it is not removed from the account).
+export function clearPref(key) {
+  delete memory[key];
+  try {
+    localStorage.removeItem(PREFIX + key);
+  } catch (e) {
+    // nothing stored
+  }
 }
 
 export function onPrefChange(fn) {

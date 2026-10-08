@@ -1,10 +1,10 @@
 {
   "id": "net.botworth.vizman",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "vendor": "Michael Nestrud",
   "type": "web",
   "main": "index.html",
-  "title": "Viz-Man",
+  "title": "viz-man",
   "icon": "icon.png",
   "largeIcon": "largeIcon.png",
   "iconColor": "#000000",

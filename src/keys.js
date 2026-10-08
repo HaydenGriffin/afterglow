@@ -1,5 +1,6 @@
 // Remote control input. webOS does not move focus on arrow keys by itself, so
-// every key is handled here by keyCode.
+// every key is handled here by keyCode. While a text field has focus (the
+// sign-in form) keys are left to it, except Back, which leaves the field.
 
 const NAMES = {
   37: "left",
@@ -26,10 +27,15 @@ export function keyName(event) {
   return NAMES[event.keyCode] || "";
 }
 
+export function isTyping(target) {
+  return !!target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA");
+}
+
 export function installKeys(handler) {
   window.addEventListener("keydown", (event) => {
     const name = keyName(event);
     if (!name) return;
+    if (isTyping(event.target)) return; // login.js handles Enter and Back on its inputs
     event.preventDefault();
     handler(name);
   });

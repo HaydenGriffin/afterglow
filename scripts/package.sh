@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Usage: npm run package
 # Builds the app and packages it as dist/<id>_<version>_all.ipk.
-# The package contains the token from config.local.json.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PATH="$ROOT/node_modules/.bin:$PATH"

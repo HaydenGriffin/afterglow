@@ -1,16 +1,15 @@
 #!/usr/bin/env node
-// Usage: scripts/relay-probe.mjs [player_id] [seconds]
+// Usage: MA_HOST=<host> MA_TOKEN=<token> scripts/relay-probe.mjs <player_id> [seconds]
 // Connects to the relay with the app's own client code and prints what
 // arrives: frame rate, how far ahead frames are sent, and the clock offset.
-import { readFileSync } from "node:fs";
 import { createRelay } from "../src/relay.js";
 import { createTimeline } from "../src/timeline.js";
 
-const config = JSON.parse(readFileSync(new URL("../config.local.json", import.meta.url), "utf8"));
-const player = process.argv[2] || config.player;
+const config = { host: process.env.MA_HOST || "", token: process.env.MA_TOKEN || "" };
+const player = process.argv[2];
 const seconds = Number(process.argv[3] || 10);
-if (!player) {
-  console.error("usage: relay-probe.mjs <player_id> [seconds]");
+if (!player || !config.host || !config.token) {
+  console.error("usage: MA_HOST=<host> MA_TOKEN=<token> relay-probe.mjs <player_id> [seconds]");
   process.exit(1);
 }
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Usage: scripts/build.sh
 # Bundles src/main.js into app/app.js, writes app/config.js from
-# config.local.json, and puts the MilkDrop library and the presets named in
-# presets.json into app/vendor/.
+# config.local.json (development settings only), and puts the MilkDrop library
+# and every preset into app/vendor/.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PATH="$ROOT/node_modules/.bin:$PATH"
@@ -26,7 +26,6 @@ if [ -f "$ROOT/config.local.json" ]; then
   node -e 'process.stdout.write("window.VIS_CONFIG = " + JSON.stringify(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))) + ";\n")' \
     "$ROOT/config.local.json" > "$OUT/config.js"
 else
-  echo "warning: config.local.json missing; building with an empty config" >&2
   echo "window.VIS_CONFIG = {};" > "$OUT/config.js"
 fi
 

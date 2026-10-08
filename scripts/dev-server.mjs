@@ -3,11 +3,11 @@
 // Serves app/ and backs the page's test link:
 //   WS   /link?client=<name>  a page sends {status, shot?} and receives commands
 //   POST /cmd                 send a command to every connected page,
-//                             e.g. {"type":"key","key":"right"}
+//                             e.g. {"type":"key","key":"right"}; {"type":"dump"}
+//                             writes the page's preset data to dump-<client>.json
 // What pages send is written to .dev/ (status-<client>.json, shot-*.png|jpg).
 // The link is a WebSocket because the TV's browser sends no plain HTTP
 // requests from a packaged app's page, while WebSockets work.
-// Run it only while testing: it serves the app's config.js, token included.
 import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { mkdirSync, readFile, writeFileSync } from "node:fs";
@@ -36,10 +36,10 @@ function report(client, body) {
   const status = Object.assign(
     { receivedAt: new Date().toISOString() },
     body.status,
-    body.blacks ? { blacks: body.blacks } : {},
     body.shotError ? { shotError: body.shotError } : {}
   );
   writeFileSync(join(outDir, `status-${client}.json`), JSON.stringify(status, null, 2) + "\n");
+  if (body.dump) writeFileSync(join(outDir, `dump-${client}.json`), JSON.stringify(body.dump, null, 2) + "\n");
   const match = /^data:image\/(png|jpeg);base64,(.+)$/.exec(body.shot || "");
   if (match) {
     const name = `shot-${client}-${String(++shots).padStart(3, "0")}.${match[1] === "png" ? "png" : "jpg"}`;

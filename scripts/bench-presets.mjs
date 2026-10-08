@@ -42,7 +42,7 @@ const results = existsSync(resultFile) ? JSON.parse(readFileSync(resultFile, "ut
 const todo = names.filter((name) => !(name in results));
 console.log(`${names.length} presets, ${names.length - todo.length} already measured, ${todo.length} to go`);
 
-if (!(await command({ type: "mode", id: "milkdrop" }))) {
+if (!(await command({ type: "status" }))) {
   console.error(`no page linked as "${client}"`);
   process.exit(1);
 }
@@ -63,8 +63,8 @@ for (const name of todo) {
     console.error(`no status from "${client}" after ${name}; stopping`);
     break;
   }
-  if (second.mode !== "MilkDrop" || String(second.idle).startsWith("true")) {
-    console.error(`"${client}" is ${second.mode}, idle=${second.idle}: MilkDrop must be showing with music playing; stopping`);
+  if (!second.preset || String(second.idle).startsWith("true")) {
+    console.error(`"${client}" shows ${second.preset || "no preset"}, idle=${second.idle}: MilkDrop must be running with music playing; stopping`);
     break;
   }
   const fps = Math.min(parseInt(first.fps, 10), parseInt(second.fps, 10));

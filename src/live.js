@@ -17,6 +17,13 @@ export function createLive(settings) {
   let track = null;
   let trackListener = null;
   let remoteListener = null;
+  let rejectedListener = null;
+  const REJECTED = "Signed out: Music Assistant no longer accepts this TV's token.";
+
+  function rejected() {
+    problem = REJECTED;
+    if (rejectedListener) rejectedListener();
+  }
 
   const relay = createRelay({
     host: settings.host,
@@ -45,7 +52,7 @@ export function createLive(settings) {
         problem = message;
       },
       state(state) {
-        if (state === "rejected") problem = "Token rejected or expired. Rebuild with a new token.";
+        if (state === "rejected") rejected();
         else if (state === "open") {
           problem = "";
           follow.noteRelayOpen();
@@ -61,7 +68,7 @@ export function createLive(settings) {
     preferred: loadPref("preferredPlayer", ""),
     relay,
     onState(state) {
-      if (state === "rejected") problem = "Token rejected or expired. Rebuild with a new token.";
+      if (state === "rejected") rejected();
     },
     onTrack(next) {
       track = next;
@@ -115,6 +122,10 @@ export function createLive(settings) {
     },
     onRemotePrefs(fn) {
       remoteListener = fn;
+    },
+    // The token was refused by the API or the relay.
+    onRejected(fn) {
+      rejectedListener = fn;
     },
     savePrefs(snapshot) {
       follow.savePrefs(snapshot);
