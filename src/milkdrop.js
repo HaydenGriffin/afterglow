@@ -1,6 +1,7 @@
-// MilkDrop presets through Butterchurn (MIT, Jordan Berg). Needs WebGL2, which
-// a TV may lack or run badly, so the library is fetched only once a context
-// has been obtained, and every way it can fail leads to `onFail`.
+// MilkDrop presets through Butterchurn (MIT, Jordan Berg; the Music Assistant
+// fork, 3.x). Needs WebGL2, which a TV may lack or run badly, so the library
+// is fetched only once a context has been obtained, and every way it can fail
+// leads to `onFail`.
 //
 // Presets differ enormously in cost: on an LG CX some hold 60 fps and others
 // manage 5. Every preset in the packs is shipped; which ones this TV shows by
@@ -19,6 +20,23 @@ const SETTLE_SECONDS = 4; // not judged while loading and blending in
 const GIVE_UP_AFTER = 8; // this many slow presets in a row and MilkDrop is off
 export const ROTATE_CHOICES = [0, 30, 120, 300]; // seconds; 0 = stay on the chosen preset
 export const DEFAULT_ROTATE = 120;
+export const COLOR_MODES = ["default", "art"]; // the preset's own colors, or the album art's
+export const COLOR_STRENGTHS = [25, 50, 75, 100]; // percent
+export const DEFAULT_COLOR_STRENGTH = 100;
+// Music Assistant's artwork palette roles, in the order they fill Butterchurn's
+// four color slots: waveform, outer border, inner border, motion vectors. The
+// "on" colors come last: they are picked for contrast, so they tend to be
+// near white or near black.
+const PALETTE_ROLES = ["primary", "accent", "background_light", "background_dark", "on_dark", "on_light"];
+const MIN_CHROMA = 40; // a palette color flatter than this (of 255) carries no hue worth taking
+// The preset's own colors for those slots, and Butterchurn's defaults for them.
+const SLOT_KEYS = [["wave_r", "wave_g", "wave_b"], ["ob_r", "ob_g", "ob_b"], ["ib_r", "ib_g", "ib_b"], ["mv_r", "mv_g", "mv_b"]];
+const SLOT_DEFAULTS = [[1, 1, 1], [0, 0, 0], [0.25, 0.25, 0.25], [1, 1, 1]];
+const SLOT_SIZE = [null, "ob_size", "ib_size", null]; // borders: the preset's width for the slot
+const MAX_BORDER = 0.05; // wider than this and a border is a wash the preset builds on, not a frame
+const LUMA = [0.3, 0.59, 0.11];
+
+const describe = (error) => String((error && error.message) || error);
 
 let probed = null;
 
@@ -84,6 +102,12 @@ export function createMilkdropMode(onFail, onNotice) {
   let skippedInARow = 0;
   let watching = true;
   let scanning = false;
+  // Album-art coloring: the mode, how far to go, and the palette Music
+  // Assistant sent for the current track.
+  let colorMode = loadPref("color", "default");
+  let colorStrength = loadPref("colorStrength", DEFAULT_COLOR_STRENGTH);
+  let palette = null;
+  let external = null; // a preset shown by showExternal, for its colors
 
   function loadFavorites() {
     // The plain list from before the timestamps is folded in whenever present,
@@ -108,10 +132,69 @@ export function createMilkdropMode(onFail, onNotice) {
     onFail(reason);
   }
 
+  function luma(c) {
+    return c[0] * LUMA[0] + c[1] * LUMA[1] + c[2] * LUMA[2];
+  }
+
+  // `color` with its brightness moved to `target` (0-255), clipped toward the
+  // gray of that brightness so no channel leaves 0-255. The same blend the
+  // fork's tint shader does.
+  function atLuma(color, target) {
+    const shift = target - luma(color);
+    let out = color.map((v) => v + shift);
+    const max = Math.max(out[0], out[1], out[2]);
+    const min = Math.min(out[0], out[1], out[2]);
+    if (max > 255) out = out.map((v) => target + (v - target) * ((255 - target) / (max - target)));
+    if (min < 0) out = out.map((v) => target + (v - target) * (target / (target - min)));
+    return out;
+  }
+
+  // The palette's colors with some hue to them, most prominent first.
+  function paletteHues(p) {
+    if (!p) return [];
+    const hues = [];
+    for (const role of PALETTE_ROLES) {
+      const c = p[role];
+      if (c && Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) >= MIN_CHROMA) hues.push(c);
+    }
+    return hues;
+  }
+
+  // One color per slot: the artwork's hue at the brightness the preset gives
+  // that slot. A preset draws its waveform and borders into the feedback
+  // texture, so handing it a light palette color where it meant a dark one
+  // floods the whole picture; keeping the brightness keeps the preset. A wide
+  // border is a fill the preset's shaders build on, not a frame, and even at
+  // the same brightness another hue washes it out: that slot keeps its own color.
+  function paletteColors(p, preset) {
+    const hues = paletteHues(p);
+    if (!hues.length) return null;
+    const base = (preset && preset.baseVals) || {};
+    const val = (key, fallback) => (typeof base[key] === "number" ? base[key] : fallback);
+    return SLOT_KEYS.map((keys, slot) => {
+      const own = keys.map((key, i) => val(key, SLOT_DEFAULTS[slot][i]) * 255);
+      if (SLOT_SIZE[slot] && val(SLOT_SIZE[slot], 0.01) > MAX_BORDER) return own;
+      return atLuma(hues[Math.min(slot, hues.length - 1)], luma(own));
+    });
+  }
+
+  // Passing null fades the coloring out, so "default" and a track without a
+  // palette both end on the preset's own colors.
+  function applyColor() {
+    if (!visualizer || typeof visualizer.setPaletteColors !== "function") return;
+    const colors = colorMode === "art" ? paletteColors(palette, presets[current] || external) : null;
+    visualizer.setPaletteColors(colors, colorStrength / 100);
+  }
+
   function show(name, preset, blend) {
-    visualizer.loadPreset(preset, blend);
+    // loadPreset is async in Butterchurn 3: a preset that fails to load
+    // rejects instead of throwing.
+    const loaded = visualizer.loadPreset(preset, blend);
+    if (loaded && typeof loaded.catch === "function") loaded.catch((error) => fail(describe(error)));
     current = name;
+    external = name in presets ? null : preset;
     sincePreset = windowTime = windowFrames = slowSeconds = 0;
+    applyColor();
   }
 
   function showIndexed(blend) {
@@ -208,13 +291,15 @@ export function createMilkdropMode(onFail, onNotice) {
         // Butterchurn only uses the audio context to tap live audio; the
         // waveform is handed to render() instead.
         visualizer = api.createVisualizer(null, canvas, options);
+        // The GL context lives on Butterchurn's own canvas; ours only gets
+        // the 2D blit.
+        (visualizer.internalCanvas || canvas).addEventListener("webglcontextlost", (event) => {
+          event.preventDefault();
+          fail("graphics context lost");
+        });
         showIndexed(0);
       })
-      .catch((error) => fail(String((error && error.message) || error)));
-    canvas.addEventListener("webglcontextlost", (event) => {
-      event.preventDefault();
-      fail("graphics context lost");
-    });
+      .catch((error) => fail(describe(error)));
   }
 
   return {
@@ -234,7 +319,7 @@ export function createMilkdropMode(onFail, onNotice) {
             const wave = f.analysis.wave;
             visualizer.render({ audioLevels: { timeByteArray: wave, timeByteArrayL: wave, timeByteArrayR: wave } });
           } catch (error) {
-            return fail(String((error && error.message) || error));
+            return fail(describe(error));
           }
           if (++frames === PROVEN_FRAMES) savePref("milkdropPending", false);
           if (scanning) return; // the scan does its own timing
@@ -278,6 +363,9 @@ export function createMilkdropMode(onFail, onNotice) {
       validation.rated = loadPref("rated", {});
       validation.overrides = loadPref("validatedOverrides", {});
       validation.validateFps = loadPref("validateFps", DEFAULT_VALIDATE_FPS);
+      colorMode = loadPref("color", "default");
+      colorStrength = loadPref("colorStrength", DEFAULT_COLOR_STRENGTH);
+      applyColor();
     },
     // Add or remove the current preset; returns whether it is now a favorite.
     toggleFavorite() {
@@ -346,6 +434,29 @@ export function createMilkdropMode(onFail, onNotice) {
     set rotateSeconds(seconds) {
       rotateSeconds = seconds;
       savePref("presetRotate", seconds);
+    },
+    // "default" or "art": whether presets take their colors from the album art.
+    get colorMode() {
+      return colorMode;
+    },
+    set colorMode(mode) {
+      colorMode = mode;
+      savePref("color", mode);
+      applyColor();
+    },
+    // Percent of the way toward the album art's colors.
+    get colorStrength() {
+      return colorStrength;
+    },
+    set colorStrength(percent) {
+      colorStrength = percent;
+      savePref("colorStrength", percent);
+      applyColor();
+    },
+    // The current track's palette from Music Assistant (live.js), or null.
+    setPalette(next) {
+      palette = next;
+      applyColor();
     },
     get ready() {
       return visualizer !== null && !failed;

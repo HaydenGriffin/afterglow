@@ -16,6 +16,7 @@ export function createLive(settings) {
   let follow = null;
   let track = null;
   let trackListener = null;
+  let colorListener = null;
   let remoteListener = null;
   let rejectedListener = null;
   const REJECTED = "Signed out: Music Assistant no longer accepts this TV's token.";
@@ -46,6 +47,7 @@ export function createLive(settings) {
       },
       color(payload) {
         palette = payload;
+        if (colorListener) colorListener(payload);
       },
       error(message) {
         follow.noteError();
@@ -119,6 +121,10 @@ export function createLive(settings) {
     },
     onTrack(fn) {
       trackListener = fn;
+    },
+    // The track's artwork palette arrived or changed.
+    onColor(fn) {
+      colorListener = fn;
     },
     onRemotePrefs(fn) {
       remoteListener = fn;

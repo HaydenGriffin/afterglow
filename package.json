@@ -1,6 +1,6 @@
 {
   "name": "viz-man",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "private": true,
   "description": "Music visualizer for LG webOS TVs, driven by Music Assistant",
   "license": "MIT",
@@ -16,7 +16,7 @@
   },
   "devDependencies": {
     "@webos-tools/cli": "^3.2.6",
-    "butterchurn": "2.6.7",
+    "butterchurn": "https://github.com/music-assistant/butterchurn/releases/download/v3.0.0-beta.5.ma.4/butterchurn-3.0.0-beta.5.ma.4.tgz",
     "butterchurn-presets": "2.4.7",
     "esbuild": "^0.28.2"
   }

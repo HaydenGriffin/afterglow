@@ -22,8 +22,8 @@ The full walkthrough is [docs/install.md](docs/install.md).
 
 ## What it does
 
-- Shows MilkDrop presets (through Butterchurn) driven by the waveform Music
-  Assistant streams for whichever speaker is playing, a few seconds ahead, so
+- Shows MilkDrop presets (through the Music Assistant fork of Butterchurn)
+  driven by the waveform Music Assistant streams for whichever speaker is playing, a few seconds ahead, so
   the picture lands on the beat.
 - Follows the speaker that is playing, or the one you pick; sync groups are
   resolved the way Music Assistant does.
@@ -34,6 +34,8 @@ The full walkthrough is [docs/install.md](docs/install.md).
   MilkDrop favorites and between TVs on the same account.
 - Shows the track (artist, title, album, label) when it starts, or always, or
   never; dims the picture and the track card independently for night-time.
+- Can color a preset's waveform, borders and motion vectors from the album
+  art, using the palette Music Assistant sends with the stream.
 - Keeps the TV's screensaver off while music plays; nudges the picture a few
   pixels now and then against OLED burn-in.
 

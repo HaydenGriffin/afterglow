@@ -59,7 +59,7 @@ again to continue past it.
 ## The threshold: "Validate above"
 
 A preset is validated when its measured frame rate is at or above the
-**Validate above** setting: **30, 45 or 60 fps**, 45 by default. Changing it
+**Validate above** setting: **30, 40, 45 or 60 fps**, 40 by default. Changing it
 takes effect at once; the counts in the menu move and nothing needs
 rescanning, because the measurements are kept, not the verdicts.
 
@@ -86,9 +86,9 @@ and where it came from:
 | no (by you, 55 fps) | You removed it by hand |
 | not tested | Neither this TV nor the benchmark has a figure (a preset added to the packs later) |
 
-What to expect: a scan on an LG CX put 294 of 395 at or above 45 fps, against
-280 from the benchmark shipped with the app, with the lightest presets at the
-60 fps cap. Numbers within a couple of frames of the bar are the ones worth
+What to expect: the benchmark shipped with the app, from an LG CX, puts 316
+of 395 at or above 40 fps (303 at 45), with the lightest presets at the 60 fps
+cap. Numbers within a couple of frames of the bar are the ones worth
 a second look.
 
 ## Adding and removing by hand

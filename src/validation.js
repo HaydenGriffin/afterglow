@@ -4,8 +4,8 @@
 // a TV that has never scanned starts from the benchmark shipped with the app.
 // Pure functions over plain objects; milkdrop.js keeps the state.
 
-export const VALIDATE_CHOICES = [30, 45, 60]; // fps
-export const DEFAULT_VALIDATE_FPS = 45;
+export const VALIDATE_CHOICES = [30, 40, 45, 60]; // fps
+export const DEFAULT_VALIDATE_FPS = 40;
 export const LISTS = ["validated", "all", "favorites"];
 
 // state: { rated: {name: fps}, bench: {name: fps}, overrides: {name: bool}, validateFps }

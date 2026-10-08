@@ -9,7 +9,9 @@ npm run package        # dist/net.botworth.vizman_<version>_all.ipk
 ```
 
 `src/` is bundled by esbuild for Chromium 68 (the LG CX). The build fails on
-APIs that browser lacks (see the list in `scripts/build.sh`).
+APIs that browser lacks (see the list in `scripts/build.sh`). Butterchurn (the
+Music Assistant fork, an ES module) is bundled the same way into
+`app/vendor/butterchurn.min.js`, which sets `window.butterchurn`.
 
 ## Running in a browser
 

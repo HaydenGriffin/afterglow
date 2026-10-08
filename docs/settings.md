@@ -29,15 +29,17 @@ forward), Back closes it. It closes by itself after a few seconds.
 | Preset order | random / in order | random | How ↑/↓ move |
 | Change preset | never / every 30 s / 2 min / 5 min | every 2 min | Picks a random preset from the list on a timer |
 | Dim visualizer | 0% … 90% | 0% | Darkens the picture; black stays black |
+| Color | default / album art | default | Gives the preset's waveform, borders and motion vectors the hue of the track's artwork, at the brightness the preset meant for them, from the palette Music Assistant sends with the stream ("Tint with track color" in the plugin's settings, on by default). Presets that paint everything in their own shaders change little |
+| Color strength | 25% … 100% | 100% | How far toward the artwork colors; shown while Color is album art |
 | Track info | at track start / always / off | at track start | The artist, title, album and label card, lower left |
 | Dim track info | 0% … 90% | 0% | Darkens the card, independently of the picture |
 | Player | Auto / a speaker | Auto | See below |
 | Sync trim | ms | 0 ms | Positive shows each frame later. Also Red/Green |
-| Auto level | on / off | on | Scales quiet tracks so they still fill the picture |
+| Auto level | on / off | off | Scales quiet tracks so they still fill the picture |
 | Frame rate cap | 60 / 30 fps | 60 | 30 saves power on a TV that struggles |
 | Hold screen when idle | on / off | off | Keep the screensaver off even while nothing plays |
 | Scan presets | not run / n of 395 done / done | — | See below |
-| Validate above | 30 / 45 / 60 fps | 45 | The bar a preset's measured frame rate must clear to be validated; takes effect at once |
+| Validate above | 30 / 40 / 45 / 60 fps | 40 | The bar a preset's measured frame rate must clear to be validated; takes effect at once |
 | MilkDrop | off: reason (OK to retry) | — | Only shown when MilkDrop could not start |
 | Debug readout | on / off | off | Frame rate, connection, buffer, errors, sync log |
 | Log out | user @ host | — | Revokes this TV's token on the account and shows the sign-in form |
@@ -63,8 +65,8 @@ Three lists sort this out:
 - **Validated** (the default list): the presets whose measured frame rate on
   this TV is at or above "Validate above", plus the ones you added by hand,
   minus the ones you removed. Until the TV has run its own scan, the
-  measurements are the ones from an LG CX shipped with the app (280 of 395 at
-  45 fps).
+  measurements are the ones from an LG CX shipped with the app (316 of 395 at
+  40 fps).
 - **All**: every preset.
 - **Favorites**: the ones you starred, on this TV or any other on the account,
   or in Music Assistant's web interface. Favorites are independent of

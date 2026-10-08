@@ -10,7 +10,7 @@ import { createLive } from "./live.js";
 import { createLogin } from "./login.js";
 import { listTokens, renewToken, signOut } from "./ma.js";
 import { createMenu } from "./menu.js";
-import { ROTATE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
+import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
 import { createMock } from "./mock.js";
 import { createScan, recoverScan } from "./scan.js";
 import { allPrefs, clearPref, favoriteNames, loadPref, mergeFavorites, mergePrefs, mergeSettings, normalizeParams, onPrefChange, parseQuery, readLaunchParams, savePref, takePrefs } from "./settings.js";
@@ -153,7 +153,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   const crashed = recoverScan();
 
   const analysis = createAnalysis();
-  analysis.autoLevel = loadPref("autoLevel", true);
+  analysis.autoLevel = loadPref("autoLevel", false);
   const live = settings.mock ? null : createLive(settings);
   const source = settings.mock ? createMock() : live;
   const engine = createEngine({ canvas, analysis, source });
@@ -168,7 +168,12 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     toast("MilkDrop off: " + reason);
   }, toast);
   if (!milkdropOff) engine.setRenderer(milkdrop);
-  if (live) live.onTrack((track) => showTrackCard(track, trackMode === "start"));
+  if (live) {
+    live.onTrack((track) => showTrackCard(track, trackMode === "start"));
+    // The artwork palette colors the presets; one may have arrived already.
+    live.onColor((p) => milkdrop.setPalette(p));
+    milkdrop.setPalette(live.palette);
+  }
 
   const scan = createScan({
     milkdrop,
@@ -186,7 +191,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   // from there fills in what this TV does not have (after a reinstall, say),
   // and every change is sent back.
   function applyPrefs() {
-    analysis.autoLevel = loadPref("autoLevel", true);
+    analysis.autoLevel = loadPref("autoLevel", false);
     holdWhenIdle = loadPref("holdWhenIdle", settings.holdWhenIdle);
     engine.setFpsCap(loadPref("fpsCap", 60));
     dimViz = loadPref("dimViz", 0);
@@ -336,6 +341,20 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       change: (direction) => setDimViz(stepChoice(DIM_CHOICES, dimViz, direction)),
     },
     {
+      // Color the preset's waveform, borders and motion vectors from the
+      // track's album art (the palette Music Assistant sends with the stream).
+      label: "Color",
+      visible: () => !!live,
+      value: () => ({ default: "default", art: "album art" })[milkdrop.colorMode],
+      change: (direction) => (milkdrop.colorMode = stepChoice(COLOR_MODES, milkdrop.colorMode, direction)),
+    },
+    {
+      label: "Color strength",
+      visible: () => !!live && milkdrop.colorMode === "art",
+      value: () => milkdrop.colorStrength + "%",
+      change: (direction) => (milkdrop.colorStrength = stepChoice(COLOR_STRENGTHS, milkdrop.colorStrength, direction)),
+    },
+    {
       label: "Track info",
       visible: () => !!live,
       value: () => ({ start: "at track start", always: "always", off: "off" })[trackMode],
@@ -443,6 +462,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
         favorites: milkdrop.favoriteCount,
         scan: scan.status(),
         dim: dimViz + "% picture, " + dimTrack + "% track info",
+        color: milkdrop.colorMode + " " + milkdrop.colorStrength + "%" + (live && live.palette ? "" : ", no palette"),
         prefsSaved: Object.keys(allPrefs()).length + " keys, device " + settings.deviceId,
         account: auth ? auth.user + " @ " + auth.host + " as " + auth.tokenName : "development override",
         player: live && live.following ? live.following.name + " / " + live.following.queueId + " (" + live.following.reason + ")" : "-",

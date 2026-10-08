@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0 — 2026-10-08
+
+- MilkDrop renderer upgraded to Butterchurn 3.0.0-beta.5.ma.4, the Music Assistant fork of jberg/butterchurn 3.0.0-beta.5: renderer fixes, fewer per-frame allocations, batched shape draws. `npm run build` bundles it from its ES module build into `app/vendor/butterchurn.min.js`.
+- "Color" menu row: default, or album art, which gives the preset's waveform, borders and motion vectors the hue of the track's artwork (the palette Music Assistant sends with the stream) at the brightness the preset meant for them. "Color strength" (25–100%) sets how far.
+- "Auto level" now defaults to off. A TV that had it on keeps it on.
+- "Validate above" gains a 40 fps choice and defaults to it; a TV that had chosen a bar keeps it.
+- The shipped LG CX benchmark was re-measured on the new renderer: 316 of 395 presets at or above 40 fps (303 at 45, against 280 before; median +2 fps, none broken). Ratings a TV scanned itself were measured on the old renderer; "Scan presets" again to refresh them.
+
 ## 1.0.1 — 2026-10-08
 
 - Menu fits on screen: tighter rows, so "Close menu" is no longer cut off at 1080p.

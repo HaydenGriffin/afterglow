@@ -4,7 +4,7 @@ This app includes code from the projects below, all under the MIT License.
 
 | Project | Copyright | Used for | Version |
 |---|---|---|---|
-| [Butterchurn](https://github.com/jberg/butterchurn) | (c) 2013-2018 Jordan Berg | MilkDrop renderer, `vendor/butterchurn.min.js` | 2.6.7 |
+| [Butterchurn](https://github.com/music-assistant/butterchurn), the Music Assistant fork of [jberg/butterchurn](https://github.com/jberg/butterchurn) 3.0.0-beta.5 | (c) 2013-2018 Jordan Berg | MilkDrop renderer, bundled into `vendor/butterchurn.min.js` | 3.0.0-beta.5.ma.4 |
 | [butterchurn-presets](https://github.com/jberg/butterchurn-presets) | (c) 2013-2018 Jordan Berg | MilkDrop presets, selected into `vendor/presets.js` | 2.4.7 |
 
 ## MIT License

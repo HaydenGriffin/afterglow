@@ -48,6 +48,7 @@ description: |
   ## Source
 
   [github.com/mnestrud/viz-man](https://github.com/mnestrud/viz-man) (MIT). Rendering by
+  the [Music Assistant fork](https://github.com/music-assistant/butterchurn) of
   [Butterchurn](https://github.com/jberg/butterchurn) and the butterchurn-presets packs (MIT).
 screenshots:
   - url: https://raw.githubusercontent.com/mnestrud/viz-man/main/docs/screenshots/playing.jpg

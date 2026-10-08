@@ -189,6 +189,8 @@ All in the menu; see [docs/settings.md](settings.md) for every row.
   hand, when you disagree with the scan.
 - **Dim visualizer** and **Dim track info** darken the picture and the card
   for evenings; ←/→ dim the picture without opening the menu.
+- **Color** set to album art colors the preset's waveform and borders from the
+  track's artwork; **Color strength** sets how far.
 - **Track info** at track start, always, or off.
 
 ## 9. More TVs
