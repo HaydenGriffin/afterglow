@@ -43,6 +43,7 @@ curl -d '{"type":"key","key":"right"}' http://localhost:8137/cmd
 curl -d '{"type":"goto","name":"Geiss - Cosmic Dust 2"}' http://localhost:8137/cmd
 curl -d '{"type":"scan"}' http://localhost:8137/cmd          # start / continue the preset scan
 curl -d '{"type":"scan","on":false}' http://localhost:8137/cmd
+curl -d '{"type":"dump"}' http://localhost:8137/cmd           # the TV's ratings, overrides and favorites -> .dev/dump-<client>.json
 curl -d '{"type":"debug","on":true}' http://localhost:8137/cmd
 ```
 

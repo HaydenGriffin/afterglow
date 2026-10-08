@@ -77,8 +77,10 @@ and presets you validated by hand are only recorded, never skipped.
 
 ### Scan presets
 
+The full account is in [preset-scan.md](preset-scan.md).
+
 "Scan presets" shows every preset for about 5 seconds (3 to settle, 2 to
-measure) and records the frame rate the TV manages: roughly 33 minutes for a
+measure) and records the frame rate the TV manages: roughly 35 minutes for a
 full pass. It runs on a built-in signal rather than the music, so every preset
 is measured on the same input, with the frame rate cap lifted and the preset
 timer paused. A bar at the bottom shows the progress and an estimate of the

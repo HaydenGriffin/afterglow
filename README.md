@@ -10,10 +10,15 @@ sideload apps and has WebGL2.
 ## Quick start
 
 1. In Music Assistant, add the **MilkDrop Visualizer** plugin (Settings → Plugins).
-2. Install the `.ipk` on the TV ([docs/install.md](docs/install.md)).
+2. Install the `.ipk` from the [latest release](https://github.com/mnestrud/viz-man/releases/latest)
+   on the TV (Homebrew Channel, Glasshouse, or Developer Mode).
 3. Open viz-man and sign in with Music Assistant's address, your username and
    password. The TV keeps its own token; your password is not stored.
 4. Play something. Press OK for the menu.
+5. Run **Scan presets** once (about 35 minutes) so the TV plays only the
+   presets it can draw smoothly.
+
+The full walkthrough is [docs/install.md](docs/install.md).
 
 ## What it does
 
@@ -34,7 +39,8 @@ sideload apps and has WebGL2.
 
 ## Documentation
 
-- [Install and sign in](docs/install.md)
+- [Setting up, step by step](docs/install.md)
+- [The preset scan](docs/preset-scan.md)
 - [Settings and remote keys](docs/settings.md)
 - [Development](docs/development.md)
 - [Changelog](CHANGELOG.md)
