@@ -489,6 +489,12 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       if (name === "back") exitApp();
       return;
     }
+    if (login.isOpen) {
+      // Shown for a look by the test link: Back puts it away.
+      if (name === "back") login.hide();
+      else login.handleKey(name);
+      return;
+    }
     if (scan.running) {
       if (name === "back") scan.stop();
       return;
@@ -542,6 +548,12 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       else if (command.type === "preset") milkdrop.showExternal(command.name, command.preset);
       else if (command.type === "goto") milkdrop.select(command.name);
       else if (command.type === "scan") (command.on === false ? scan.stop() : scan.start());
+      else if (command.type === "login") {
+        // Show the sign-in form as a first launch would, without signing out
+        // (for screenshots); Back puts it away.
+        if (command.on === false) login.hide();
+        else login.show({ host: "", user: "" });
+      }
     },
   });
 

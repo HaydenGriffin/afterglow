@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1 — 2026-10-08
+
+- Menu fits on screen: tighter rows, so "Close menu" is no longer cut off at 1080p.
+- Homebrew Channel manifest written by `npm run package` and attached to releases; catalog entry and PR text under `homebrew/`.
+- Screenshots under `docs/screenshots/`; test link gains `login` (show the sign-in form) and `dump` commands.
+
 ## 1.0.0 — 2026-10-08
 
 - Sign in on the TV with a Music Assistant username and password. The TV gets its own long-lived token, named after it; "Log out" in the menu revokes it. The package no longer contains a token.
