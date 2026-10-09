@@ -24,6 +24,7 @@ description: |
   - Favorites, shared with Music Assistant's own MilkDrop favorites and between your TVs.
   - Random order with a timer, or stay on the preset you chose.
   - Shows the track (artist, title, album, label) when it starts, always, or never. Dims the picture and the track card independently for the evening.
+  - **Color: album art** gives each preset the hue of the track's artwork, from the palette Music Assistant sends with the stream, at the brightness the preset meant; a strength setting goes with it.
   - Keeps the screensaver off while music plays; nudges the picture against OLED burn-in.
 
   ![The menu](https://raw.githubusercontent.com/mnestrud/viz-man/main/docs/screenshots/menu.jpg)
