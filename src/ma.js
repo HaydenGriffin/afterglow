@@ -138,3 +138,28 @@ export async function renewToken({ host, token, tokenName, WebSocketImpl }) {
     api.close();
   }
 }
+
+// A player's Sendspin playback delay, a Music Assistant player setting
+// (positive plays earlier). Music Assistant sends it on to the player, so the
+// setting there is the one source of truth.
+export async function getPlayerDelay({ host, token, playerId, WebSocketImpl }) {
+  const api = await connectApi(host, WebSocketImpl);
+  try {
+    await api.call("auth", { token });
+    const config = await api.call("config/players/get", { player_id: playerId });
+    const entry = config && config.values && config.values.sendspin_static_delay;
+    return entry ? Number(entry.value != null ? entry.value : entry.default_value) || 0 : 0;
+  } finally {
+    api.close();
+  }
+}
+
+export async function setPlayerDelay({ host, token, playerId, delayMs, WebSocketImpl }) {
+  const api = await connectApi(host, WebSocketImpl);
+  try {
+    await api.call("auth", { token });
+    await api.call("config/players/save", { player_id: playerId, values: { sendspin_static_delay: delayMs } });
+  } finally {
+    api.close();
+  }
+}

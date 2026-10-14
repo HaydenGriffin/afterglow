@@ -17,6 +17,11 @@ export const SENDSPIN_PORT = 8927;
 // every minute or so at 250 ms, CPU 75-88 %).
 export const LEAD_TIME_MS = 1000;
 export const MIN_BUFFER_MS = 2000;
+// The "Audio delay" row: steps, the protocol's range, and how long the remote
+// rests before a value is saved (one save for a run of presses).
+export const DELAY_STEP_MS = 10;
+export const DELAY_MAX_MS = 5000;
+export const DELAY_SAVE_MS = 600;
 
 // Music Assistant's address without its web port: Sendspin has its own.
 export function sendspinUrl(host) {
@@ -30,8 +35,12 @@ export function playerIdFor(name) {
   return "webos-" + String(name || "tv").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-export function createSpeaker({ host, Player }) {
+// delays: { get(playerId) -> Promise<ms>, set(playerId, ms) -> Promise }, the
+// player's delay setting in Music Assistant (ma.js).
+export function createSpeaker({ host, Player, delays }) {
   let player = null;
+  let delay = null; // ms, once read from Music Assistant
+  let saveTimer = 0;
   let wanted = null; // { id, name } while on
   let state = "off"; // off | connecting | ready | playing | error
   let error = "";
@@ -47,8 +56,17 @@ export function createSpeaker({ host, Player }) {
     state = wanted ? "connecting" : "off";
   }
 
+  function loadDelay() {
+    if (!delays || !wanted) return;
+    const id = wanted.id;
+    delays.get(id).then((ms) => {
+      if (wanted && wanted.id === id && !saveTimer) delay = ms;
+    }, () => {});
+  }
+
   function start() {
     if (!wanted || player) return;
+    loadDelay();
     state = "connecting";
     error = "";
     player = new Player({
@@ -91,6 +109,22 @@ export function createSpeaker({ host, Player }) {
     },
     get error() {
       return error;
+    },
+    get delayMs() {
+      return delay;
+    },
+    // One step earlier (+1) or later (-1), saved once the presses stop.
+    nudgeDelay(direction) {
+      if (delay === null || !wanted || !delays) return;
+      delay = Math.max(0, Math.min(DELAY_MAX_MS, delay + direction * DELAY_STEP_MS));
+      const id = wanted.id;
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        saveTimer = 0;
+        delays.set(id, delay).catch((e) => {
+          error = "delay not saved: " + ((e && e.message) || e);
+        });
+      }, DELAY_SAVE_MS);
     },
     // name "" switches it off
     set(name, id) {

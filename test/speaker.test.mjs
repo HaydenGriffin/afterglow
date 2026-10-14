@@ -84,3 +84,37 @@ test("a failed connect shows as an error", async () => {
   assert.equal(speaker.state, "error");
   assert.equal(speaker.error, "refused");
 });
+
+function fakeDelays(start) {
+  const saved = [];
+  return { saved, get: () => Promise.resolve(start), set: (id, ms) => (saved.push([id, ms]), Promise.resolve()) };
+}
+
+test("Audio delay: read from Music Assistant on start, nudged in 10 ms steps, saved once the presses stop", async () => {
+  const { Player } = fakePlayer();
+  const delays = fakeDelays(310);
+  const speaker = createSpeaker({ host: "ma", Player, delays });
+  speaker.set("Living Room LG C1", "webos-living-room-lg-c1");
+  assert.equal(speaker.delayMs, null);
+  speaker.nudgeDelay(1); // not read yet: nothing to step from
+  speaker.start();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(speaker.delayMs, 310);
+  speaker.nudgeDelay(1);
+  speaker.nudgeDelay(1);
+  speaker.nudgeDelay(-1);
+  assert.equal(speaker.delayMs, 320);
+  assert.deepEqual(delays.saved, []);
+  await new Promise((r) => setTimeout(r, 700));
+  assert.deepEqual(delays.saved, [["webos-living-room-lg-c1", 320]]);
+});
+
+test("Audio delay stays within 0-5000 ms", async () => {
+  const { Player } = fakePlayer();
+  const speaker = createSpeaker({ host: "ma", Player, delays: fakeDelays(0) });
+  speaker.set("TV");
+  speaker.start();
+  await new Promise((r) => setTimeout(r, 0));
+  speaker.nudgeDelay(-1);
+  assert.equal(speaker.delayMs, 0);
+});

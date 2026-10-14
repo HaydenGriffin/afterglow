@@ -8,7 +8,7 @@ import { createKeepAwake } from "./keepawake.js";
 import { exitApp, installKeys } from "./keys.js";
 import { createLive } from "./live.js";
 import { createLogin } from "./login.js";
-import { listTokens, renewToken, signOut } from "./ma.js";
+import { getPlayerDelay, listTokens, renewToken, setPlayerDelay, signOut } from "./ma.js";
 import { createMenu } from "./menu.js";
 import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
 import { createMock } from "./mock.js";
@@ -159,7 +159,14 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   const live = settings.mock ? null : createLive(settings);
   // This TV as a speaker too (speaker.js): the `speaker` launch parameter (a
   // player name, `speakerId` optional) wins over the menu's choice.
-  const speaker = settings.mock ? null : createSpeaker({ host: settings.host, Player: SendspinPlayer });
+  const speaker = settings.mock ? null : createSpeaker({
+        host: settings.host,
+        Player: SendspinPlayer,
+        delays: {
+          get: (playerId) => getPlayerDelay({ host: settings.host, token: settings.token, playerId }),
+          set: (playerId, delayMs) => setPlayerDelay({ host: settings.host, token: settings.token, playerId, delayMs }),
+        },
+      });
   if (speaker) {
     const chosen = settings.speaker ? { name: settings.speaker, id: settings.speakerId || playerIdFor(settings.speaker) } : loadPref("speaker", null);
     if (settings.speaker) savePref("speaker", chosen);
@@ -417,6 +424,14 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
         speaker.set(next ? next.name : "", next ? next.id : "");
         if (engine.running) speaker.start();
       },
+    },
+    {
+      // When this TV's sound lands against the other speakers: right plays it
+      // earlier, left later. Saved as the player's delay in Music Assistant.
+      label: "Audio delay",
+      visible: () => !!speaker && speaker.on,
+      value: () => (speaker.delayMs === null ? "…" : speaker.delayMs + " ms (→ earlier)"),
+      change: (direction) => speaker.nudgeDelay(direction),
     },
     {
       label: "Sync trim",
