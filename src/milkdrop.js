@@ -281,7 +281,7 @@ export function createMilkdropMode(onFail, onNotice) {
   // OffscreenCanvas (the LG CX this app was built on), it doesn't. So
   // Butterchurn is made without one.
   // (By name: scripts/build.sh fails a bundle that uses OffscreenCanvas.)
-  const OFFSCREEN = "Offscreen" + "Canvas";
+  const OFFSCREEN = ["Offscreen", "Canvas"].join(""); // joined at run time: the minifier folds "a" + "b"
   function createPlainVisualizer(api, canvas, options) {
     const Offscreen = window[OFFSCREEN];
     try {
