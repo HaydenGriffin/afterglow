@@ -21,11 +21,22 @@ export function createEngine({ canvas, analysis, source }) {
   let fps = 0;
   let fpsFrames = 0;
   let fpsSince = 0;
+  let renderCount = 0;
+  let renderTotalMs = 0;
+  let renderMaxMs = 0;
+  let renderOver50Ms = 0;
+  let maxFrameGapMs = 0;
+  let frameGapsOver100Ms = 0;
 
   function frame(nowMs) {
     raf = requestAnimationFrame(frame);
     const minInterval = 1000 / fpsCap - 2;
     if (nowMs - lastFrameMs < minInterval) return;
+    if (lastFrameMs) {
+      const gap = nowMs - lastFrameMs;
+      maxFrameGapMs = Math.max(maxFrameGapMs, gap);
+      if (gap > 100) frameGapsOver100Ms++;
+    }
     const dt = lastFrameMs ? Math.min((nowMs - lastFrameMs) / 1000, 0.25) : 1 / 60;
     lastFrameMs = nowMs;
 
@@ -51,7 +62,15 @@ export function createEngine({ canvas, analysis, source }) {
         for (const fn of idleListeners) fn(false);
       }
       analysis.setWave(wave, dt);
-      if (instance) instance.draw({ t: nowMs / 1000, dt, analysis });
+      if (instance) {
+        const began = performance.now();
+        instance.draw({ t: nowMs / 1000, dt, analysis });
+        const cost = performance.now() - began;
+        renderCount++;
+        renderTotalMs += cost;
+        renderMaxMs = Math.max(renderMaxMs, cost);
+        if (cost > 50) renderOver50Ms++;
+      }
     }
     for (const fn of afterRender) fn(canvas);
   }
@@ -102,6 +121,10 @@ export function createEngine({ canvas, analysis, source }) {
     },
     get fpsCap() {
       return fpsCap;
+    },
+    get metrics() {
+      return { frames: renderCount, averageMs: renderCount ? renderTotalMs / renderCount : 0,
+        maxMs: renderMaxMs, over50Ms: renderOver50Ms, maxFrameGapMs, frameGapsOver100Ms };
     },
   };
 }

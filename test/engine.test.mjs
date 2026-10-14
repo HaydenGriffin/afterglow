@@ -1,0 +1,32 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createEngine } from "../src/engine.js";
+
+test("render telemetry distinguishes expensive draws from frame gaps and excludes time stopped", (t) => {
+  let tick;
+  let time = 0;
+  let cost = 5;
+  let wave = new Float32Array(2);
+  t.mock.method(globalThis.performance, "now", () => time);
+  const previous = Object.fromEntries(["window", "requestAnimationFrame", "cancelAnimationFrame"].map(k => [k, Object.getOwnPropertyDescriptor(globalThis, k)]));
+  t.after(() => { for (const [k, descriptor] of Object.entries(previous)) {
+    if (descriptor) Object.defineProperty(globalThis, k, descriptor); else delete globalThis[k];
+  } });
+  globalThis.window = { innerWidth: 1920, innerHeight: 1080 };
+  globalThis.requestAnimationFrame = fn => { tick = fn; return 1; };
+  globalThis.cancelAnimationFrame = () => {};
+  const canvas = { style: {} };
+  const engine = createEngine({ canvas, analysis: { setWave() {} }, source: { wave: () => wave } });
+  engine.setRenderer({ create: () => ({ draw: () => { time += cost; } }) });
+  engine.setFpsCap(30);
+  engine.start();
+  const frame = now => { time = now; tick(now); };
+  frame(34); frame(50); // capped callback is not a rendered frame
+  cost = 60; frame(68); frame(200);
+  assert.deepEqual(engine.metrics, { frames: 3, averageMs: 125 / 3, maxMs: 60, over50Ms: 2, maxFrameGapMs: 132, frameGapsOver100Ms: 1 });
+  wave = null; frame(234);
+  assert.equal(engine.metrics.frames, 3);
+  assert.equal(canvas.style.visibility, "hidden");
+  engine.stop(); time = 10000; engine.start(); frame(10034);
+  assert.equal(engine.metrics.maxFrameGapMs, 132);
+});

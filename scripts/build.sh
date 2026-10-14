@@ -40,10 +40,9 @@ rm -f "$OUT/vendor/butterchurnPresetsMinimal.min.js"
 # a feature check or on the WASM preset path, which 2.4.7 presets never take.
 # No --define:OffscreenCanvas here: that would break `new OffscreenCanvas` on
 # TVs that have it.
-# (stdin input resolves "butterchurn" against the working directory)
-printf 'import Butterchurn from "butterchurn";\nwindow.butterchurn = Butterchurn;\n' \
-  | (cd "$ROOT" && esbuild --bundle --format=iife --target=chrome68 --minify --log-level=warning \
-      --sourcefile=vendor-butterchurn.js --outfile="$OUT/vendor/butterchurn.min.js")
+# The pinned dependency gets opt-in GPU profiling at build time.
+# No node_modules edit: an upstream source change refuses the build for review.
+node "$ROOT/scripts/build-butterchurn.mjs"
 node "$ROOT/scripts/make-presets.mjs"
 
 echo "built app/app.js ($(wc -c < "$OUT/app.js") bytes), app/vendor/butterchurn.min.js ($(wc -c < "$OUT/vendor/butterchurn.min.js") bytes)"

@@ -12,6 +12,34 @@ npm run package        # dist/net.botworth.vizman_<version>_all.ipk
 APIs that browser lacks (see the list in `scripts/build.sh`). Butterchurn (the
 Music Assistant fork, an ES module) is bundled the same way into
 `app/vendor/butterchurn.min.js`, which sets `window.butterchurn`.
+`scripts/butterchurn-source.mjs` applies a checked source transformation before
+bundling: GPU timing queries are disabled unless `gpuTiming: true` is passed to
+`createVisualizer`. Playback does not consume these profiling results. The
+transformation checks each expected site exactly once and refuses dependency
+drift; never patch the shared `node_modules` directory.
+
+## TV timing and memory measurements
+
+With Node 22 or later and SSH/debug access to the TV, in separate terminals:
+
+```
+ssh -N -T -o ServerAliveInterval=5 -o ServerAliveCountMax=2 -o ExitOnForwardFailure=yes -L 127.0.0.1:19998:127.0.0.1:9998 lg-tv
+node scripts/profile-tv.mjs 1800 .dev/profile.jsonl
+```
+
+`TV_DEBUG_URL` and `TV_SSH_HOST` override those endpoints. The tool records
+30-second snapshots of native process RSS **and swap**, JS heap, frame timings,
+and speaker buffering/corrections. Retained console messages are marked
+`fresh: false`; do not count them as new events. Console `resyncs` is an interval
+counter, while the speaker diagnostic uses the scheduler's cumulative count.
+Neither counter proves what came out of HDMI ARC: listening remains necessary.
+
+`window.vizmanDiagnostics()` is a bounded read-only snapshot. Render maxima and
+stall counts are cumulative for the page lifetime; compare counter deltas for
+each test phase. Initial loading and preset compilation can produce large gaps.
+The scheduler fields are diagnostic access to the locked Sendspin version, not
+an API used to control playback. Compare one variable at a time, record app
+hashes and test changes, and restore temporary preferences afterwards.
 
 ## Running in a browser
 
