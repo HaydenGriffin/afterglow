@@ -1,14 +1,28 @@
 // Diagnostic-only Butterchurn patch for the C1 native graphics growth.
 // Built only with AFTERGLOW_GL_EXPERIMENTS=1; never part of a release package.
-// Each experiment is read live from window.afterglowGL, so the inspector can
-// switch it on and off without reloading the page.
+// Frame switches are read live from window.afterglowGL. directCanvas and
+// preserveBuffer apply at context creation: set them before starting graphics.
 const helpers = `
 const agFlag = (k) => { const f = window.afterglowGL; return !!(f && f[k]); };
 function agRenderFrame(gl, render) {
   if (agFlag("skipRender")) return null;
   if (!agFlag("glcheck")) return render();
   window.afterglowGL.glcheck = false;
-  const report = { stale: gl.getError(), first: null, calls: 0 };
+  // This is an intrusive, one-frame probe, never soak telemetry. Finish old
+  // GPU work and drain every queued error: clearing just one can blame the
+  // first innocent bindTexture of this frame for an earlier operation.
+  gl.finish();
+  const report = { stale: 0, staleErrors: [], preflightDrained: false, first: null, calls: 0 };
+  for (let i = 0; i < 32; i++) {
+    const error = gl.getError();
+    if (!error) { report.preflightDrained = true; break; }
+    if (!report.stale) report.stale = error;
+    report.staleErrors.push(error);
+  }
+  if (!report.preflightDrained) {
+    window.afterglowGLError = report;
+    return render();
+  }
   const originals = {};
   const proto = Object.getPrototypeOf(gl);
   for (const name of Object.getOwnPropertyNames(proto)) {
@@ -34,6 +48,9 @@ function agRenderFrame(gl, render) {
 `;
 
 const changes = [
+  ['    this.gl = this.internalCanvas.getContext("webgl2", {', '    this.gl = this.internalCanvas.getContext("webgl2", {\n      preserveDrawingBuffer: agFlag("preserveBuffer"),'],
+  ['    if (window.OffscreenCanvas) {', '    if (agFlag("directCanvas")) {\n      this.internalCanvas = canvas;\n    } else if (window.OffscreenCanvas) {'],
+  ['    this.outputGl = canvas.getContext("2d", { willReadFrequently: false });', '    this.outputGl = agFlag("directCanvas") ? null : canvas.getContext("2d", { willReadFrequently: false });'],
   ["    this.gl.bindTexture(this.gl.TEXTURE_2D, this.prevTexture);\n    this.gl.generateMipmap(this.gl.TEXTURE_2D);\n",
     "    this.gl.bindTexture(this.gl.TEXTURE_2D, this.prevTexture);\n    if (!agFlag(\"noMipsPrev\")) this.gl.generateMipmap(this.gl.TEXTURE_2D);\n"],
   ["    this.gl.bindTexture(this.gl.TEXTURE_2D, this.blurHorizontalTexture);\n    this.gl.generateMipmap(this.gl.TEXTURE_2D);\n",
@@ -46,8 +63,10 @@ const changes = [
     "    if (!(agFlag(\"freezeUploads\") && this.agColorSent)) { this.gl.bufferData(this.gl.ARRAY_BUFFER, warpColor, this.gl.STATIC_DRAW); this.agColorSent = true; }\n"],
   ["    this.gl.bufferData(this.gl.ARRAY_BUFFER, compColors, this.gl.STATIC_DRAW);\n",
     "    if (!(agFlag(\"freezeUploads\") && this.agCompSent)) { this.gl.bufferData(this.gl.ARRAY_BUFFER, compColors, this.gl.STATIC_DRAW); this.agCompSent = true; }\n"],
+  ["    if (this.outputGl) {\n      this.outputGl.drawImage(this.internalCanvas, 0, 0);",
+    "    if (this.outputGl && !agFlag(\"skipCopy\")) {\n      this.outputGl.drawImage(this.internalCanvas, 0, 0);"],
   ["  render(opts) {\n    const renderOutput = this.renderer.render(opts);\n",
-    "  render(opts) {\n    const renderOutput = agRenderFrame(this.gl, () => this.renderer.render(opts));\n"],
+    "  render(opts) {\n    window.afterglowVisualizer = this;\n    const renderOutput = agRenderFrame(this.gl, () => this.renderer.render(opts));\n"],
 ];
 
 export function glExperimentSource(source) {
