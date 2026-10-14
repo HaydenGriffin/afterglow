@@ -22,11 +22,6 @@ export const MIN_BUFFER_MS = 2000;
 export const DELAY_STEP_MS = 10;
 export const DELAY_MAX_MS = 5000;
 export const DELAY_SAVE_MS = 600;
-// A hard resync is heard as a jump. sendspin-js's sync mode jumps beyond 200
-// ms of error; a TV busy drawing MilkDrop stalls that long now and then, and
-// the rate and sample corrections close such a gap without a sound (LG C1, 14
-// Oct: a stutter every few minutes, 2 resyncs).
-export const RESYNC_ABOVE_MS = 600;
 
 // Music Assistant's address without its web port: Sendspin has its own.
 export function sendspinUrl(host) {
@@ -58,8 +53,10 @@ export function createSpeaker({ host, Player, delays }) {
   let wanted = null; // { id, name } while on
   let state = "off"; // off | connecting | ready | playing | error
   let error = "";
+  let generation = 0;
 
   function stop() {
+    generation++;
     if (!player) return;
     try {
       player.disconnect("user_request");
@@ -80,6 +77,7 @@ export function createSpeaker({ host, Player, delays }) {
 
   function start() {
     if (!wanted || player) return;
+    const run = ++generation;
     loadDelay();
     state = "connecting";
     error = "";
@@ -92,18 +90,23 @@ export function createSpeaker({ host, Player, delays }) {
       requiredLeadTimeMs: LEAD_TIME_MS,
       minBufferMs: MIN_BUFFER_MS,
       correctionMode: "sync",
-      correctionThresholds: { sync: { resyncAboveMs: RESYNC_ABOVE_MS } },
+      // Keep Sendspin's complete sync policy. Raising only resyncAboveMs
+      // does not change its independent sustained-drift monitor. Live C1
+      // cutouts also occurred with zero resyncs and a full audio buffer.
       onStateChange(s) {
+        if (generation !== run) return;
         const playing = !!(s && s.isPlaying);
         state = playing ? "playing" : "ready";
       },
     });
+    const current = player;
     // webOS lets a packaged app start audio without a gesture; unlock() only
     // resumes the AudioContext, so it is safe to call here.
     Promise.resolve()
-      .then(() => player && player.unlock && player.unlock())
-      .then(() => player && player.connect())
+      .then(() => generation === run && current.unlock && current.unlock())
+      .then(() => generation === run && current.connect())
       .catch((e) => {
+        if (generation !== run) return;
         state = "error";
         error = (e && e.message) || String(e);
       });
@@ -135,6 +138,10 @@ export function createSpeaker({ host, Player, delays }) {
       try {
         const s = player.syncInfo || {};
         const f = player.currentFormat;
+        // Diagnostic access to the pinned sendspin-js 3.2.1 scheduler. These
+        // fields never control playback; missing fields stay null on upgrade.
+        const scheduler = player.scheduler;
+        const context = scheduler && scheduler.audioContext;
         return {
           connected: !!player.isConnected,
           resyncs: s.resyncCount,
@@ -143,6 +150,9 @@ export function createSpeaker({ host, Player, delays }) {
           rate: s.playbackRate,
           outputLatencyMs: Math.round(s.outputLatencyMs || 0),
           format: f ? f.codec + " " + f.sample_rate + "/" + f.bit_depth + "/" + f.channels : "",
+          audioState: context ? context.state : null,
+          scheduledAheadSec: context && scheduler.getScheduledAheadSec ? scheduler.getScheduledAheadSec(context.currentTime) : null,
+          queuedChunks: scheduler && scheduler.audioBufferQueue ? scheduler.audioBufferQueue.length : null,
         };
       } catch (e) {
         return { error: String(e) };

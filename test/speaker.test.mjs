@@ -53,7 +53,8 @@ test("off until a player is set; then one PCM player that keeps the given id", a
   assert.deepEqual(c.codecs, ["pcm"]);
   assert.equal(c.requiredLeadTimeMs, 1000);
   assert.equal(c.minBufferMs, 2000);
-  assert.deepEqual(c.correctionThresholds, { sync: { resyncAboveMs: 600 } });
+  assert.equal(c.correctionMode, "sync");
+  assert.equal(c.correctionThresholds, undefined);
   assert.deepEqual(made[0].calls, ["unlock", "connect"]);
   c.onStateChange({ isPlaying: true });
   assert.equal(speaker.state, "playing");
@@ -84,6 +85,54 @@ test("a failed connect shows as an error", async () => {
   await new Promise((r) => setTimeout(r, 0));
   assert.equal(speaker.state, "error");
   assert.equal(speaker.error, "refused");
+});
+
+test("hide/show before unlock completes connects only the replacement player once", async () => {
+  const { Player, made } = fakePlayer();
+  let finishUnlock;
+  Player.prototype.unlock = function () {
+    this.calls.push("unlock");
+    return made.indexOf(this) === 0 ? new Promise((r) => { finishUnlock = r; }) : Promise.resolve();
+  };
+  const speaker = createSpeaker({ host: "ma", Player });
+  speaker.set("TV"); speaker.start();
+  await Promise.resolve();
+  speaker.stop(); speaker.start();
+  finishUnlock();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(made[0].calls.filter((c) => c === "connect").length, 0);
+  assert.equal(made[1].calls.filter((c) => c === "connect").length, 1);
+});
+
+test("callbacks from a disconnected player cannot overwrite the replacement's state", async () => {
+  const { Player, made } = fakePlayer();
+  const speaker = createSpeaker({ host: "ma", Player });
+  speaker.set("TV"); speaker.start();
+  await new Promise((r) => setTimeout(r, 0));
+  speaker.stop(); speaker.start();
+  made[1].config.onStateChange({ isPlaying: true });
+  made[0].config.onStateChange({ isPlaying: false });
+  assert.equal(speaker.state, "playing");
+  speaker.set("");
+  made[1].config.onStateChange({ isPlaying: false });
+  assert.equal(speaker.state, "off");
+});
+
+test("a delayed rejection from an old connection cannot mark a new connection failed", async () => {
+  const { Player, made } = fakePlayer();
+  let rejectOld;
+  Player.prototype.connect = function () {
+    return made.indexOf(this) === 0 ? new Promise((_, reject) => { rejectOld = reject; }) : Promise.resolve();
+  };
+  const speaker = createSpeaker({ host: "ma", Player });
+  speaker.set("TV"); speaker.start();
+  await new Promise((r) => setTimeout(r, 0));
+  speaker.stop(); speaker.start();
+  made[1].config.onStateChange({ isPlaying: true });
+  rejectOld(new Error("old socket"));
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(speaker.state, "playing");
+  assert.equal(speaker.error, "");
 });
 
 function fakeDelays(start) {
