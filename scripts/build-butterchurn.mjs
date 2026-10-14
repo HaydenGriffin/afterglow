@@ -2,9 +2,12 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { gpuTimingSource } from "./butterchurn-source.mjs";
+import { glExperimentSource } from "./butterchurn-experiments.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const source = readFileSync(new URL("../node_modules/butterchurn/dist/butterchurn.js", import.meta.url), "utf8");
+let source = readFileSync(new URL("../node_modules/butterchurn/dist/butterchurn.js", import.meta.url), "utf8");
+// AFTERGLOW_GL_EXPERIMENTS=1 builds the diagnostic switches (scripts/butterchurn-experiments.mjs).
+if (process.env.AFTERGLOW_GL_EXPERIMENTS === "1") source = glExperimentSource(source);
 await build({
   stdin: { contents: gpuTimingSource(source) + "\nwindow.butterchurn = Butterchurn;\n", resolveDir: root, sourcefile: "butterchurn-tv.js" },
   bundle: true, format: "iife", target: "chrome68", minify: true, logLevel: "warning",
