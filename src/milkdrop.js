@@ -274,6 +274,24 @@ export function createMilkdropMode(onFail, onNotice) {
     step(1, 0);
   }
 
+  // Butterchurn draws into an OffscreenCanvas where the browser has one and
+  // copies every frame onto ours with drawImage. On an LG C1 (webOS 6,
+  // Chromium 79) that copy leaks about 20 MB a minute in WebAppMgr until webOS
+  // kills the page; with a plain canvas, as on Chromium 68 which has no
+  // OffscreenCanvas (the LG CX this app was built on), it doesn't. So
+  // Butterchurn is made without one.
+  // (By name: scripts/build.sh fails a bundle that uses OffscreenCanvas.)
+  const OFFSCREEN = "Offscreen" + "Canvas";
+  function createPlainVisualizer(api, canvas, options) {
+    const Offscreen = window[OFFSCREEN];
+    try {
+      window[OFFSCREEN] = undefined;
+      return api.createVisualizer(null, canvas, options);
+    } finally {
+      window[OFFSCREEN] = Offscreen;
+    }
+  }
+
   function start(canvas) {
     // If the TV dies inside Butterchurn, this flag is still set on the next
     // launch and MilkDrop is skipped.
@@ -290,7 +308,7 @@ export function createMilkdropMode(onFail, onNotice) {
         const options = { width: canvas.width, height: canvas.height, pixelRatio: 1, meshWidth: 32, meshHeight: 24 };
         // Butterchurn only uses the audio context to tap live audio; the
         // waveform is handed to render() instead.
-        visualizer = api.createVisualizer(null, canvas, options);
+        visualizer = createPlainVisualizer(api, canvas, options);
         // The GL context lives on Butterchurn's own canvas; ours only gets
         // the 2D blit.
         (visualizer.internalCanvas || canvas).addEventListener("webglcontextlost", (event) => {
