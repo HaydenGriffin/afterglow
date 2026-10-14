@@ -90,7 +90,7 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
     return new Promise((resolve, reject) => {
       const id = "control-" + ++sequence;
       const timer = setTimeout(() => { requests.delete(id); reject(new Error("Music Assistant did not reply. Try again.")); }, 15000);
-      requests.set(id, { resolve, reject, timer });
+      requests.set(id, { resolve, reject, timer, parts: [] });
       socket.send(JSON.stringify({ message_id: id, command, args: args || {} }));
     });
   }
@@ -408,10 +408,16 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
       }
       if (requests.has(message.message_id)) {
         const request = requests.get(message.message_id);
-        requests.delete(message.message_id);
         clearTimeout(request.timer);
+        // A long list (playlist tracks) arrives in parts under one id; the last has no "partial".
+        if (message.partial && Array.isArray(message.result) && message.error_code === undefined) {
+          request.parts = request.parts.concat(message.result);
+          request.timer = setTimeout(() => { requests.delete(message.message_id); request.reject(new Error("Music Assistant did not reply. Try again.")); }, 15000);
+          return;
+        }
+        requests.delete(message.message_id);
         if (message.error_code !== undefined) request.reject(new Error(message.details || "Music Assistant refused the request."));
-        else request.resolve(message.result);
+        else request.resolve(request.parts.length ? request.parts.concat(message.result || []) : message.result);
         return;
       }
       if (!authed && message.server_version && !message.message_id) {

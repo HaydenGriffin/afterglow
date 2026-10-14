@@ -73,3 +73,16 @@ test('visual trim shifts lyrics later without double-applying speaker compensati
   const p=h.model.command('seek',h.model.snapshot().position+10);
   assert.equal(h.calls[0].args.position,30);h.pending[0].resolve(null);await p;
 });
+test('browse and queue edits send Music Assistant 2.10 arguments on the current queue', async () => {
+  const h = harness(); const send = async (action, value) => { const p = h.model.command(action, value); h.pending[h.pending.length - 1].resolve(null); return p; };
+  assert.equal(await send('play_media', { media: 'library://album/12', option: 'next' }), true);
+  assert.deepEqual(h.calls[0], { command: 'player_queues/play_media', args: { queue_id: 'group', media: 'library://album/12', option: 'next' } });
+  await send('radio');
+  assert.deepEqual(h.calls[1], { command: 'player_queues/play_media', args: { queue_id: 'group', media: 'radio_playlist://playlist/library://track/1', option: 'replace' } });
+  await send('move_item', { id: 'q7', shift: 0 });
+  assert.deepEqual(h.calls[2], { command: 'player_queues/move_item', args: { queue_id: 'group', queue_item_id: 'q7', pos_shift: 0 } });
+  await send('delete_item', 'q7');
+  assert.deepEqual(h.calls[3], { command: 'player_queues/delete_item', args: { queue_id: 'group', item_id_or_index: 'q7' } });
+  assert.equal(await h.model.command('play_media', { media: '', option: 'replace' }), false, 'nothing to play is refused locally');
+  assert.equal(h.calls.length, 4);
+});

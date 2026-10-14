@@ -16,7 +16,7 @@ function byId(list, key) {
   return out;
 }
 
-test("speakers are the usable real players, sorted by name", () => {
+test("speakers are the usable groups then real players, each sorted by name", () => {
   const players = byId(
     [
       player("office", { name: "Office" }),
@@ -30,6 +30,7 @@ test("speakers are the usable real players, sorted by name", () => {
     "player_id"
   );
   assert.deepEqual(speakersOf(players), [
+    { id: "grp", name: "Everywhere", group: true },
     { id: "bath", name: "bathroom" },
     { id: "pair", name: "Living Room" },
     { id: "office", name: "Office" },

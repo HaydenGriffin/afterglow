@@ -8,15 +8,21 @@ export function timeLabel(seconds) {
   const s = Math.max(0, Math.floor(Number(seconds) || 0));
   return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 }
+// Music Assistant's image proxy only serves sizes 0, 80, 160, 256, 512 and 1024.
+export function imageUrl(picture, host, size) {
+  if (picture && /^[a-f0-9]{64}$/i.test(picture.proxy_id || "")) return "http://" + authority(host) + "/imageproxy/" + picture.proxy_id + "?size=" + size;
+  if (picture && picture.remotely_accessible && /^(https?:\/\/|data:image\/svg\+xml;)/.test(picture.path || "")) return picture.path;
+  return "";
+}
+export function thumbOf(item) {
+  const pictures = (item && item.metadata && item.metadata.images) || [];
+  return (item && item.image) || pictures.filter(i => i.type === "thumb")[0] || (item && item.album && item.album.image) || null;
+}
 export function trackInfo(item, host) {
   if (!item) return null;
   const media = item.media_item || {};
   const album = media.album || {};
-  const pictures = (media.metadata && media.metadata.images) || [];
-  const picture = item.image || pictures.filter(i => i.type === "thumb")[0] || album.image;
-  let image = "";
-  if (picture && /^[a-f0-9]{64}$/i.test(picture.proxy_id || "")) image = "http://" + authority(host) + "/imageproxy/" + picture.proxy_id + "?size=512";
-  else if (picture && picture.remotely_accessible && /^https?:\/\//.test(picture.path || "")) image = picture.path;
+  const image = imageUrl(item.image || thumbOf(media), host, 512);
   return { id: item.queue_item_id, title: media.name || item.name || "Unknown track",
     artist: (media.artists || []).map(a => a.name).filter(Boolean).join(", "),
     album: album.name || "", duration: item.duration || media.duration || 0, image, media };
@@ -119,6 +125,14 @@ export function createPlayback({ live, host, now = Date.now }) {
       else if (action === "volume") { command = "players/cmd/volume_set"; args = { player_id: id, volume_level: Math.max(0, Math.min(100, value)) }; }
       else if (action === "sleep") { command = "players/sleep_timer/" + (value ? "set" : "clear"); args = { player_id: id }; if (value) args.seconds = value * 60; }
       else if (action === "favorite") { command = "music/favorites/add_item"; args = { item: s.track && s.track.media.uri }; if (!args.item) return false; }
+      else if (action === "play_media") { if (!value || !value.media) return false; args.media = value.media; args.option = value.option; }
+      else if (action === "radio") {
+        // Music Assistant 2.10 turns radio_mode into this provider uri itself; send it directly.
+        const uri = s.track && s.track.media.uri; if (!uri) return false;
+        command = "player_queues/play_media"; args.media = "radio_playlist://playlist/" + uri; args.option = "replace";
+      }
+      else if (action === "move_item") { args.queue_item_id = value.id; args.pos_shift = value.shift; }
+      else if (action === "delete_item") args.item_id_or_index = value;
       else if (["previous", "next", "play_pause", "play", "pause"].indexOf(action) < 0) { error = "Unsupported action"; return false; }
       busy = true; error = "";
       try { await live.call(command, args); nextQueueRead = 0; return true; }

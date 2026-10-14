@@ -414,3 +414,27 @@ test('queue timing events update position and pausing freezes the player snapsho
   sockets[0].receive({message_id:'queue',result:{queue_id:'stale',state:'playing',elapsed_time:99}});
   assert.equal(follow.playback.queue.queue_id,'a');follow.stop();
 });
+
+test("a long list sent in parts is answered whole", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  const sockets = [];
+  class Fake {
+    constructor(url) { this.url = url; this.sent = []; this.readyState = 1; sockets.push(this); }
+    send(data) { this.sent.push(JSON.parse(data)); }
+    close() { this.readyState = 3; }
+    receive(message) { this.onmessage({ data: JSON.stringify(message) }); }
+  }
+  const relay = { connects: [], state: "closed", connect(id) { this.connects.push(id); this.state = "open"; } };
+  const follow = createFollow({ host: "h", token: "tok", pinned: "p", relay, WebSocketImpl: Fake, deviceId: "cx", sharedKeys: [] });
+  follow.start();
+  sockets[0].receive({ server_version: "2.10.6" });
+  sockets[0].receive({ message_id: "auth", result: { authenticated: true } });
+  const answer = follow.call("music/playlists/playlist_tracks", { item_id: "1", provider_instance_id_or_domain: "library" });
+  const id = sockets[0].sent.filter((m) => m.command === "music/playlists/playlist_tracks")[0].message_id;
+  sockets[0].receive({ message_id: id, result: [{ name: "a" }, { name: "b" }], partial: true });
+  t.mock.timers.tick(14000);
+  sockets[0].receive({ message_id: id, result: [{ name: "c" }], partial: true });
+  t.mock.timers.tick(14000);
+  sockets[0].receive({ message_id: id, result: [{ name: "d" }] });
+  assert.deepEqual((await answer).map((x) => x.name), ["a", "b", "c", "d"], "every part, in order; each part restarts the wait");
+});

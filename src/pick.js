@@ -9,20 +9,23 @@
 // given the queue id, so moving between speakers in one group changes nothing
 // on the wire.
 
-const SPEAKER_TYPES = { player: true, stereo_pair: true };
+const SPEAKER_TYPES = { player: true, stereo_pair: true, group: true };
 const RETRY_BASE_MS = 15000;
 const RETRY_MAX_MS = 5 * 60000;
 
-// The players a person can pick: real, usable ones, by name.
+// The players a person can pick: usable sync groups, then real players, by name.
 export function speakersOf(players) {
   const list = [];
   for (const id in players) {
     const p = players[id];
     if (!p || !SPEAKER_TYPES[p.type]) continue;
     if (!p.available || p.enabled === false || p.hide_in_ui) continue;
-    list.push({ id: p.player_id, name: p.name || p.player_id });
+    const speaker = { id: p.player_id, name: p.name || p.player_id };
+    if (p.type === "group") speaker.group = true;
+    list.push(speaker);
   }
-  list.sort((a, b) => (a.name.toLowerCase() < b.name.toLowerCase() ? -1 : a.name.toLowerCase() > b.name.toLowerCase() ? 1 : 0));
+  const key = (s) => (s.group ? "0" : "1") + s.name.toLowerCase();
+  list.sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
   return list;
 }
 
