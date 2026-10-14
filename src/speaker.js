@@ -122,6 +122,26 @@ export function createSpeaker({ host, Player, delays }) {
     get delayMs() {
       return delay;
     },
+    // What sendspin-js says about keeping in sync (resyncs are heard as a
+    // jump), for the debug readout and the dev server's status.
+    get stats() {
+      if (!player) return null;
+      try {
+        const s = player.syncInfo || {};
+        const f = player.currentFormat;
+        return {
+          connected: !!player.isConnected,
+          resyncs: s.resyncCount,
+          errorMs: Math.round((s.syncErrorMs || 0) * 10) / 10,
+          method: s.correctionMethod,
+          rate: s.playbackRate,
+          outputLatencyMs: Math.round(s.outputLatencyMs || 0),
+          format: f ? f.codec + " " + f.sample_rate + "/" + f.bit_depth + "/" + f.channels : "",
+        };
+      } catch (e) {
+        return { error: String(e) };
+      }
+    },
     // One step earlier (+1) or later (-1), saved once the presses stop.
     nudgeDelay(direction) {
       if (delay === null || !wanted || !delays) return;

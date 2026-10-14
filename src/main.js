@@ -516,6 +516,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
         webgl2: hasWebGL2() ? "yes" + (milkdropOff ? ", MilkDrop off: " + milkdropOff : "") : "no",
         source: settings.mock ? "mock" : "live",
         speaker: speaker && speaker.on ? speaker.id + " " + speaker.state + (speaker.error ? " (" + speaker.error + ")" : "") : "off",
+        speakerSync: speaker ? speaker.stats : null,
         idle: engine.idle + (engine.idle ? " (" + message.textContent + ")" : ""),
         gain: analysis.autoLevel ? "x" + analysis.gain.toFixed(1) : "off",
         menu: menu.describe(),
