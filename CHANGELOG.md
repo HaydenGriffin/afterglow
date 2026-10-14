@@ -1,3 +1,8 @@
+# 1.4.1 — Launcher icon (14 October 2026)
+
+- Replace viz-man's equaliser icon with the poster world's mark: a sun setting
+  on a horizon rule over two lines of type, paper on ink (`scripts/make-icons.mjs`).
+
 # 1.4.0 — Poster redesign and Music Assistant parity (14 October 2026)
 
 - Replace the amber player and the green settings list with one visual system:

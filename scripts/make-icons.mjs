@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Usage: scripts/make-icons.mjs
-// Draws the app's bar-graph icons as PNGs without any image library.
+// Draws the app's launcher icons as PNGs without any image library.
 import { deflateSync, crc32 } from "node:zlib";
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -8,41 +8,30 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-// Bar heights out of 16, low frequencies on the left.
-const BARS = [9, 13, 15, 12, 14, 10, 7, 9, 5, 6, 3];
-const PEAKS = [11, 15, 16, 14, 15, 12, 9, 10, 7, 7, 5];
-
-function rowColor(row) {
-  // row 0 is the bottom of a bar; green rises through yellow to red.
-  const t = row / 15;
-  if (t < 0.55) return [41 + 180 * (t / 0.55), 190 + 20 * (t / 0.55), 16];
-  return [222 + 17 * ((t - 0.55) / 0.45), 181 - 132 * ((t - 0.55) / 0.45), 16];
+// The launcher icon in the poster's world: paper on ink, no house accent.
+// A sun setting on a horizon rule (the afterglow) over two lines of poster
+// type. Shapes are in unit space; each pixel is supersampled 4×4.
+const INK = [18, 20, 23];
+const PAPER = [239, 235, 227];
+const HORIZON = 0.6;
+const inRect = (x, y, x0, y0, x1, y1) => x >= x0 && x < x1 && y >= y0 && y < y1;
+function paper(x, y) {
+  if (y < HORIZON && (x - 0.5) ** 2 + (y - HORIZON) ** 2 <= 0.27 ** 2) return true; // the sun, above the horizon
+  return inRect(x, y, 0.14, HORIZON, 0.86, HORIZON + 0.035) // horizon rule
+    || inRect(x, y, 0.14, 0.7, 0.7, 0.765) // title line
+    || inRect(x, y, 0.14, 0.805, 0.52, 0.85); // second line
 }
 
 function draw(size) {
   const px = Buffer.alloc(size * size * 4);
-  const set = (x, y, [r, g, b]) => {
-    if (x < 0 || y < 0 || x >= size || y >= size) return;
-    const i = (y * size + x) * 4;
-    px[i] = r; px[i + 1] = g; px[i + 2] = b; px[i + 3] = 255;
-  };
-  for (let i = 3; i < px.length; i += 4) px[i] = 255;
-
-  const margin = Math.round(size * 0.14);
-  const inner = size - margin * 2;
-  const pitch = inner / BARS.length;
-  const barW = Math.max(1, Math.floor(pitch * 0.72));
-  const cell = inner / 16;
-  for (let b = 0; b < BARS.length; b++) {
-    const x0 = Math.round(margin + b * pitch);
-    for (let row = 0; row < 16; row++) {
-      const lit = row < BARS[b];
-      const peak = row === PEAKS[b] - 1;
-      if (!lit && !peak) continue;
-      const color = peak && !lit ? [190, 196, 200] : rowColor(row);
-      const yTop = Math.round(size - margin - (row + 1) * cell);
-      const yBot = Math.round(size - margin - row * cell) - (cell >= 3 ? 1 : 0);
-      for (let y = yTop; y < yBot; y++) for (let x = x0; x < x0 + barW; x++) set(x, y, color);
+  const n = 4;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let hits = 0;
+      for (let sy = 0; sy < n; sy++) for (let sx = 0; sx < n; sx++) if (paper((x + (sx + 0.5) / n) / size, (y + (sy + 0.5) / n) / size)) hits++;
+      const t = hits / (n * n), i = (y * size + x) * 4;
+      for (let c = 0; c < 3; c++) px[i + c] = Math.round(INK[c] + (PAPER[c] - INK[c]) * t);
+      px[i + 3] = 255;
     }
   }
   return px;
