@@ -277,12 +277,10 @@ export function createMilkdropMode(onFail, onNotice) {
     step(1, 0);
   }
 
-  // Butterchurn draws into an OffscreenCanvas where the browser has one and
-  // copies every frame onto ours with drawImage. On an LG C1 (webOS 6,
-  // Chromium 79) that copy leaks about 20 MB a minute in WebAppMgr until webOS
-  // kills the page; with a plain canvas, as on Chromium 68 which has no
-  // OffscreenCanvas (the LG CX this app was built on), it doesn't. So
-  // Butterchurn is made without one.
+  // Preserve the plain-canvas compatibility path. This was introduced as a
+  // C1 memory workaround, but growth also occurred with a plain canvas and
+  // without the output copy. See docs/performance.md for measured findings;
+  // this switch alone is not a demonstrated leak fix.
   // (By name: scripts/build.sh fails a bundle that uses OffscreenCanvas.)
   const OFFSCREEN = ["Offscreen", "Canvas"].join(""); // joined at run time: the minifier folds "a" + "b"
   function createPlainVisualizer(api, canvas, options) {
