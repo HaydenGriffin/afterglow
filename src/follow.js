@@ -62,6 +62,10 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
   const firstPlaying = {}; // queue id -> when it was first seen playing
   let skipped = {}; // queue id -> {at, tries}: claimed to play, sent no frames
   let failures = {}; // queue id -> silent tries so far, for the next wait
+  let sequence = 0;
+  const requests = new Map();
+  let queueReceivedAt = 0;
+  let queueElapsed = 0;
   let wanted = preferred || ""; // the picked speaker, "" for automatic
 
   function setState(next) {
@@ -71,8 +75,29 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
     }
   }
 
+  function rejectRequests() {
+    for (const request of requests.values()) {
+      clearTimeout(request.timer);
+      request.reject(new Error("Music Assistant disconnected. Try again when connected."));
+    }
+    requests.clear();
+  }
+
+  // Share the existing authenticated socket; no connection per button press.
+  function call(command, args) {
+    if (!authed || !socket || socket.readyState !== 1) return Promise.reject(new Error("Music Assistant is reconnecting. Try again shortly."));
+    if (requests.size >= 16) return Promise.reject(new Error("Please wait for the current request."));
+    return new Promise((resolve, reject) => {
+      const id = "control-" + ++sequence;
+      const timer = setTimeout(() => { requests.delete(id); reject(new Error("Music Assistant did not reply. Try again.")); }, 15000);
+      requests.set(id, { resolve, reject, timer });
+      socket.send(JSON.stringify({ message_id: id, command, args: args || {} }));
+    });
+  }
+
   function closeApi() {
     generation++;
+    rejectRequests();
     clearTimeout(pollTimer);
     clearTimeout(trackTimer);
     clearTimeout(retryTimer);
@@ -123,6 +148,14 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
   }
 
   function applyEvent(message) {
+    if (message.event === "queue_time_updated" && message.object_id === current && queues[current]) {
+      const elapsed = typeof message.data === "number" ? message.data : message.data && message.data.elapsed_time;
+      if (Number.isFinite(elapsed)) {
+        queueElapsed = elapsed;
+        queueReceivedAt = clock();
+      }
+      return;
+    }
     const kind = EVENTS[message.event];
     if (!kind) return; // queue_time_updated and the like: nothing to decide on
     const table = kind === "players" ? players : queues;
@@ -158,6 +191,7 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
     current = pick.queueId;
     streaming = false;
     trackId = null;
+    if (queues[current]) sawQueue(queues[current]);
     expectFramesAt = clock();
     relay.connect(pick.queueId);
   }
@@ -230,6 +264,13 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
   }
 
   function sawQueue(queue) {
+    // Ignore late snapshots for a queue we no longer follow.
+    if (queue.queue_id && queue.queue_id !== current) return;
+    queues[current] = queue;
+    queueReceivedAt = clock();
+    // Epoch timestamps arrive from the server; clamp unreasonable clock skew.
+    const age = queue.state === "playing" ? Math.max(0, Math.min(10, clock() / 1000 - (queue.elapsed_time_last_updated || clock() / 1000))) : 0;
+    queueElapsed = (queue.elapsed_time || 0) + age * (queue.playback_speed || 1);
     const track = trackOf(queue);
     const id = track ? track.id : null;
     if (id === trackId) return;
@@ -365,6 +406,14 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
       } catch (e) {
         return;
       }
+      if (requests.has(message.message_id)) {
+        const request = requests.get(message.message_id);
+        requests.delete(message.message_id);
+        clearTimeout(request.timer);
+        if (message.error_code !== undefined) request.reject(new Error(message.details || "Music Assistant refused the request."));
+        else request.resolve(message.result);
+        return;
+      }
       if (!authed && message.server_version && !message.message_id) {
         ws.send(JSON.stringify({ message_id: "auth", command: "auth", args: { token } }));
       } else if (message.message_id === "auth") {
@@ -421,6 +470,8 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
     ws.onclose = () => {
       if (gen !== generation) return;
       socket = null;
+      authed = false;
+      rejectRequests();
       clearTimeout(pollTimer);
       clearTimeout(trackTimer);
       pollTimer = trackTimer = 0;
@@ -430,6 +481,12 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
   }
 
   return {
+    call,
+    get playback() {
+      const queue = queues[current];
+      return queue ? { queue, player: players[current] || null, connected: authed,
+        position: queueElapsed + (queue.state === "playing" ? Math.max(0, clock() - queueReceivedAt) / 1000 * (queue.playback_speed || 1) : 0) } : null;
+    },
     start() {
       active = true;
       streaming = false;

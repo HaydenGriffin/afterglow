@@ -1,4 +1,6 @@
 import "./polyfills.js";
+import { createPlayerView } from "./player-view.js";
+import { createMockPlayback } from "./mock-playback.js";
 import { createAnalysis } from "./analysis.js";
 import { createDebug } from "./debug.js";
 import { startDevlink } from "./devlink.js";
@@ -54,7 +56,7 @@ function boot(event) {
     savePref("deviceId", settings.deviceId);
   }
   const isTv = /Web0S|webOS/i.test(navigator.userAgent);
-  const deviceName = "viz-man on " + (info.modelName || (isTv ? "TV" : "browser")) + " (" + settings.deviceId.slice(-6) + ")";
+  const deviceName = "Afterglow on " + (info.modelName || (isTv ? "TV" : "browser")) + " (" + settings.deviceId.slice(-6) + ")";
 
   // Credentials: a development override (query string, launch parameters or
   // the build config) wins; otherwise what the sign-in form stored.
@@ -88,6 +90,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   // settings synced. Shown only with the debug readout on, unless `always`;
   // otherwise the screen carries nothing but the visuals and the track card.
   let toastTimer = 0;
+  let playerView = null;
   let debug = null; // the readout, created once the engine exists
   function toast(text, always) {
     if (!always && (!debug || !debug.visible)) return;
@@ -134,6 +137,10 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   function applyDim() {
     canvas.style.opacity = String(1 - dimViz / 100);
     trackCard.style.opacity = String(1 - dimTrack / 100);
+    const scene = document.querySelector(".player-scene");
+    const lyricOverlay = document.querySelector(".lyric-overlay");
+    if (scene) scene.style.opacity = String(1 - dimTrack / 100);
+    if (lyricOverlay) lyricOverlay.style.opacity = String(1 - dimTrack / 100);
   }
   function setDimViz(percent) {
     dimViz = Math.max(0, Math.min(DIM_CHOICES[DIM_CHOICES.length - 1], percent));
@@ -177,7 +184,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   }
   const source = settings.mock ? createMock() : live;
   const engine = createEngine({ canvas, analysis, source });
-  engine.setFpsCap(loadPref("fpsCap", 60));
+  engine.setFpsCap(loadPref("fpsCap", 30));
 
   // MilkDrop is the picture; when it cannot run the screen says why.
   let milkdropOff = settings.noWebgl ? "no WebGL2" : milkdropBlocker();
@@ -191,7 +198,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   if (live) {
     live.onTrack((track) => showTrackCard(track, trackMode === "start"));
     // The artwork palette colors the presets; one may have arrived already.
-    live.onColor((p) => milkdrop.setPalette(p));
+    live.onColor((p) => { milkdrop.setPalette(p); if (playerView) playerView.setPalette(p); });
     milkdrop.setPalette(live.palette);
   }
 
@@ -202,6 +209,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     overlay: byId("scan"),
     onNotice: (text) => toast(text, true),
     onDone(complete) {
+      if (playerView) playerView.reloadPrefs();
       if (complete) toast("Scan done: " + milkdrop.validatedCount + " of " + milkdrop.presetCount + " validated at " + milkdrop.validateFps + " fps", true);
       else toast("Scan paused: continue it from the menu", true);
     },
@@ -213,11 +221,12 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   function applyPrefs() {
     analysis.autoLevel = loadPref("autoLevel", false);
     holdWhenIdle = loadPref("holdWhenIdle", settings.holdWhenIdle);
-    engine.setFpsCap(loadPref("fpsCap", 60));
+    engine.setFpsCap(loadPref("fpsCap", 30));
     dimViz = loadPref("dimViz", 0);
     dimTrack = loadPref("dimTrack", 0);
     applyDim();
     milkdrop.reloadPrefs();
+    if (playerView) playerView.reloadPrefs();
     if (live) {
       live.reloadTrim();
       live.reloadPreferred();
@@ -268,7 +277,9 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     if (leaving) return;
     leaving = true;
     menu.close();
+    if (playerView) playerView.stop();
     scan.stop();
+    if (speaker) speaker.stop();
     if (live) live.stop();
     engine.stop();
     clearPref("auth");
@@ -317,6 +328,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   }
 
   const menu = createMenu(byId("menu"), [
+    { label: "Now playing", change() { menu.close(); playerView.open(); } },
     {
       label: "Preset",
       visible: () => !milkdropOff,
@@ -483,6 +495,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       value: () => scan.describe(),
       change() {
         menu.close();
+        engine.setDrawing(true);
         scan.start();
       },
     },
@@ -505,6 +518,13 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     { label: "Log out", visible: () => !!live, value: () => (auth ? auth.user + " @ " + auth.host : "dev token"), change: logOut },
     { label: "Close menu", change: () => menu.close() },
   ]);
+
+  playerView = createPlayerView({
+    root: byId("player"), live: live || createMockPlayback(), host: settings.host,
+    engine, onSettings: () => menu.open(), onNotice: text => toast(text, true),
+    onMode(mode) { trackCard.style.display = mode === "track" ? "" : "none"; applyDim(); }
+  });
+  if (live) playerView.setPalette(live.palette);
 
   debug = createDebug(byId("debug"), () =>
     Object.assign(
@@ -546,6 +566,8 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     fpsCap: engine.fpsCap,
     canvas: [canvas.width, canvas.height],
     rendering: engine.metrics,
+    drawing: engine.drawing,
+    viewMode: playerView.mode,
     speaker: speaker ? speaker.stats : null,
     idle: engine.idle,
   });
@@ -555,6 +577,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   }
 
   function refreshMessage() {
+    if (playerView && (playerView.mode === "album" || playerView.mode === "lyrics")) { message.style.display = "none"; return; }
     if (milkdropOff) {
       message.textContent = "MilkDrop can't run on this TV: " + milkdropOff + (hasWebGL2() ? " (OK, then MilkDrop, to retry)" : "");
       message.style.display = "block";
@@ -587,12 +610,13 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       return;
     }
     if (menu.handleKey(name)) return;
+    if (playerView.handleKey(name)) return;
     if (name === "up") milkdrop.step(1);
     else if (name === "down") milkdrop.step(-1);
     else if (name === "left" || name === "right") {
       setDimViz(dimViz + (name === "left" ? -DIM_STEP : DIM_STEP));
       toast("Dim " + dimViz + "%", true);
-    } else if (name === "ok") menu.open();
+    } else if (name === "ok") playerView.open();
     else if (name === "red" && live) live.nudgeTrim(-TRIM_STEP_MS);
     else if (name === "green" && live) live.nudgeTrim(TRIM_STEP_MS);
     else if (name === "yellow" && milkdrop.ready) {
@@ -607,7 +631,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   // Moving the Magic Remote pointer shows how to reach the menu.
   let hintTimer = 0;
   function showHint() {
-    if (menu.isOpen || scan.running || leaving) return;
+    if (menu.isOpen || playerView.isOpen || scan.running || leaving) return;
     hint.style.opacity = "1";
     clearTimeout(hintTimer);
     hintTimer = setTimeout(() => (hint.style.opacity = "0"), HINT_MS);
@@ -616,9 +640,9 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   document.addEventListener("cursorStateChange", (change) => {
     if (change.detail && change.detail.visibility) showHint();
   });
-  hint.addEventListener("click", () => menu.open());
+  hint.addEventListener("click", () => playerView.open());
 
-  startDrift([byId("stage"), message, trackCard]);
+  startDrift([byId("stage"), message, trackCard, document.querySelector(".player-scene"), document.querySelector(".lyric-overlay")]);
 
   startDevlink({
     base: settings.report,
@@ -650,9 +674,11 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     if (engine.running || leaving) return;
     if (live) live.start();
     if (speaker) speaker.start();
+    playerView.start();
     engine.start();
   }
   function suspend() {
+    playerView.stop();
     scan.stop();
     engine.stop();
     if (live) live.stop();
@@ -666,6 +692,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   document.addEventListener("visibilitychange", onVisibility);
   document.addEventListener("webkitvisibilitychange", onVisibility);
   window.addEventListener("pagehide", () => {
+    playerView.stop();
     scan.stop();
     milkdrop.settle();
   });

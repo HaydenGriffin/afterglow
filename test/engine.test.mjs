@@ -30,3 +30,17 @@ test("render telemetry distinguishes expensive draws from frame gaps and exclude
   engine.stop(); time = 10000; engine.start(); frame(10034);
   assert.equal(engine.metrics.maxFrameGapMs, 132);
 });
+
+test("artwork mode drains the waveform without analysis or GPU draws, and resumes without restarting audio", (t) => {
+  let tick, waves = 0, analyses = 0, draws = 0;
+  const previous = Object.fromEntries(["window", "requestAnimationFrame", "cancelAnimationFrame"].map(k => [k, Object.getOwnPropertyDescriptor(globalThis, k)]));
+  t.after(() => { for (const [k,d] of Object.entries(previous)) { if(d) Object.defineProperty(globalThis,k,d); else delete globalThis[k]; } });
+  globalThis.window = { innerWidth: 1920, innerHeight: 1080 };
+  globalThis.requestAnimationFrame = fn => { tick=fn; return 1; }; globalThis.cancelAnimationFrame=()=>{};
+  const canvas={style:{}};
+  const engine=createEngine({canvas,analysis:{setWave(){analyses++;}},source:{wave(){waves++;return new Uint8Array(2);}}});
+  engine.setRenderer({create:()=>({draw(){draws++;}})});engine.start();tick(34);
+  engine.setDrawing(false);tick(68);tick(102);
+  assert.equal(waves,3);assert.equal(analyses,1);assert.equal(draws,1);assert.equal(canvas.style.display,'none');
+  engine.setDrawing(true);tick(136);assert.equal(draws,2);assert.equal(canvas.style.display,'');engine.stop();
+});

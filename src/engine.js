@@ -16,6 +16,7 @@ export function createEngine({ canvas, analysis, source }) {
   let instance = null;
   let raf = 0;
   let running = false;
+  let drawing = true;
   let lastFrameMs = 0;
   let fpsCap = 60;
   let fps = 0;
@@ -61,8 +62,8 @@ export function createEngine({ canvas, analysis, source }) {
         canvas.style.visibility = "visible";
         for (const fn of idleListeners) fn(false);
       }
-      analysis.setWave(wave, dt);
-      if (instance) {
+      if (drawing) analysis.setWave(wave, dt);
+      if (instance && drawing) {
         const began = performance.now();
         instance.draw({ t: nowMs / 1000, dt, analysis });
         const cost = performance.now() - began;
@@ -76,6 +77,8 @@ export function createEngine({ canvas, analysis, source }) {
   }
 
   return {
+    setDrawing(on) { drawing = !!on; canvas.style.display = drawing ? "" : "none"; },
+    get drawing() { return drawing; },
     setRenderer(renderer) {
       const scale = renderer.scale || DEFAULT_SCALE;
       const w = Math.round(window.innerWidth * scale);

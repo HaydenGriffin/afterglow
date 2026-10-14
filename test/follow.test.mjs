@@ -394,3 +394,23 @@ test("Music Assistant's own favorites list is folded in and written back", (t) =
   assert.deepEqual(save.args.preferences.vizman.mirrored, ["keep", "tv", "web"]);
   assert.equal(save.args.preferences.vizman.favoritesMeta.gone.on, false);
 });
+
+test('control requests share the authenticated socket and reject on disconnect', async t => {
+  const {follow,sockets}=harness(t); follow.start();sockets[0].login();
+  const p=follow.call('player_queues/next',{queue_id:'a'});
+  const sent=sockets[0].sent.at(-1);assert.equal(sent.command,'player_queues/next');
+  sockets[0].receive({message_id:sent.message_id,result:null});assert.equal(await p,null);
+  const pending=follow.call('player_queues/pause',{queue_id:'a'});
+  const refusal=assert.rejects(pending,/disconnected/);follow.stop();await refusal;
+  await assert.rejects(follow.call('player_queues/play',{queue_id:'a'}),/reconnecting/);
+});
+test('queue timing events update position and pausing freezes the player snapshot', t => {
+  const {follow,sockets}=harness(t,'a');follow.start();sockets[0].login();
+  sockets[0].receive({message_id:'queue',result:{queue_id:'a',state:'playing',elapsed_time:10}});
+  t.mock.timers.tick(1000);assert.equal(follow.playback.position,11);
+  sockets[0].event('queue_time_updated','a',25);assert.equal(follow.playback.position,25.3);
+  sockets[0].event('queue_updated','a',{queue_id:'a',state:'paused',elapsed_time:26});
+  t.mock.timers.tick(3000);assert.equal(follow.playback.position,26);
+  sockets[0].receive({message_id:'queue',result:{queue_id:'stale',state:'playing',elapsed_time:99}});
+  assert.equal(follow.playback.queue.queue_id,'a');follow.stop();
+});

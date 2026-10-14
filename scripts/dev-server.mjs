@@ -21,7 +21,7 @@ const outDir = join(root, ".dev");
 const port = Number(process.env.PORT || 8137);
 const MAX_MESSAGE = 8 * 1024 * 1024;
 const WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".png": "image/png", ".md": "text/plain" };
+const TYPES = { ".css": "text/css", ".svg": "image/svg+xml", ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".png": "image/png", ".md": "text/plain" };
 
 mkdirSync(outDir, { recursive: true });
 const links = new Set(); // connected pages: { socket, client }

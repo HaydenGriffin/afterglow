@@ -84,7 +84,7 @@ export function createSpeaker({ host, Player, delays }) {
     player = new Player({
       playerId: wanted.id,
       clientName: wanted.name,
-      productName: "viz-man",
+      productName: "Afterglow",
       baseUrl: sendspinUrl(host),
       codecs: ["pcm"],
       requiredLeadTimeMs: LEAD_TIME_MS,

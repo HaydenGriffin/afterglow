@@ -1,3 +1,15 @@
+# 1.3.0 — Afterglow TV player (14 October 2026)
+
+- Rename the local fork to Afterglow; retain the webOS ID, storage keys and
+  existing speaker identity for in-place upgrades. Preserve upstream attribution.
+- Add a remote-friendly playback bar, artwork/lyrics views, optional overlays,
+  pure visuals, up next and Music Assistant playback options.
+- Artwork/lyrics without a MilkDrop background stop drawing and analysis while
+  still draining the waveform. Timed lyrics share visual Sync trim.
+- Reuse the authenticated API connection; bounded requests, lyric cache and queue
+  reads; guard against stale responses after track switches and suspension.
+- Default new installations to 30 fps. Residual native graphics growth is open.
+
 # Changelog
 
 ## 1.2.2 — 2026-10-14

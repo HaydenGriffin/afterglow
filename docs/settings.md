@@ -1,12 +1,46 @@
 # Settings and remote keys
 
+## Afterglow player
+
+**OK** opens the playback bar. Left/right moves between controls; OK selects.
+Up opens Display, down opens Options. Back closes a panel, then hides controls;
+Back with everything closed leaves the app. Controls hide after nine seconds.
+Pointer clicks and media keys also work. A plain Space key toggles playback in
+a browser. The original arrow/colour shortcuts remain active with panels closed.
+
+**Display** offers:
+
+- **Visuals only:** no track or lyric overlays.
+- **Visuals + track:** the original card (at track start / always / off).
+- **Album:** artwork, artist, album and next track.
+- **Lyrics:** artwork beside timed lyrics; plain lyrics have a page control.
+- **MilkDrop behind artwork & lyrics:** off by default; off stops GPU drawing.
+- **Lyrics over visuals + track:** an optional current-line overlay.
+
+**Options** controls the named Music Assistant queue: shuffle, repeat, autoplay,
+crossfade, group volume, add song to favourites and sleep timer. It also opens
+**Visualizer settings**, the original menu below. Smart shuffle disables the
+plain shuffle toggle. Failed actions are shown; no success is assumed offline.
+
+**Up next** loads only the next 12 songs. Selecting a row plays its stable queue
+item ID. Full library browsing and editing/saving queues are outside this first pass.
+
+### Timing
+
+Music Assistant’s positive Sendspin static delay advances audio delivery to
+compensate the TV/ARC output path. It must not be added again to the visual
+clock. The MilkDrop relay targets the audible group timeline. **Sync trim**
+delays both the visual frames and timed lyrics by the same amount (positive
+means later). The progress bar continues showing the queue’s media position.
+A physical A/V listening check is still needed for final calibration.
+
 ## Remote
 
 | Key | Action |
 |---|---|
 | ↑ / ↓ | Next / previous preset, within the list being browsed |
 | ← / → | Dim the visualizer down / up, in steps of 10% |
-| OK | Open the menu |
+| OK | Open playback controls |
 | Yellow | Add the preset to the favorites, or remove it |
 | Blue | Cycle the preset list: validated → all → favorites |
 | Red / Green | Sync trim −25 ms / +25 ms |
@@ -17,7 +51,7 @@ arrows, Enter and Escape work as on the remote.
 
 ## Menu
 
-OK opens the menu; ↑/↓ pick a row, ←/→ change its value (OK also steps
+Options → Visualizer settings opens the menu; ↑/↓ pick a row, ←/→ change its value (OK also steps
 forward), Back closes it. It closes by itself after a few seconds.
 
 | Row | Values | Default | Notes |
@@ -36,7 +70,7 @@ forward), Back closes it. It closes by itself after a few seconds.
 | Player | Auto / a speaker | Auto | See below |
 | Sync trim | ms | 0 ms | Positive shows each frame later. Also Red/Green |
 | Auto level | on / off | off | Scales quiet tracks so they still fill the picture |
-| Frame rate cap | 60 / 30 fps | 60 | 30 saves power on a TV that struggles |
+| Frame rate cap | 60 / 30 fps | 30 | 30 saves power on a TV that struggles |
 | Hold screen when idle | on / off | off | Keep the screensaver off even while nothing plays |
 | Scan presets | not run / n of 395 done / done | — | See below |
 | Validate above | 30 / 40 / 45 / 60 fps | 40 | The bar a preset's measured frame rate must clear to be validated; takes effect at once |

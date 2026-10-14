@@ -18,7 +18,7 @@ mkdirSync(dirname(output), { recursive: true });
 const write = (data) => appendFileSync(output, JSON.stringify({ at: new Date().toISOString(), ...data }) + "\n", { mode: 0o600 });
 const tabs = await (await fetch(endpoint + "/json/list", { signal: AbortSignal.timeout(10000) })).json();
 const tab = tabs.find((t) => t.url.endsWith("/net.botworth.vizman/index.html"));
-if (!tab) throw new Error("viz-man is not open");
+if (!tab) throw new Error("Afterglow / viz-man is not open");
 const wsUrl = new URL(tab.webSocketDebuggerUrl);
 wsUrl.host = new URL(endpoint).host;
 const ws = new WebSocket(wsUrl);

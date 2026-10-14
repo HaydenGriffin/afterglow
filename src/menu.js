@@ -30,6 +30,8 @@ export function createMenu(element, rows) {
       });
       element.appendChild(line);
     });
+    const selected = element.querySelector(".focus");
+    if (selected) selected.scrollIntoView({ block: "nearest" });
   }
 
   function touch() {

@@ -118,3 +118,29 @@ copy `.dev/bench-tv.json` over.
 1. Bump `version` in `package.json` and `app/appinfo.json`; add a `CHANGELOG.md` entry.
 2. `npm test && npm run package` with no `host`/`token` in `config.local.json`.
 3. Attach `dist/net.botworth.vizman_<version>_all.ipk` to the release.
+
+## Afterglow first-pass development
+
+`?mock=1` also provides labelled demo metadata/lyrics and local controls; no
+Music Assistant writes occur in that mode. TV-facing CSS must support Chromium
+68 (for example, use explicit edges rather than the newer `inset` shorthand).
+
+Targeted checks: `node --test test/playback.test.mjs`,
+`node --test test/follow.test.mjs`, `node --test test/engine.test.mjs`, then
+`npm run package`. Run them sequentially on the household laptop.
+
+The first-pass API was checked against the installed Music Assistant server:
+`player_queues/{items,play_pause,previous,next,seek,play_index,shuffle,repeat,autoplay,crossfade}`,
+`players/cmd/volume_set`, `players/sleep_timer/{set,clear}`,
+`music/favorites/add_item`, `metadata/get_track_lyrics`. Missing permissions or
+unsupported commands produce a visible refusal. Artwork uses the current
+`proxy_id` image endpoint, with accessible HTTP images as a fallback.
+
+No fork repository has been published. The Homebrew manifest omits upstream
+source/icon URLs for this unpublished build. Set `AFTERGLOW_REPOSITORY_URL` to
+the actual fork URL only when preparing an authorized public release.
+
+`test/browser-player.js` is an executable browser regression expression. Load
+`?mock=1` afresh and pass its contents to T3 `preview_evaluate` (awaitPromise),
+or paste it in DevTools. It refuses a non-mock page. It tests real remote events,
+queue arrow safety/OK selection, artwork draw suspension and pure visuals.

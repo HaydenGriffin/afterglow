@@ -1,4 +1,5 @@
 // The live signal: relay frames, buffered and released on the server's clock.
+import { applyPresentationTrim } from "./playback.js";
 import { createFollow } from "./follow.js";
 import { createRelay } from "./relay.js";
 import { SHARED_PREFS, loadPref, savePref } from "./settings.js";
@@ -84,6 +85,11 @@ export function createLive(settings) {
   });
 
   return {
+    call: (command, args) => follow.call(command, args),
+    get playback() {
+      const state = follow.playback;
+      return state ? Object.assign({}, state, { lyricPosition: applyPresentationTrim(state.position, trimMs) }) : null;
+    },
     // The waveform to draw now, or null when nothing is playing.
     wave(nowMs) {
       beatHit = 0;

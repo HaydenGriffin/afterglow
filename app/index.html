@@ -2,7 +2,8 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>viz-man</title>
+<title>Afterglow</title>
+<link rel="stylesheet" href="./player.css">
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
   #stage { position: fixed; left: 0; top: 0; width: 100%; height: 100%; transition: transform 4s linear; }
@@ -86,7 +87,7 @@
 <body>
 <div id="stage"><canvas id="gl"></canvas></div>
 <div id="message"></div>
-<div id="hint">OK: menu</div>
+<div id="hint">OK: player</div>
 <div id="toast"></div>
 <div id="track"><div class="slide">
   <div class="line" id="track-artist"></div>
@@ -94,13 +95,14 @@
   <div class="line" id="track-album"></div>
   <div class="line" id="track-label"></div>
 </div></div>
+<div id="player"></div>
 <div id="scan">
   <div class="scan-title"></div>
   <div class="scan-detail"></div>
   <div class="scan-hint"></div>
 </div>
 <div id="login">
-  <h1>viz-man</h1>
+  <h1>Afterglow</h1>
   <p>Sign in to Music Assistant</p>
   <div class="field"><label for="login-host">Address</label><input id="login-host" type="text" placeholder="192.168.1.10 or host:8095" autocomplete="off" spellcheck="false"></div>
   <div class="field"><label for="login-user">Username</label><input id="login-user" type="text" autocomplete="off" spellcheck="false"></div>
