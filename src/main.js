@@ -14,7 +14,7 @@ import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, clearMilkdropBlocks, crea
 import { createMock } from "./mock.js";
 import { createScan, recoverScan } from "./scan.js";
 import { SendspinPlayer } from "@sendspin/sendspin-js";
-import { createSpeaker, playerIdFor } from "./speaker.js";
+import { createSpeaker, playerIdFor, toggledSpeaker } from "./speaker.js";
 import { allPrefs, clearPref, favoriteNames, loadPref, mergeFavorites, mergePrefs, mergeSettings, normalizeParams, onPrefChange, parseQuery, readLaunchParams, savePref, takePrefs } from "./settings.js";
 import { LISTS, VALIDATE_CHOICES } from "./validation.js";
 
@@ -170,7 +170,10 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   if (speaker) {
     const chosen = settings.speaker ? { name: settings.speaker, id: settings.speakerId || playerIdFor(settings.speaker) } : loadPref("speaker", null);
     if (settings.speaker) savePref("speaker", chosen);
-    if (chosen && chosen.name) speaker.set(chosen.name, chosen.id);
+    if (chosen && chosen.name) {
+      savePref("speakerLast", chosen); // what switching it on again comes back to
+      speaker.set(chosen.name, chosen.id);
+    }
   }
   const source = settings.mock ? createMock() : live;
   const engine = createEngine({ canvas, analysis, source });
@@ -417,8 +420,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       visible: () => !!speaker,
       value: () => (speaker.on ? speaker.name + " (" + speaker.state + ")" : "off"),
       change() {
-        const was = loadPref("speaker", null) || loadPref("speakerLast", null);
-        const next = speaker.on ? null : was || { name: "viz-man TV", id: playerIdFor("viz-man TV") };
+        const next = toggledSpeaker(speaker.on, loadPref("speakerLast", null));
         if (next) savePref("speakerLast", next);
         savePref("speaker", next);
         speaker.set(next ? next.name : "", next ? next.id : "");

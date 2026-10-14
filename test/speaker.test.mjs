@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createSpeaker, playerIdFor, sendspinUrl } from "../src/speaker.js";
+import { createSpeaker, playerIdFor, sendspinUrl, toggledSpeaker } from "../src/speaker.js";
 
 function fakePlayer() {
   const made = [];
@@ -117,4 +117,11 @@ test("Audio delay stays within 0-5000 ms", async () => {
   await new Promise((r) => setTimeout(r, 0));
   speaker.nudgeDelay(-1);
   assert.equal(speaker.delayMs, 0);
+});
+
+test("Play on this TV off and on again comes back as the same player (14 Oct: it came back as a new 'viz-man TV')", () => {
+  const tv = { name: "Living Room LG C1", id: "webos-living-room-lg-c1" };
+  assert.equal(toggledSpeaker(true, tv), null);
+  assert.deepEqual(toggledSpeaker(false, tv), tv);
+  assert.deepEqual(toggledSpeaker(false, null), { name: "viz-man TV", id: "webos-viz-man-tv" });
 });

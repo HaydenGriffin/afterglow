@@ -37,6 +37,15 @@ export function playerIdFor(name) {
 
 // delays: { get(playerId) -> Promise<ms>, set(playerId, ms) -> Promise }, the
 // player's delay setting in Music Assistant (ma.js).
+// The "Play on this TV" row: off when on; on again as the player this TV was
+// last (its launch parameter or an earlier choice), so it keeps its id and its
+// place in Music Assistant's groups. Only a TV never set up gets a new player.
+export const NEW_SPEAKER_NAME = "viz-man TV";
+export function toggledSpeaker(current, last) {
+  if (current) return null;
+  return last || { name: NEW_SPEAKER_NAME, id: playerIdFor(NEW_SPEAKER_NAME) };
+}
+
 export function createSpeaker({ host, Player, delays }) {
   let player = null;
   let delay = null; // ms, once read from Music Assistant
