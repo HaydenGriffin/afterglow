@@ -1,3 +1,8 @@
+# 1.3.1 — Uninterrupted app reopening (14 October 2026)
+
+- Keep audio connected when the already-running app receives another open command.
+  Relaunching with changed parameters still reloads; returning from another input resumes normally.
+
 # 1.3.0 — Afterglow TV player (14 October 2026)
 
 - Rename the local fork to Afterglow; retain the webOS ID, storage keys and

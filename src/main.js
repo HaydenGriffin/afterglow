@@ -700,7 +700,8 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     // Relaunched with parameters (a different player, say): start over so
     // they are read the same way as on a first launch.
     if (Object.keys(normalizeParams(relaunch.detail)).length) return location.reload();
-    suspend();
+    // Repeated app-open commands must not tear down an already-playing speaker.
+    // resume() is guarded; visibilitychange already suspended a hidden app.
     resume();
   });
 
