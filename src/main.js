@@ -12,6 +12,7 @@ import { createLive } from "./live.js";
 import { createLogin } from "./login.js";
 import { getPlayerDelay, listTokens, renewToken, setPlayerDelay, signOut } from "./ma.js";
 import { createMenu } from "./menu.js";
+import { drawSync, timingLabel } from "./sync-figure.js";
 import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, SCALE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
 import { createMock } from "./mock.js";
 import { createScan, recoverScan } from "./scan.js";
@@ -100,14 +101,14 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => (element.style.opacity = "0"), TOAST_MS);
   }
-  // The track card: artist, "title", album, label, lower left, as MTV
-  // captioned videos. Shown for a while when a track starts, or always.
+  // The track card: title, artist, album, label, lower left, a flat field
+  // in the artwork's colour. Shown for a while when a track starts, or always.
   const trackCard = byId("track");
   let trackMode = loadPref("trackInfo", "start");
   let trackTimer = 0;
   function fillTrackCard(track) {
     byId("track-artist").textContent = track.artist;
-    byId("track-title").textContent = track.title ? "“" + track.title + "”" : "";
+    byId("track-title").textContent = track.title || "";
     byId("track-album").textContent = track.album + (track.year ? " (" + track.year + ")" : "");
     byId("track-label").textContent = track.label;
   }
@@ -137,7 +138,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   function applyDim() {
     canvas.style.opacity = String(1 - dimViz / 100);
     trackCard.style.opacity = String(1 - dimTrack / 100);
-    const scene = document.querySelector(".player-scene");
+    const scene = document.querySelector(".poster");
     const lyricOverlay = document.querySelector(".lyric-overlay");
     if (scene) scene.style.opacity = String(1 - dimTrack / 100);
     if (lyricOverlay) lyricOverlay.style.opacity = String(1 - dimTrack / 100);
@@ -198,7 +199,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   if (live) {
     live.onTrack((track) => showTrackCard(track, trackMode === "start"));
     // The artwork palette colors the presets; one may have arrived already.
-    live.onColor((p) => { milkdrop.setPalette(p); if (playerView) playerView.setPalette(p); });
+    live.onColor((p) => milkdrop.setPalette(p));
     milkdrop.setPalette(live.palette);
   }
 
@@ -317,29 +318,103 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   const keepAwake = createKeepAwake(() => !document.hidden && (!engine.idle || holdWhenIdle || scan.running));
   keepAwake.start();
 
-  const LIST_NAMES = { validated: "validated", all: "all", favorites: "favorites" };
+  const LIST_NAMES = { validated: "Runs well here", all: "All presets", favorites: "Favourite presets" };
   function listText() {
     const count = milkdrop.list === "favorites" ? milkdrop.favoriteCount : milkdrop.list === "validated" ? milkdrop.validatedCount : milkdrop.presetCount;
-    return LIST_NAMES[milkdrop.list] + " (" + count + ")";
+    return LIST_NAMES[milkdrop.list] + " · " + (count || (milkdrop.list === "validated" ? "None checked yet" : "None yet"));
   }
   function cycleList(direction) {
     milkdrop.list = stepChoice(LISTS, milkdrop.list, direction);
-    if (milkdrop.list === "favorites" && !milkdrop.favoriteCount) toast("No favorites yet: showing all presets", true);
+    if (milkdrop.list === "favorites" && !milkdrop.favoriteCount) toast("No favourite presets yet: showing all presets", true);
   }
 
   const menu = createMenu(byId("menu"), [
-    { label: "Now playing", change() { menu.close(); playerView.open(); } },
+    { section: "Sound & sync" },
+    {
+      // Plays the music here as well as drawing it (speaker.js). The name is
+      // the player's in Music Assistant.
+      label: "Play on this TV",
+      visible: () => !!speaker,
+      value: () => (speaker.on ? speaker.name + " · " + speaker.state.charAt(0).toUpperCase() + speaker.state.slice(1) : "Off"),
+      change() {
+        const next = toggledSpeaker(speaker.on, loadPref("speakerLast", null));
+        if (next) savePref("speakerLast", next);
+        savePref("speaker", next);
+        speaker.set(next ? next.name : "", next ? next.id : "");
+        if (engine.running) speaker.start();
+      },
+    },
+    { visible: () => !!live, figure: (box) => drawSync(box, speaker && speaker.on ? speaker.delayMs : null, live.trimMs) },
+    {
+      // When this TV's sound lands against the other speakers: right plays it
+      // earlier, left later. Saved as the player's delay in Music Assistant.
+      label: "TV sound timing",
+      visible: () => !!speaker && speaker.on,
+      value: () => timingLabel(speaker.delayMs, "ahead of the other speakers", "behind the other speakers", "In step with the other speakers"),
+      change: (direction) => speaker.nudgeDelay(direction),
+    },
+    {
+      label: "Picture and lyrics timing",
+      visible: () => !!live,
+      value: () => timingLabel(live.trimMs, "after the TV’s sound", "before the TV’s sound", "With the TV’s sound"),
+      change: (direction) => live.nudgeTrim(direction * TRIM_STEP_MS),
+    },
+    { section: "Display" },
+    {
+      label: "Dim visualizer",
+      value: () => dimViz + "%",
+      change: (direction) => setDimViz(stepChoice(DIM_CHOICES, dimViz, direction)),
+    },
+    {
+      label: "Track info",
+      visible: () => !!live,
+      value: () => ({ start: "When a song starts", always: "Always", off: "Off" })[trackMode],
+      change(direction) {
+        trackMode = stepChoice(TRACK_MODES, trackMode, direction);
+        savePref("trackInfo", trackMode);
+        applyTrackMode();
+      },
+    },
+    {
+      label: "Dim track info",
+      visible: () => !!live,
+      value: () => dimTrack + "%",
+      change: (direction) => setDimTrack(stepChoice(DIM_CHOICES, dimTrack, direction)),
+    },
+    {
+      label: "Hold screen when idle",
+      value: () => (holdWhenIdle ? "On" : "Off"),
+      change() {
+        holdWhenIdle = !holdWhenIdle;
+        savePref("holdWhenIdle", holdWhenIdle);
+      },
+    },
+    {
+      // Color the preset's waveform, borders and motion vectors from the
+      // track's album art (the palette Music Assistant sends with the stream).
+      label: "Color",
+      visible: () => !!live,
+      value: () => ({ default: "The preset’s own", art: "From the artwork" })[milkdrop.colorMode],
+      change: (direction) => (milkdrop.colorMode = stepChoice(COLOR_MODES, milkdrop.colorMode, direction)),
+    },
+    {
+      label: "Color strength",
+      visible: () => !!live && milkdrop.colorMode === "art",
+      value: () => milkdrop.colorStrength + "%",
+      change: (direction) => (milkdrop.colorStrength = stepChoice(COLOR_STRENGTHS, milkdrop.colorStrength, direction)),
+    },
+    { section: "Visuals & presets" },
     {
       label: "Preset",
       visible: () => !milkdropOff,
-      value: () => milkdrop.presetPosition + "  " + milkdrop.presetName,
+      value: () => (milkdrop.presetName ? milkdrop.presetPosition + "  " + milkdrop.presetName : "Starts with the music"),
       change: (direction) => milkdrop.step(direction),
     },
     {
       label: "Favorite",
       visible: () => milkdrop.ready,
-      value: () => (milkdrop.isFavorite ? "★ yes" : "no"),
-      change: () => toast(milkdrop.toggleFavorite() ? "★ Added to favorites" : "Removed from favorites", true),
+      value: () => (milkdrop.isFavorite ? "Yes" : "No"),
+      change: () => toast(milkdrop.toggleFavorite() ? "Added to favourite presets" : "Removed from favourite presets", true),
     },
     {
       // Whether this preset is in the validated list: by measurement, or by
@@ -358,115 +433,39 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     {
       label: "Preset order",
       visible: () => !milkdropOff,
-      value: () => (milkdrop.randomOrder ? "random" : "in order"),
+      value: () => (milkdrop.randomOrder ? "Shuffled" : "In order"),
       change: () => (milkdrop.randomOrder = !milkdrop.randomOrder),
     },
     {
       label: "Change preset",
       visible: () => !milkdropOff,
-      value: () => (milkdrop.rotateSeconds ? "every " + (milkdrop.rotateSeconds < 60 ? milkdrop.rotateSeconds + " s" : milkdrop.rotateSeconds / 60 + " min") : "never"),
+      value: () => (milkdrop.rotateSeconds ? "Every " + (milkdrop.rotateSeconds < 60 ? milkdrop.rotateSeconds + " s" : milkdrop.rotateSeconds / 60 + " min") : "Never"),
       change: (direction) => (milkdrop.rotateSeconds = stepChoice(ROTATE_CHOICES, milkdrop.rotateSeconds, direction)),
     },
     {
-      label: "Dim visualizer",
-      value: () => dimViz + "%",
-      change: (direction) => setDimViz(stepChoice(DIM_CHOICES, dimViz, direction)),
-    },
-    {
-      // Color the preset's waveform, borders and motion vectors from the
-      // track's album art (the palette Music Assistant sends with the stream).
-      label: "Color",
-      visible: () => !!live,
-      value: () => ({ default: "default", art: "album art" })[milkdrop.colorMode],
-      change: (direction) => (milkdrop.colorMode = stepChoice(COLOR_MODES, milkdrop.colorMode, direction)),
-    },
-    {
-      label: "Color strength",
-      visible: () => !!live && milkdrop.colorMode === "art",
-      value: () => milkdrop.colorStrength + "%",
-      change: (direction) => (milkdrop.colorStrength = stepChoice(COLOR_STRENGTHS, milkdrop.colorStrength, direction)),
-    },
-    {
-      label: "Track info",
-      visible: () => !!live,
-      value: () => ({ start: "at track start", always: "always", off: "off" })[trackMode],
-      change(direction) {
-        trackMode = stepChoice(TRACK_MODES, trackMode, direction);
-        savePref("trackInfo", trackMode);
-        applyTrackMode();
-      },
-    },
-    {
-      label: "Dim track info",
-      visible: () => !!live,
-      value: () => dimTrack + "%",
-      change: (direction) => setDimTrack(stepChoice(DIM_CHOICES, dimTrack, direction)),
-    },
-    {
-      // Which speaker to draw. Automatic follows whatever plays; a picked
-      // speaker is followed whenever it plays and automatic fills in when it
-      // is silent. What sounds on a speaker in a sync group is its group's
-      // music, which Music Assistant resolves.
-      label: "Player",
-      visible: () => !!live && !settings.player,
-      value: () => {
-        const picked = live.preferred;
-        const now = live.following;
-        if (!picked) return "Auto" + (now ? " → " + now.name : "");
-        const speaker = live.speakers().filter((s) => s.id === picked)[0];
-        if (!speaker) return picked + " (unavailable)";
-        return speaker.name + (now && now.reason === "preferred" ? " ▶" : "");
-      },
-      change(direction) {
-        const ids = [""].concat(live.speakers().map((s) => s.id));
-        const at = Math.max(0, ids.indexOf(live.preferred));
-        const next = ids[(at + direction + ids.length) % ids.length];
-        savePref("preferredPlayer", next);
-        live.setPreferred(next);
-      },
-    },
-    {
-      // Plays the music here as well as drawing it (speaker.js). The name is
-      // the player's in Music Assistant.
-      label: "Play on this TV",
-      visible: () => !!speaker,
-      value: () => (speaker.on ? speaker.name + " (" + speaker.state + ")" : "off"),
-      change() {
-        const next = toggledSpeaker(speaker.on, loadPref("speakerLast", null));
-        if (next) savePref("speakerLast", next);
-        savePref("speaker", next);
-        speaker.set(next ? next.name : "", next ? next.id : "");
-        if (engine.running) speaker.start();
-      },
-    },
-    {
-      // When this TV's sound lands against the other speakers: right plays it
-      // earlier, left later. Saved as the player's delay in Music Assistant.
-      label: "Audio delay",
-      visible: () => !!speaker && speaker.on,
-      value: () => (speaker.delayMs === null ? "…" : speaker.delayMs + " ms (→ earlier)"),
-      change: (direction) => speaker.nudgeDelay(direction),
-    },
-    {
-      label: "Sync trim",
-      visible: () => !!live,
-      value: () => (live.trimMs > 0 ? "+" : "") + live.trimMs + " ms",
-      change: (direction) => live.nudgeTrim(direction * TRIM_STEP_MS),
-    },
-    {
       label: "Auto level",
-      value: () => (analysis.autoLevel ? "on" : "off"),
+      value: () => (analysis.autoLevel ? "On" : "Off"),
       change() {
         analysis.autoLevel = !analysis.autoLevel;
         savePref("autoLevel", analysis.autoLevel);
       },
     },
     {
+      label: "MilkDrop",
+      visible: () => !!milkdropOff && hasWebGL2() && !settings.noWebgl,
+      value: () => "off: " + milkdropOff + " (OK to retry)",
+      change() {
+        clearMilkdropBlocks();
+        location.reload();
+      },
+    },
+    { section: "Performance" },
+    {
       // Fewer pixels for MilkDrop: less work for the TV, more left for Play on
       // this TV. Applies at once (the engine resizes the canvas).
       label: "Picture size",
       visible: () => !milkdropOff,
-      value: () => ({ 0.5: "full", 0.4: "lighter", 0.33: "lightest" })[milkdrop.scale] || "full",
+      value: () => ({ 0.5: "Full", 0.4: "Lighter", 0.33: "Lightest" })[milkdrop.scale] || "Full",
       change(direction) {
         milkdrop.scale = stepChoice(SCALE_CHOICES, milkdrop.scale, direction);
         engine.setRenderer(milkdrop);
@@ -478,14 +477,6 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       change() {
         engine.setFpsCap(engine.fpsCap === 60 ? 30 : 60);
         savePref("fpsCap", engine.fpsCap);
-      },
-    },
-    {
-      label: "Hold screen when idle",
-      value: () => (holdWhenIdle ? "on" : "off"),
-      change() {
-        holdWhenIdle = !holdWhenIdle;
-        savePref("holdWhenIdle", holdWhenIdle);
       },
     },
     {
@@ -505,26 +496,16 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       value: () => milkdrop.validateFps + " fps",
       change: (direction) => (milkdrop.validateFps = stepChoice(VALIDATE_CHOICES, milkdrop.validateFps, direction)),
     },
-    {
-      label: "MilkDrop",
-      visible: () => !!milkdropOff && hasWebGL2() && !settings.noWebgl,
-      value: () => "off: " + milkdropOff + " (OK to retry)",
-      change() {
-        clearMilkdropBlocks();
-        location.reload();
-      },
-    },
-    { label: "Debug readout", value: () => (debug.visible ? "on" : "off"), change: () => debug.show(!debug.visible) },
+    { section: "Account & diagnostics" },
+    { label: "Debug readout", value: () => (debug.visible ? "On" : "Off"), change: () => debug.show(!debug.visible) },
     { label: "Log out", visible: () => !!live, value: () => (auth ? auth.user + " @ " + auth.host : "dev token"), change: logOut },
-    { label: "Close menu", change: () => menu.close() },
-  ]);
+  ], { onBack: () => playerView.open() });
 
   playerView = createPlayerView({
     root: byId("player"), live: live || createMockPlayback(), host: settings.host,
     engine, onSettings: () => menu.open(), onNotice: text => toast(text, true),
     onMode(mode) { trackCard.style.display = mode === "track" ? "" : "none"; applyDim(); }
   });
-  if (live) playerView.setPalette(live.palette);
 
   debug = createDebug(byId("debug"), () =>
     Object.assign(
@@ -620,7 +601,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     else if (name === "red" && live) live.nudgeTrim(-TRIM_STEP_MS);
     else if (name === "green" && live) live.nudgeTrim(TRIM_STEP_MS);
     else if (name === "yellow" && milkdrop.ready) {
-      toast(milkdrop.toggleFavorite() ? "★ Added to favorites" : "Removed from favorites", true);
+      toast(milkdrop.toggleFavorite() ? "Added to favourite presets" : "Removed from favourite presets", true);
     } else if (name === "blue" && !milkdropOff) {
       cycleList(1);
       toast("Presets: " + listText(), true);
@@ -642,7 +623,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   });
   hint.addEventListener("click", () => playerView.open());
 
-  startDrift([byId("stage"), message, trackCard, document.querySelector(".player-scene"), document.querySelector(".lyric-overlay")]);
+  startDrift([byId("stage"), message, trackCard, document.querySelector(".poster"), document.querySelector(".lyric-overlay")]);
 
   startDevlink({
     base: settings.report,

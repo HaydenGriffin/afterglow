@@ -146,9 +146,9 @@ export function createScan({ milkdrop, engine, source, overlay, onDone, onNotice
     describe() {
       const saved = loadPref("scanCursor", null);
       const count = milkdrop.presetCount;
-      if (Array.isArray(saved) && saved.length && saved.length < count) return count - saved.length + " of " + count + " done (OK to continue)";
-      if (loadPref("scanDone", 0)) return "done: " + milkdrop.validatedCount + " of " + count + " validated (OK to scan again)";
-      return "not run (OK to start)";
+      if (Array.isArray(saved) && saved.length && saved.length < count) return count - saved.length + " of " + count + " done · OK continues";
+      if (loadPref("scanDone", 0)) return "Done: " + milkdrop.validatedCount + " of " + count + " run well · OK scans again";
+      return "Not run · OK starts";
     },
     status() {
       return running ? total - queue.length + "/" + total + " (" + (queue[0] || "") + ")" : "idle";

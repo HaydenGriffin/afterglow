@@ -20,5 +20,8 @@ Michael Nestrud's viz-man, not a fork of Music Assistant or an official client.
 Preserve the webOS application ID and storage keys for in-place upgrades.
 
 ## Scope
-This first pass adapts Music Assistant's inspected full-screen player for a TV.
-Full library discovery, podcasts and audiobook browsing are later work.
+1.4 (14 October 2026) adds Music Assistant parity for the sofa: Browse
+(recent, favourites, radio, playlists, albums), queue editing, choosing the
+player or sync group, Start radio and the stream's quality on the back of the
+poster. Colour comes from each song's artwork; no fixed house accent. Search,
+podcasts and audiobook browsing are later work.

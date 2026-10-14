@@ -9,6 +9,6 @@ export function startDrift(elements) {
   setInterval(() => {
     step = (step + 1) % OFFSETS.length;
     const transform = "translate(" + OFFSETS[step][0] + "px," + OFFSETS[step][1] + "px)";
-    for (const element of elements) element.style.transform = transform;
+    for (const element of elements) if (element) element.style.transform = transform;
   }, STEP_MS);
 }

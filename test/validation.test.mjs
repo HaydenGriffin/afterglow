@@ -28,22 +28,22 @@ test("the person's own decision wins, and undoing it returns to the measurement"
   s.overrides = toggleValidated("slow", s);
   assert.deepEqual(s.overrides, { slow: true });
   assert.equal(isValidated("slow", s), true);
-  assert.equal(describeValidation("slow", s), "yes (by you, 12 fps)");
+  assert.equal(describeValidation("slow", s), "Yes (by you, 12 fps)");
   s.overrides = toggleValidated("slow", s);
   assert.deepEqual(s.overrides, {}, "agreeing with the measurement again drops the override");
-  assert.equal(describeValidation("slow", s), "no (12 fps)");
+  assert.equal(describeValidation("slow", s), "No (12 fps)");
 
   s.overrides = toggleValidated("fast", s);
   assert.deepEqual(s.overrides, { fast: false });
-  assert.equal(describeValidation("fast", s), "no (by you, 58 fps)");
+  assert.equal(describeValidation("fast", s), "No (by you, 58 fps)");
 
   s.overrides = {};
   s.overrides = toggleValidated("unknown", s);
   assert.deepEqual(s.overrides, { unknown: true });
-  assert.equal(describeValidation("unknown", s), "yes (by you)");
+  assert.equal(describeValidation("unknown", s), "Yes (by you)");
   s.overrides = toggleValidated("unknown", s);
   assert.deepEqual(s.overrides, {});
-  assert.equal(describeValidation("unknown", s), "not tested");
+  assert.equal(describeValidation("unknown", s), "Not tested");
 });
 
 test("favorites play no part in validation; counts follow the threshold and overrides", () => {

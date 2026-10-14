@@ -4,27 +4,53 @@
   if (!new URLSearchParams(location.search).has('mock')) throw Error('Use ?mock=1');
   const assert = (ok, message) => { if (!ok) throw Error(message); };
   const key = code => window.dispatchEvent(new KeyboardEvent('keydown', { keyCode: code }));
-  const wait = () => new Promise(resolve => setTimeout(resolve, 350));
-  // Start with panels closed, then use the actual remote event handler.
-  document.querySelectorAll('.panel-close').forEach(button => { if (button.offsetParent) button.click(); });
-  if (document.querySelector('#player').classList.contains('controls-open')) key(27);
-  key(13);
-  document.querySelector('[aria-label="Up next"]').click();
-  await wait();
-  const initial = document.querySelector('.control-track').textContent;
-  key(39); key(37); await wait();
-  assert(document.querySelector('.control-track').textContent === initial, 'Queue arrows must not start playback');
-  key(13); await wait();
-  assert(document.querySelector('.control-track').textContent !== initial, 'OK should play the selected item');
-  document.querySelector('[aria-label="Display"]').click();
-  const select = label => Array.from(document.querySelectorAll('.panel-items button')).find(button => button.firstChild.textContent === label).click();
-  select('Album'); key(27); key(27); await wait();
+  const wait = (ms = 350) => new Promise(resolve => setTimeout(resolve, ms));
+  const OK = 13, BACK = 27, LEFT = 37, UP = 38, RIGHT = 39, DOWN = 40;
+  const player = document.querySelector('#player');
+  const title = () => document.querySelector('.poster-title').textContent;
+  const rows = () => Array.from(document.querySelectorAll('.panel-items button'));
+  const selected = () => document.querySelector('#player button.selected');
+  async function closeAll() { for (let i = 0; i < 4 && (player.className.trim() || document.getElementById('menu').style.display === 'block'); i++) { key(BACK); await wait(); } }
+  async function section(index) { await closeAll(); key(OK); await wait(); key(UP); key(LEFT); for (let i = 0; i < index; i++) key(RIGHT); await wait(100); key(OK); await wait(700); }
+
+  // Queue: arrows move, OK on a song offers actions, Play now plays it.
+  await section(2);
+  assert(document.querySelector('.player-panel h2').textContent === 'Queue', 'Queue opens from the top strip');
+  const initial = title();
+  key(DOWN); key(DOWN); key(UP); await wait();
+  assert(title() === initial, 'Queue arrows must not start playback');
+  const song = selected().firstChild.textContent;
+  key(OK); await wait();
+  assert(rows()[0].firstChild.textContent === 'Play now', 'A queued song offers Play now first');
+  key(OK); await wait(600);
+  assert(title() === song, 'Play now plays the chosen song');
+
+  // Display: Album stops GPU drawing; Visuals only hides captions and draws again.
+  await closeAll(); key(OK); await wait();
+  document.querySelector('[aria-label="Display"]').click(); await wait();
+  const pick = label => rows().find(b => b.firstChild.textContent === label).click();
+  pick('Album'); await closeAll();
   const frames = window.vizmanDiagnostics().rendering.frames; await wait();
   assert(window.vizmanDiagnostics().rendering.frames === frames, 'Album mode must stop GPU drawing');
-  key(13); document.querySelector('[aria-label="Display"]').click(); select('Visuals only'); key(27); key(27);
+  key(OK); await wait(); document.querySelector('[aria-label="Display"]').click(); await wait(); pick('Visuals only'); await closeAll();
   assert(getComputedStyle(document.querySelector('#track')).display === 'none', 'Pure visuals must hide the track card');
   assert(getComputedStyle(document.querySelector('.lyric-overlay')).display === 'none', 'Pure visuals must hide lyric overlay');
   assert(window.vizmanDiagnostics().drawing, 'Visuals should resume drawing');
+
+  // Browse: a favourite album can be added to the queue without leaving Browse.
+  await section(0);
+  assert(player.getAttribute('data-panel') === 'browse', 'Browse opens from the top strip');
+  key(DOWN); key(DOWN); await wait(600); key(RIGHT); await wait();
+  key(OK); await wait();
+  const actions = Array.from(document.querySelectorAll('.browse-list strong')).map(s => s.textContent);
+  assert(actions[0] === 'Play now' && actions.indexOf('Add to the queue') > 0, 'An album offers play, next and queue');
+  key(DOWN); key(DOWN); key(OK); await wait(600);
+  assert(player.getAttribute('data-panel') === 'browse' && document.querySelector('.browse-list .browse-thumb'), 'Adding returns to the list');
+
+  // Details: the back of the poster carries the stream's format.
+  await closeAll(); key(OK); await wait(); document.querySelector('[aria-label="Details"]').click(); await wait(800);
+  assert(/FLAC|OGG/.test(document.querySelector('.details-facts').textContent), 'Details show the stream format');
+  await closeAll();
   assert(document.documentElement.scrollWidth <= innerWidth, 'Screen must not overflow horizontally');
-  return { passed: 6, viewport: [innerWidth, innerHeight] };
+  return { passed: 10, viewport: [innerWidth, innerHeight] };
 })()

@@ -33,9 +33,9 @@ export function describeValidation(name, state) {
   const manual = state.overrides && name in state.overrides;
   const fps = ratingOf(name, state);
   const on = isValidated(name, state);
-  if (manual) return (on ? "yes" : "no") + " (by you" + (fps !== undefined ? ", " + Math.round(fps) + " fps" : "") + ")";
-  if (fps === undefined) return "not tested";
-  return (on ? "yes" : "no") + " (" + Math.round(fps) + " fps)";
+  if (manual) return (on ? "Yes" : "No") + " (by you" + (fps !== undefined ? ", " + Math.round(fps) + " fps" : "") + ")";
+  if (fps === undefined) return "Not tested";
+  return (on ? "Yes" : "No") + " (" + Math.round(fps) + " fps)";
 }
 
 // Flip a preset in or out of the validated list by hand. An override that

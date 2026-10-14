@@ -142,5 +142,6 @@ the actual fork URL only when preparing an authorized public release.
 
 `test/browser-player.js` is an executable browser regression expression. Load
 `?mock=1` afresh and pass its contents to T3 `preview_evaluate` (awaitPromise),
-or paste it in DevTools. It refuses a non-mock page. It tests real remote events,
-queue arrow safety/OK selection, artwork draw suspension and pure visuals.
+or paste it in DevTools. It refuses a non-mock page. Through real remote events
+it checks the top strip, queue arrow safety and song actions, artwork draw
+suspension, pure visuals, Browse → Add to the queue, Details, and overflow.

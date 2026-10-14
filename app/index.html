@@ -5,81 +5,79 @@
 <title>Afterglow</title>
 <link rel="stylesheet" href="./player.css">
 <style>
-  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: var(--face); }
   #stage { position: fixed; left: 0; top: 0; width: 100%; height: 100%; transition: transform 4s linear; }
   #stage canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
   #message {
     display: none; position: fixed; left: 10vw; right: 10vw; top: 46%;
-    text-align: center; color: #555; font: 3vh sans-serif; transition: transform 4s linear;
+    text-align: center; color: var(--paper-2); font-size: 3vh; transition: transform 4s linear;
   }
   #hint {
-    position: fixed; right: 3vw; bottom: 4vh; padding: 1vh 1.2vw;
-    background: rgba(0, 0, 0, 0.7); color: #bbb; font: 2.2vh sans-serif;
+    position: fixed; right: 5vw; bottom: 5vh; padding: 1.2vh 1.2vw;
+    background: var(--ink); color: var(--paper); font-size: 2.2vh; font-weight: 600;
     opacity: 0; transition: opacity 0.4s;
   }
   #toast {
-    position: fixed; left: 0; right: 0; top: 5vh; text-align: center;
-    color: #ccc; font: 2.6vh sans-serif; text-shadow: 0 0 1vh #000;
-    opacity: 0; transition: opacity 0.6s;
+    position: fixed; left: 50%; top: 5vh; transform: translateX(-50%); padding: 1.4vh 1.6vw;
+    background: var(--paper); color: var(--ink); font-size: 2.6vh; font-weight: 700; white-space: nowrap;
+    opacity: 0; transition: opacity 0.4s;
   }
+  /* Visuals + track: a flat field caption over MilkDrop, set from the artwork palette. */
   #track {
-    position: fixed; left: 7vw; bottom: 11vh; max-width: 70vw; color: #fff;
-    font-family: "Futura", "Century Gothic", "Avant Garde", "Helvetica Neue", Arial, sans-serif;
-    text-shadow: 0.25vh 0.25vh 0.6vh #000, 0 0 1.5vh rgba(0, 0, 0, 0.9);
+    position: fixed; left: 5vw; bottom: 6vh; max-width: 62vw; padding: 2vh 1.6vw 2.2vh;
+    background: var(--field-a); color: var(--on-a);
     transition: transform 4s linear;
     pointer-events: none;
   }
-  #track .slide {
-    transform: translateX(-120%); opacity: 0;
-    transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.6s;
-  }
-  #track.shown .slide { transform: none; opacity: 1; }
-  #track .line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25; }
-  #track-artist { font-size: 5vh; font-weight: bold; text-transform: uppercase; letter-spacing: 0.06em; }
-  #track-title { font-size: 4.6vh; font-weight: bold; }
-  #track-album, #track-label { font-size: 3.6vh; color: #eee; }
+  #track .slide { opacity: 0; transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+  #track.shown .slide { opacity: 1; }
+  #track:not(.shown) { background: transparent; }
+  #track .line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
+  /* The title is the only thing on screen in this mode: two lines, never cut short. */
+  #track #track-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; padding-bottom: .08em; }
+  #track-title { font-size: 5.4vh; font-weight: 820; font-stretch: 82%; letter-spacing: -.015em; }
+  #track-artist { font-size: 3vh; font-weight: 700; margin-top: .6vh; }
+  #track-album, #track-label { font-size: 2.3vh; font-weight: 500; margin-top: .4vh; }
   #menu {
-    display: none; position: fixed; left: 22vw; top: 5vh; width: 56vw;
-    padding: 1.2vh 0; background: rgba(0, 0, 0, 0.85); border: 1px solid #333;
-    color: #ddd; font: 2.3vh sans-serif;
+    display: none; position: fixed; left: 34.16vw; right: 0; top: 0; bottom: 0; box-sizing: border-box;
+    padding: 6vh 5vw 4vh 1.26vw; background: var(--ground);
+    color: var(--paper); font-size: 2.5vh;
   }
-  #menu .row { display: flex; justify-content: space-between; padding: 0.65vh 2vw; line-height: 1.3; }
-  #menu .row span:last-child { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 36vw; }
-  #menu .row.focus { background: #2a5; color: #000; }
+  #menu .row { display: flex; justify-content: space-between; padding: 1.5vh 1vw; line-height: 1.3; font-weight: 600; border-bottom: var(--hair) solid var(--rule); }
+  #menu .row span:last-child { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%; font-weight: 500; font-variant-numeric: tabular-nums; }
+  #menu .row.focus { background: var(--paper); color: var(--ink); }
   #scan {
-    display: none; position: fixed; left: 0; right: 0; bottom: 0; padding: 3vh 6vw 5vh;
-    background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.9) 30%);
-    color: #ddd; font: 2.6vh sans-serif; text-align: center;
+    display: none; position: fixed; left: 0; right: 0; bottom: 0; padding: 4vh 5vw 5vh;
+    background: var(--ground); border-top: var(--hair) solid var(--rule);
+    color: var(--paper); font-size: 2.6vh;
   }
-  #scan .scan-title { font-size: 4vh; margin-bottom: 1vh; }
-  #scan .scan-detail { color: #bbb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #scan .scan-hint { color: #777; font-size: 2.2vh; margin-top: 1.5vh; }
+  #scan .scan-title { font-size: 5vh; font-weight: 820; font-stretch: 82%; margin-bottom: 1vh; }
+  #scan .scan-detail { color: var(--paper-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #scan .scan-hint { color: var(--paper-2); font-size: 2.2vh; margin-top: 1.5vh; }
   #login {
     display: none; position: fixed; left: 0; top: 0; width: 100%; height: 100%;
-    flex-direction: column; align-items: center; justify-content: center;
-    background: #000; color: #ddd; font: 2.6vh sans-serif;
+    flex-direction: column; align-items: flex-start; justify-content: center; box-sizing: border-box; padding: 0 0 0 35.42vw;
+    background: var(--ink); color: var(--paper); font-size: 2.6vh;
   }
-  #login h1 { font-size: 5vh; font-weight: normal; margin: 0 0 1vh; letter-spacing: 0.08em; }
-  #login p { color: #888; margin: 0 0 4vh; }
+  #login h1 { font-size: 12.6vh; line-height: .9; font-weight: 820; font-stretch: 80%; letter-spacing: -.02em; margin: 0 0 2vh; }
+  #login p { color: var(--paper-2); margin: 0 0 5vh; }
   #login .field, #login .button {
-    width: 44vw; margin: 0.8vh 0; padding: 1.2vh 2vw; box-sizing: border-box;
-    border: 1px solid #333; background: rgba(255, 255, 255, 0.04);
+    width: 44vw; margin: 0; padding: 1.8vh 1vw; box-sizing: border-box;
+    border-bottom: var(--hair) solid var(--rule);
   }
   #login .field { display: flex; justify-content: space-between; align-items: center; }
-  #login .field label { color: #aaa; }
+  #login .field label { font-weight: 600; }
   #login .field input {
-    width: 26vw; background: transparent; border: none; border-bottom: 1px solid #444;
-    color: #fff; font: 2.6vh sans-serif; outline: none; padding: 0.4vh 0.5vw;
+    width: 26vw; background: transparent; border: none;
+    color: inherit; font: inherit; outline: none; padding: 0.4vh 0.5vw;
   }
-  #login .field input:focus { border-bottom-color: #2a5; }
-  #login .button { text-align: center; margin-top: 2.5vh; }
-  #login .focus { border-color: #2a5; background: rgba(34, 170, 85, 0.15); }
-  #login .button.focus { background: #2a5; color: #000; }
-  #login .login-error { color: #e66; min-height: 3vh; margin-top: 2vh; max-width: 60vw; text-align: center; }
-  #login .login-note { color: #666; font-size: 2vh; margin-top: 4vh; max-width: 60vw; text-align: center; }
+  #login .button { margin-top: 3vh; font-weight: 800; background: var(--field-a); color: var(--on-a); border: 0; }
+  #login .focus, #login .button.focus { background: var(--paper); color: var(--ink); }
+  #login .login-error { color: var(--paper); font-weight: 700; min-height: 3vh; margin-top: 2vh; max-width: 44vw; }
+  #login .login-note { color: var(--paper-2); font-size: 2vh; margin-top: 4vh; max-width: 44vw; line-height: 1.4; }
   #debug {
     display: none; position: fixed; left: 2vw; top: 3vh; max-width: 90vw;
-    padding: 1vh 1vw; background: rgba(0, 0, 0, 0.7); color: #8f8;
+    padding: 1vh 1vw; background: rgba(18, 20, 23, 0.86); color: var(--paper);
     font: 1.8vh monospace; white-space: pre-wrap; word-break: break-all;
   }
 </style>
@@ -90,8 +88,8 @@
 <div id="hint">OK: player</div>
 <div id="toast"></div>
 <div id="track"><div class="slide">
-  <div class="line" id="track-artist"></div>
   <div class="line" id="track-title"></div>
+  <div class="line" id="track-artist"></div>
   <div class="line" id="track-album"></div>
   <div class="line" id="track-label"></div>
 </div></div>

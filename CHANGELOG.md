@@ -1,3 +1,25 @@
+# 1.4.0 — Poster redesign and Music Assistant parity (14 October 2026)
+
+- Replace the amber player and the green settings list with one visual system:
+  each track set as a concert poster on a 12-column grid, flat colour fields
+  from the artwork palette Music Assistant sends, Archivo throughout, focus
+  shown as an inverted field. After 22:00 the poster steps down in brightness.
+- One top strip (Browse · Now playing · Queue · Settings) on OK, with the
+  transport row below it; Display and Details are on the transport row.
+- Browse: recently played, favourite playlists, albums, songs and artists,
+  radio stations, all playlists and albums; play now, next, add to the queue,
+  start radio, or open an album's or playlist's songs.
+- Queue: choose the player or sync group Afterglow follows ("Play on"); play,
+  move, play next or remove queued songs; shuffle, repeat, crossfade, volume
+  and sleep timer live here.
+- Details (the back of the poster): source, format, quality and album, with
+  Start radio from this song and Add to favourites.
+- Settings grouped as Sound & sync, Display, Visuals & presets, Performance,
+  Account & diagnostics; sync is drawn as one timeline and reads "420 ms
+  earlier" / "75 ms later" instead of signed numbers.
+- Long lists Music Assistant sends in parts (playlists over 500 songs) are
+  collected whole instead of cut at the first part.
+
 # 1.3.1 — Uninterrupted app reopening (14 October 2026)
 
 - Keep audio connected when the already-running app receives another open command.
