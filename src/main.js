@@ -13,6 +13,8 @@ import { createMenu } from "./menu.js";
 import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
 import { createMock } from "./mock.js";
 import { createScan, recoverScan } from "./scan.js";
+import { SendspinPlayer } from "@sendspin/sendspin-js";
+import { createSpeaker, playerIdFor } from "./speaker.js";
 import { allPrefs, clearPref, favoriteNames, loadPref, mergeFavorites, mergePrefs, mergeSettings, normalizeParams, onPrefChange, parseQuery, readLaunchParams, savePref, takePrefs } from "./settings.js";
 import { LISTS, VALIDATE_CHOICES } from "./validation.js";
 
@@ -155,6 +157,14 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   const analysis = createAnalysis();
   analysis.autoLevel = loadPref("autoLevel", false);
   const live = settings.mock ? null : createLive(settings);
+  // This TV as a speaker too (speaker.js): the `speaker` launch parameter (a
+  // player name, `speakerId` optional) wins over the menu's choice.
+  const speaker = settings.mock ? null : createSpeaker({ host: settings.host, Player: SendspinPlayer });
+  if (speaker) {
+    const chosen = settings.speaker ? { name: settings.speaker, id: settings.speakerId || playerIdFor(settings.speaker) } : loadPref("speaker", null);
+    if (settings.speaker) savePref("speaker", chosen);
+    if (chosen && chosen.name) speaker.set(chosen.name, chosen.id);
+  }
   const source = settings.mock ? createMock() : live;
   const engine = createEngine({ canvas, analysis, source });
   engine.setFpsCap(loadPref("fpsCap", 60));
@@ -394,6 +404,21 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       },
     },
     {
+      // Plays the music here as well as drawing it (speaker.js). The name is
+      // the player's in Music Assistant.
+      label: "Play on this TV",
+      visible: () => !!speaker,
+      value: () => (speaker.on ? speaker.name + " (" + speaker.state + ")" : "off"),
+      change() {
+        const was = loadPref("speaker", null) || loadPref("speakerLast", null);
+        const next = speaker.on ? null : was || { name: "viz-man TV", id: playerIdFor("viz-man TV") };
+        if (next) savePref("speakerLast", next);
+        savePref("speaker", next);
+        speaker.set(next ? next.name : "", next ? next.id : "");
+        if (engine.running) speaker.start();
+      },
+    },
+    {
       label: "Sync trim",
       visible: () => !!live,
       value: () => (live.trimMs > 0 ? "+" : "") + live.trimMs + " ms",
@@ -473,6 +498,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
         window: window.innerWidth + "x" + window.innerHeight,
         webgl2: hasWebGL2() ? "yes" + (milkdropOff ? ", MilkDrop off: " + milkdropOff : "") : "no",
         source: settings.mock ? "mock" : "live",
+        speaker: speaker && speaker.on ? speaker.id + " " + speaker.state + (speaker.error ? " (" + speaker.error + ")" : "") : "off",
         idle: engine.idle + (engine.idle ? " (" + message.textContent + ")" : ""),
         gain: analysis.autoLevel ? "x" + analysis.gain.toFixed(1) : "off",
         menu: menu.describe(),
@@ -582,12 +608,14 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   function resume() {
     if (engine.running || leaving) return;
     if (live) live.start();
+    if (speaker) speaker.start();
     engine.start();
   }
   function suspend() {
     scan.stop();
     engine.stop();
     if (live) live.stop();
+    if (speaker) speaker.stop();
     milkdrop.settle();
   }
   function onVisibility() {

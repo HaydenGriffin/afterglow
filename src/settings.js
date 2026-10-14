@@ -63,7 +63,7 @@ export function readLaunchParams(win, event) {
 // for the ones below, which belong to this TV alone: its login, its identity,
 // and the bookkeeping of a MilkDrop start or a preset scan in progress.
 const PREFIX = "vis.";
-export const LOCAL_PREFS = ["auth", "deviceId", "milkdropPending", "scanCursor", "scanCurrent"];
+export const LOCAL_PREFS = ["auth", "deviceId", "milkdropPending", "scanCursor", "scanCurrent", "speaker", "speakerLast"];
 const memory = {};
 let changeListener = null;
 

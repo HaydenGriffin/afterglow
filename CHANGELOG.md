@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.0 — 2026-10-14
+
+- "Play on this TV": viz-man can be a Music Assistant speaker as well as drawing, through Sendspin (`@sendspin/sendspin-js` 3.2.1, PCM only). One app in front both sounds and draws: a separate player app behind viz-man is suspended by webOS within minutes, and the two together ran an LG C1 out of memory. Off by default. The `speaker` launch parameter (a player name, with `speakerId` to keep an existing player's id) switches it on and is remembered. The player disconnects while viz-man is hidden and connects again when it is shown.
+
 ## 1.1.0 — 2026-10-08
 
 - MilkDrop renderer upgraded to Butterchurn 3.0.0-beta.5.ma.4, the Music Assistant fork of jberg/butterchurn 3.0.0-beta.5: renderer fixes, fewer per-frame allocations, batched shape draws. `npm run build` bundles it from its ES module build into `app/vendor/butterchurn.min.js`.
