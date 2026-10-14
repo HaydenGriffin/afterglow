@@ -10,7 +10,7 @@ import { createLive } from "./live.js";
 import { createLogin } from "./login.js";
 import { getPlayerDelay, listTokens, renewToken, setPlayerDelay, signOut } from "./ma.js";
 import { createMenu } from "./menu.js";
-import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
+import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, SCALE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
 import { createMock } from "./mock.js";
 import { createScan, recoverScan } from "./scan.js";
 import { SendspinPlayer } from "@sendspin/sendspin-js";
@@ -447,6 +447,17 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       change() {
         analysis.autoLevel = !analysis.autoLevel;
         savePref("autoLevel", analysis.autoLevel);
+      },
+    },
+    {
+      // Fewer pixels for MilkDrop: less work for the TV, more left for Play on
+      // this TV. Applies at once (the engine resizes the canvas).
+      label: "Picture size",
+      visible: () => !milkdropOff,
+      value: () => ({ 0.5: "full", 0.4: "lighter", 0.33: "lightest" })[milkdrop.scale] || "full",
+      change(direction) {
+        milkdrop.scale = stepChoice(SCALE_CHOICES, milkdrop.scale, direction);
+        engine.setRenderer(milkdrop);
       },
     },
     {

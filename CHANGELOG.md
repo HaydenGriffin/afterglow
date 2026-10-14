@@ -4,6 +4,8 @@
 
 - MilkDrop draws on a plain canvas on every TV. Butterchurn used an OffscreenCanvas where the browser has one (webOS 6 and later) and copied each frame onto the page; on an LG C1 that copy leaked about 20 MB a minute in the TV's web runtime, so after half an hour the TV swapped, the picture and sound stuttered, and webOS restarted the app.
 - "Play on this TV": viz-man can be a Music Assistant speaker as well as drawing, through Sendspin (`@sendspin/sendspin-js` 3.2.1, PCM only). One app in front both sounds and draws: a separate player app behind viz-man is suspended by webOS within minutes, and the two together ran an LG C1 out of memory. Off by default. The `speaker` launch parameter (a player name, with `speakerId` to keep an existing player's id) switches it on and is remembered. The player disconnects while viz-man is hidden and connects again when it is shown. It asks for a 1 s lead and a 2 s buffer (sendspin-js defaults to 250 ms each): MilkDrop keeps the TV's CPU busy, and at 250 ms the audio dropped out now and then.
+- "Picture size" row: full, lighter or lightest MilkDrop canvas (0.5, 0.4, 0.33 of the window), at once; less work for a TV that also plays.
+- Play on this TV resyncs (a jump) only beyond 600 ms of error instead of 200: a busy TV's short stalls are corrected without a sound.
 - "Audio delay" row (while Play on this TV is on): this TV's sound against the other speakers, 10 ms a step, right plays earlier. It is saved as the player's delay setting in Music Assistant, which sends it to the player.
 
 ## 1.1.0 — 2026-10-08

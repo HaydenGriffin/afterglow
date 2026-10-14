@@ -14,6 +14,9 @@ const SCRIPTS = ["./vendor/butterchurn.min.js", "./vendor/presets.js"];
 const BLEND_SECONDS = 2.7;
 const PROVEN_FRAMES = 120; // frames rendered before a start counts as survived
 const SCALE = 0.5; // render size relative to the window
+// "Picture size": a smaller MilkDrop canvas leaves the TV's CPU for the audio
+// (Play on this TV). 0.5 of a 1080p window is 960x540.
+export const SCALE_CHOICES = [0.5, 0.4, 0.33];
 const SLOW_FPS = 20;
 const SLOW_SECONDS = 4; // this long below SLOW_FPS and a preset is marked slow
 const SETTLE_SECONDS = 4; // not judged while loading and blending in
@@ -321,7 +324,12 @@ export function createMilkdropMode(onFail, onNotice) {
   }
 
   return {
-    scale: SCALE,
+    get scale() {
+      return loadPref("pictureScale", SCALE);
+    },
+    set scale(value) {
+      savePref("pictureScale", value);
+    },
     create({ canvas }) {
       if (visualizer) {
         visualizer.setRendererSize(canvas.width, canvas.height);

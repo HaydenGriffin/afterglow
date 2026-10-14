@@ -53,6 +53,7 @@ test("off until a player is set; then one PCM player that keeps the given id", a
   assert.deepEqual(c.codecs, ["pcm"]);
   assert.equal(c.requiredLeadTimeMs, 1000);
   assert.equal(c.minBufferMs, 2000);
+  assert.deepEqual(c.correctionThresholds, { sync: { resyncAboveMs: 600 } });
   assert.deepEqual(made[0].calls, ["unlock", "connect"]);
   c.onStateChange({ isPlaying: true });
   assert.equal(speaker.state, "playing");

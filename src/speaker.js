@@ -22,6 +22,11 @@ export const MIN_BUFFER_MS = 2000;
 export const DELAY_STEP_MS = 10;
 export const DELAY_MAX_MS = 5000;
 export const DELAY_SAVE_MS = 600;
+// A hard resync is heard as a jump. sendspin-js's sync mode jumps beyond 200
+// ms of error; a TV busy drawing MilkDrop stalls that long now and then, and
+// the rate and sample corrections close such a gap without a sound (LG C1, 14
+// Oct: a stutter every few minutes, 2 resyncs).
+export const RESYNC_ABOVE_MS = 600;
 
 // Music Assistant's address without its web port: Sendspin has its own.
 export function sendspinUrl(host) {
@@ -87,6 +92,7 @@ export function createSpeaker({ host, Player, delays }) {
       requiredLeadTimeMs: LEAD_TIME_MS,
       minBufferMs: MIN_BUFFER_MS,
       correctionMode: "sync",
+      correctionThresholds: { sync: { resyncAboveMs: RESYNC_ABOVE_MS } },
       onStateChange(s) {
         const playing = !!(s && s.isPlaying);
         state = playing ? "playing" : "ready";
