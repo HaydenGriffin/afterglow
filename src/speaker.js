@@ -11,6 +11,12 @@
 // (the package resolves only through the bundler, so tests pass a fake).
 
 export const SENDSPIN_PORT = 8927;
+// The TV's CPU is mostly MilkDrop's, so audio is scheduled late now and then:
+// ask Music Assistant to send further ahead than sendspin-js's 250 ms. Timing
+// is clock-synced, so a deeper buffer adds no delay (LG C1, 14 Oct: dropouts
+// every minute or so at 250 ms, CPU 75-88 %).
+export const LEAD_TIME_MS = 1000;
+export const MIN_BUFFER_MS = 2000;
 
 // Music Assistant's address without its web port: Sendspin has its own.
 export function sendspinUrl(host) {
@@ -51,6 +57,8 @@ export function createSpeaker({ host, Player }) {
       productName: "viz-man",
       baseUrl: sendspinUrl(host),
       codecs: ["pcm"],
+      requiredLeadTimeMs: LEAD_TIME_MS,
+      minBufferMs: MIN_BUFFER_MS,
       correctionMode: "sync",
       onStateChange(s) {
         const playing = !!(s && s.isPlaying);

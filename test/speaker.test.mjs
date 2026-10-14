@@ -51,6 +51,8 @@ test("off until a player is set; then one PCM player that keeps the given id", a
   assert.equal(c.clientName, "Living Room LG C1");
   assert.equal(c.baseUrl, "http://192.168.0.4:8927");
   assert.deepEqual(c.codecs, ["pcm"]);
+  assert.equal(c.requiredLeadTimeMs, 1000);
+  assert.equal(c.minBufferMs, 2000);
   assert.deepEqual(made[0].calls, ["unlock", "connect"]);
   c.onStateChange({ isPlaying: true });
   assert.equal(speaker.state, "playing");
