@@ -119,13 +119,22 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   }
   function showTrackCard(track, timed) {
     clearTimeout(trackTimer);
-    if (!track || trackMode === "off") {
-      trackCard.className = "";
-      return;
-    }
+    if (!track || trackMode === "off") return setTrackCardShown(false);
     fillTrackCard(track);
-    trackCard.className = "shown";
-    if (timed) trackTimer = setTimeout(() => (trackCard.className = ""), TRACK_CARD_MS);
+    setTrackCardShown(true);
+    if (timed) trackTimer = setTimeout(() => setTrackCardShown(false), TRACK_CARD_MS);
+  }
+  function setTrackCardShown(shown) {
+    trackCard.classList.toggle("shown", shown);
+    stackLyricOverlay();
+  }
+  // The lyric overlay and the card share the lower left corner: while the
+  // card shows, the overlay sits on top of it, a gutter above.
+  function stackLyricOverlay() {
+    const overlay = document.querySelector(".lyric-overlay");
+    if (!overlay) return;
+    const cardShown = trackCard.classList.contains("shown") && trackCard.style.display !== "none";
+    overlay.style.bottom = cardShown ? "calc(6vh + " + trackCard.offsetHeight + "px + 1.4vh)" : "";
   }
   function applyTrackMode() {
     const track = live ? live.track : null;
@@ -556,8 +565,14 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   playerView = createPlayerView({
     root: byId("player"), live: playback, host: settings.host,
     engine, onSettings: () => menu.open(), onNotice: text => toast(text, true),
-    onMode(mode) { trackCard.style.display = mode === "track" ? "" : "none"; applyDim(); }
+    onMode(mode) { trackCard.style.display = mode === "track" ? "" : "none"; stackLyricOverlay(); applyDim(); }
   });
+  // While controls, Browse, a panel or Settings is open, the track card and
+  // lyric overlay step aside (player.css .sheet-open).
+  const markSheets = () => document.body.classList.toggle("sheet-open", playerView.isOpen || menu.isOpen);
+  const sheetWatch = new MutationObserver(markSheets);
+  sheetWatch.observe(byId("player"), { attributes: true, attributeFilter: ["class"] });
+  sheetWatch.observe(byId("menu"), { attributes: true, attributeFilter: ["style"] });
 
   const bedtimeCover = document.createElement("div");
   bedtimeCover.id = "bedtime";
@@ -596,7 +611,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
         account: auth ? auth.user + " @ " + auth.host + " as " + auth.tokenName : "development override",
         player: live && live.following ? live.following.name + " / " + live.following.queueId + " (" + live.following.reason + ")" : "-",
         track: live && live.track ? live.track.artist + " / " + live.track.title : "-",
-        trackInfo: trackMode + (trackCard.className === "shown" ? ", card shown" : ""),
+        trackInfo: trackMode + (trackCard.classList.contains("shown") ? ", card shown" : ""),
         fps: engine.fps + " (cap " + engine.fpsCap + ")",
         canvas: canvas.width + "x" + canvas.height,
         window: window.innerWidth + "x" + window.innerHeight,

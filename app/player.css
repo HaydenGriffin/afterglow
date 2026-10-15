@@ -70,8 +70,11 @@
 .lyric-after { font-size: 3.6vh; line-height: 1.2; font-weight: 500; color: var(--paper-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lyric-plain { font-size: 4.4vh; line-height: 1.25; font-weight: 600; white-space: pre-line; max-height: 40vh; overflow: hidden; }
 .lyric-note { margin-top: 2vh !important; font-size: 2.4vh; color: var(--paper-2); }
-.lyric-overlay { position: absolute; left: 5vw; bottom: 6vh; max-width: 60vw; padding: 1.4vh 1.4vw; font-size: 4vh; line-height: 1.15; font-weight: 700; background: var(--field-a); color: var(--on-a); }
-.lyric-overlay:empty, #player[data-mode="visuals"] .lyric-overlay, .controls-open .lyric-overlay { display: none; }
+/* The lyric overlay shares the track card's corner; main.js lifts it above the card while the card shows. */
+.lyric-overlay { position: absolute; left: 5vw; bottom: 6vh; max-width: 60vw; padding: 1.4vh 1.4vw; font-size: 4vh; line-height: 1.15; font-weight: 700; background: var(--field-a); color: var(--on-a); transition: transform 4s linear; }
+.lyric-overlay:empty, #player[data-mode="visuals"] .lyric-overlay, .controls-open .lyric-overlay, .panel-open .lyric-overlay, .sheet-open .lyric-overlay { display: none; }
+/* Controls, Browse, a panel or Settings open: the track card steps aside. */
+.sheet-open #track { visibility: hidden; }
 
 /* Controls: a ruled strip at the top, a transport band at the bottom. */
 .player-nav, .player-controls { display: none; position: absolute; left: 0; right: 0; z-index: 2; background: var(--ground); pointer-events: auto; }
