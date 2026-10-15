@@ -305,7 +305,7 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
         const relative = family !== action;
         const pending = (LATEST[family] || ONCE[family]) && waiting.filter(job => job.family === family)[0];
         if (pending) {
-          // A waiting skip stands for this press too.
+          // Volume and seek take the latest value; a waiting skip stands for this one too.
           if (LATEST[family]) { if (relative) pending.value += value; else { pending.value = value; pending.relative = false; } }
           pending.done.push(resolve);
           return;
