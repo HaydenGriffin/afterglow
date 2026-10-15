@@ -20,6 +20,11 @@ const MA_FAVORITES_KEY = "visualizer_favorites"; // Music Assistant's own MilkDr
 const REMOTE_REFRESH_MS = 60000; // how often another TV's changes are picked up
 const RESUME_MS = 3000; // wait this long after a stream ends before looking elsewhere
 const NO_FRAMES_MS = 5000; // a "playing" queue that sends nothing by then is skipped
+// Frames that stop mid-stream with no stream/end: the relay socket is replaced
+// so the server taps the player afresh (a stream restarted under the socket,
+// as when the TV's own Sendspin speaker reconnects, is otherwise never seen).
+const STALL_MS = 10000;
+const STALL_CHECK_MS = 2000;
 const RETRY_MS = 3000;
 const HANDSHAKE_MS = 10000; // an API socket must be logged in by then
 const EVENTS = {
@@ -70,6 +75,9 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
   let sentToken = ""; // the token the last login on this socket carried
   let own = ""; // this TV's own speaker, "" when it does not play here
   let last = ""; // the queue last given to the relay, kept across stop()
+  let lastFrameAt = 0; // when the relay last delivered a frame
+  let stallTimer = 0;
+  let stalls = 0; // relay sockets replaced because frames stopped
 
   function setState(next) {
     if (next !== state) {
@@ -197,6 +205,28 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
     if (queues[current]) sawQueue(queues[current]);
     expectFramesAt = clock();
     relay.connect(pick.queueId);
+  }
+
+  // While streaming, checks that frames still arrive (see STALL_MS).
+  function watchFrames() {
+    clearTimeout(stallTimer);
+    stallTimer = 0;
+    if (!active || !streaming) return;
+    if (clock() - lastFrameAt >= STALL_MS) return frameStall();
+    stallTimer = setTimeout(watchFrames, STALL_CHECK_MS);
+  }
+
+  // Frames stopped without the stream ending. A queue that still plays gets a
+  // fresh relay socket; either way the choice is made again.
+  function frameStall() {
+    streaming = false;
+    expectFramesAt = clock();
+    const queue = queues[current];
+    if (current && (pinned || (queue && queue.state === "playing"))) {
+      stalls++;
+      relay.connect(current);
+    }
+    scheduleChoose();
   }
 
   // Works out what to watch from the lists as they stand. Runs on every
@@ -555,6 +585,8 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
     },
     stop() {
       active = false;
+      clearTimeout(stallTimer);
+      stallTimer = 0;
       closeApi();
       current = "";
       following = null;
@@ -568,8 +600,10 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
     },
     // The relay delivered a frame: the right player is being watched.
     noteFrame() {
+      lastFrameAt = clock();
       if (streaming) return;
       streaming = true;
+      watchFrames();
       delete skipped[current];
       delete failures[current];
       if (!pinned) setState("watching");
@@ -620,6 +654,12 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
     },
     get state() {
       return state;
+    },
+    // For diagnostics: whether frames flow, how long since the last, and how
+    // often the relay was replaced because they stopped.
+    get frames() {
+      return { streaming, lastAgoMs: lastFrameAt ? clock() - lastFrameAt : null, stalls,
+        queueState: queues[current] ? queues[current].state : null };
     },
     get syncLog() {
       return syncLog.join(" | ");

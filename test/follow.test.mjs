@@ -169,8 +169,10 @@ test("a stream that ends and resumes on the same queue is not mistaken for a sil
   follow.start();
   sockets[0].login();
   sockets[0].queues({ a: "playing", b: "playing" });
-  follow.noteFrame();
-  t.mock.timers.tick(60000);
+  for (let i = 0; i < 60; i++) {
+    follow.noteFrame();
+    t.mock.timers.tick(1000);
+  }
   follow.noteEnd(); // a pause, or the relay reconnecting
   t.mock.timers.tick(3000);
   sockets[0].queues({ a: "playing", b: "playing" });
@@ -509,4 +511,42 @@ test("a socket reopened after renewal logs in with the fresh token", (t) => {
   t.mock.timers.tick(3000);
   sockets[1].receive({ server_version: "2.10.5" });
   assert.deepEqual(sockets[1].sent[0].args, { token: "fresh" });
+});
+
+test("frames that stop mid-stream while the queue still plays get a fresh relay socket", (t) => {
+  // The TV's own speaker playing its own queue: the relay drew a few seconds,
+  // then the server stopped sending with no stream/end and the picture stayed
+  // idle for good (1.4.3 on the C1).
+  const { follow, relay, sockets } = harness(t);
+  follow.start();
+  sockets[0].login();
+  sockets[0].queues({ tv: "playing", kitchen: "idle" });
+  assert.deepEqual(relay.connects, ["tv"]);
+  for (let i = 0; i < 40; i++) {
+    follow.noteFrame();
+    t.mock.timers.tick(100);
+  }
+  t.mock.timers.tick(8000);
+  assert.deepEqual(relay.connects, ["tv"], "a short gap is left alone");
+  t.mock.timers.tick(4000);
+  assert.deepEqual(relay.connects, ["tv", "tv"], "silent past 10 s while playing: the relay is replaced");
+  assert.equal(follow.frames.stalls, 1);
+  follow.noteFrame();
+  assert.equal(follow.frames.streaming, true, "frames again on the fresh socket");
+  t.mock.timers.tick(9000);
+  follow.noteFrame();
+  t.mock.timers.tick(9000);
+  assert.deepEqual(relay.connects, ["tv", "tv"], "frames keep coming: nothing more");
+});
+
+test("frames that stop because the queue paused do not replace the relay", (t) => {
+  const { follow, relay, sockets } = harness(t);
+  follow.start();
+  sockets[0].login();
+  sockets[0].queues({ tv: "playing" });
+  follow.noteFrame();
+  sockets[0].event("queue_updated", "tv", { queue_id: "tv", state: "paused" });
+  t.mock.timers.tick(30000);
+  assert.deepEqual(relay.connects, ["tv"]);
+  assert.equal(follow.frames.streaming, false, "no longer counted as streaming");
 });

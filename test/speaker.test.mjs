@@ -112,6 +112,31 @@ test("a failed connect shows as an error, then is retried with a growing wait un
   assert.equal(made.length, 3, "connected: no more retries");
 });
 
+test("a player that Sendspin reconnected by itself is not torn down by the retry", async (t) => {
+  // sendspin-js retries a failed open on its own. Replacing the player once it
+  // is connected again ends the stream Music Assistant just started on it
+  // (and the relay's waveform tap with it) a few seconds in.
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { Player, made } = fakePlayer();
+  Player.prototype.connect = function () {
+    this.calls.push("connect");
+    return Promise.reject(new Error("refused"));
+  };
+  const speaker = createSpeaker({ host: "ma", Player });
+  speaker.set("TV");
+  speaker.start();
+  await flush();
+  assert.equal(speaker.state, "error");
+  made[0].isConnected = true; // its own reconnect got through
+  made[0].config.onStateChange({ isPlaying: true });
+  t.mock.timers.tick(120000);
+  await flush();
+  assert.equal(made.length, 1, "kept");
+  assert.deepEqual(made[0].calls, ["unlock", "connect"], "never disconnected");
+  assert.equal(speaker.state, "playing");
+  assert.equal(speaker.error, "");
+});
+
 test("stopping or switching the speaker cancels a pending retry", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const { Player, made } = fakePlayer();

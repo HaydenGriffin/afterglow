@@ -209,5 +209,16 @@ export function createLive(settings) {
         sync: follow.syncLog,
       };
     },
+    // Why the picture is idle, for window.vizmanDiagnostics(): the relay's
+    // state and player, its clock, the buffer, and what follow.js decided.
+    diagnostics() {
+      const nowUs = relay.clock.ready ? relay.clock.serverUs(performance.now()) - trimMs * 1000 : 0;
+      return {
+        relay: relay.state, relayPlayer: relay.player, reconnects: relay.reconnects, clockReady: relay.clock.ready,
+        buffered: timeline.buffered, leadMs: relay.clock.ready ? Math.round(timeline.leadUs(nowUs) / 1000) : null,
+        follow: follow.state, current: follow.player, following: follow.following ? follow.following.queueId + " (" + follow.following.reason + ")" : null,
+        frames: follow.frames, showing, problem: problem || null,
+      };
+    },
   };
 }
