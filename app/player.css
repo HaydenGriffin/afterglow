@@ -22,7 +22,7 @@
 #player[data-mode="visuals"] .poster, #player[data-mode="track"] .poster { display: none; }
 
 /* The poster */
-.poster { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+.poster { position: absolute; left: 0; top: 0; right: 0; bottom: 0; transition: transform 4s linear; }
 .poster-art { position: absolute; left: 0; top: 0; bottom: 0; width: 34.16vw; background: var(--field-b); overflow: hidden; }
 .poster-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .poster-target, .poster-state { position: absolute; top: 6vh; font-size: 2.2vh; font-weight: 500; letter-spacing: .01em; color: var(--paper-2); }
