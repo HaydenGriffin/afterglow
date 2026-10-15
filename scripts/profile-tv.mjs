@@ -72,7 +72,7 @@ try {
   const start = Date.now();
   do {
     const metrics = await call("Performance.getMetrics");
-    const page = await call("Runtime.evaluate", { expression: 'JSON.stringify({hidden:document.hidden,uptimeSec:performance.now()/1000,diagnostics:window.vizmanDiagnostics ? window.vizmanDiagnostics() : null})', returnByValue: true });
+    const page = await call("Runtime.evaluate", { expression: 'JSON.stringify({hidden:document.hidden,uptimeSec:performance.now()/1000,diagnostics:window.afterglowDiagnostics ? window.afterglowDiagnostics() : null})', returnByValue: true });
     if (page.exceptionDetails) throw new Error("diagnostics evaluation failed");
     const { stdout } = await exec("ssh", ["-T", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", sshHost, processCommand], { timeout: 10000 });
     const processes = [];

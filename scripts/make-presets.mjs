@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Usage: scripts/make-presets.mjs
 // Writes app/vendor/presets.js: every MilkDrop preset in the butterchurn-presets
-// packs as window.vizmanPresets, and the frame rates measured on an LG CX
-// (bench/lg-cx-webos5.json) as window.vizmanPresetBench, which a TV uses as
+// packs as window.afterglowPresets, and the frame rates measured on an LG CX
+// (bench/lg-cx-webos5.json) as window.afterglowPresetBench, which a TV uses as
 // its validated list until it has run its own scan.
 import { createRequire } from "node:module";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -32,7 +32,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   for (const name of Object.keys(all)) if (typeof bench[name] === "number") seed[name] = bench[name];
   const out = join(root, "app", "vendor");
   mkdirSync(out, { recursive: true });
-  const text = "window.vizmanPresets = " + JSON.stringify(all) + ";\nwindow.vizmanPresetBench = " + JSON.stringify(seed) + ";\n";
+  const text = "window.afterglowPresets = " + JSON.stringify(all) + ";\nwindow.afterglowPresetBench = " + JSON.stringify(seed) + ";\n";
   writeFileSync(join(out, "presets.js"), text);
   console.log(`wrote app/vendor/presets.js (${Object.keys(all).length} presets, ${Object.keys(seed).length} benchmarked, ${text.length} bytes)`);
 }

@@ -34,7 +34,7 @@ and speaker buffering/corrections. Retained console messages are marked
 counter, while the speaker diagnostic uses the scheduler's cumulative count.
 Neither counter proves what came out of HDMI ARC: listening remains necessary.
 
-`window.vizmanDiagnostics()` is a bounded read-only snapshot. Render maxima and
+`window.afterglowDiagnostics()` is a bounded read-only snapshot. Render maxima and
 stall counts are cumulative for the page lifetime; compare counter deltas for
 each test phase. Initial loading and preset compilation can produce large gaps.
 The scheduler fields are diagnostic access to the locked Sendspin version, not
@@ -93,7 +93,7 @@ npm run install-tv -- <tv-ip>     # install through Glasshouse's API on a rooted
 
 A long-lived token for the scripts comes from Music Assistant (Settings →
 Users → your user → tokens), or from the TV's own: the debug readout does not
-show it, but `localStorage["vis.auth"]` in a browser session does.
+show it, but `localStorage["afterglow.auth"]` in a browser session does.
 
 `bench/lg-cx-webos5.json` holds the frame rate of every preset on an LG CX;
 `scripts/make-presets.mjs` ships it with the app as the seed of the validated

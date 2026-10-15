@@ -209,7 +209,7 @@ export function createLive(settings) {
         sync: follow.syncLog,
       };
     },
-    // Why the picture is idle, for window.vizmanDiagnostics(): the relay's
+    // Why the picture is idle, for window.afterglowDiagnostics(): the relay's
     // state and player, its clock, the buffer, and what follow.js decided.
     diagnostics() {
       const nowUs = relay.clock.ready ? relay.clock.serverUs(performance.now()) - trimMs * 1000 : 0;

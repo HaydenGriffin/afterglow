@@ -15,7 +15,9 @@ const RECONCILE_STREAMING_MS = 30000; // and while streaming (events carry the r
 const CHOOSE_DEBOUNCE_MS = 300; // events come in bursts
 const TRACK_POLL_MS = 4000;
 const SAVE_DEBOUNCE_MS = 1500;
-const PREFS_KEY = "vizman"; // our entry in the user's preferences
+// Our entry in the user's Music Assistant preferences. Named before the
+// rebrand and kept: renaming it would orphan every synced favourite and setting.
+const PREFS_KEY = "vizman";
 const MA_FAVORITES_KEY = "visualizer_favorites"; // Music Assistant's own MilkDrop favorites
 const REMOTE_REFRESH_MS = 60000; // how often another TV's changes are picked up
 const RESUME_MS = 3000; // wait this long after a stream ends before looking elsewhere

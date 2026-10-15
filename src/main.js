@@ -631,7 +631,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   debug.show(settings.debug);
   // Read-only, bounded diagnostic snapshot for the TV soak tool. Deliberately
   // excludes credentials, account identity and track metadata.
-  window.vizmanDiagnostics = () => ({
+  window.afterglowDiagnostics = () => ({
     version: typeof VIZ_VERSION === "string" ? VIZ_VERSION : "dev",
     preset: milkdrop.presetName,
     fps: engine.fps,
