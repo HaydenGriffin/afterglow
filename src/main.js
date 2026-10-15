@@ -44,7 +44,7 @@ function boot(event) {
   booted = true;
 
   const settings = mergeSettings(
-    window.VIS_CONFIG || {},
+    window.AFTERGLOW_CONFIG || {},
     readLaunchParams(window, event),
     parseQuery(location.search),
     location.origin
@@ -601,7 +601,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   debug = createDebug(byId("debug"), () =>
     Object.assign(
       {
-        version: typeof VIZ_VERSION === "string" ? VIZ_VERSION : "dev",
+        version: typeof AFTERGLOW_VERSION === "string" ? AFTERGLOW_VERSION : "dev",
         preset: milkdrop.presetPosition + " " + milkdrop.presetName,
         list: listText() + ", validated " + milkdrop.validatedCount + "/" + milkdrop.presetCount + " at " + milkdrop.validateFps + " fps",
         favorites: milkdrop.favoriteCount,
@@ -632,7 +632,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   // Read-only, bounded diagnostic snapshot for the TV soak tool. Deliberately
   // excludes credentials, account identity and track metadata.
   window.afterglowDiagnostics = () => ({
-    version: typeof VIZ_VERSION === "string" ? VIZ_VERSION : "dev",
+    version: typeof AFTERGLOW_VERSION === "string" ? AFTERGLOW_VERSION : "dev",
     preset: milkdrop.presetName,
     fps: engine.fps,
     fpsCap: engine.fpsCap,

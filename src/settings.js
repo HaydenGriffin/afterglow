@@ -1,5 +1,5 @@
 // Settings come from three places, later ones winning: the build-time config
-// (window.VIS_CONFIG), webOS launch parameters, and the page's query string.
+// (window.AFTERGLOW_CONFIG), webOS launch parameters, and the page's query string.
 // `host` and `token` among them are development overrides; on a TV they come
 // from the sign-in form and are kept in the `auth` preference.
 

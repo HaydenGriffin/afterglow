@@ -1,4 +1,15 @@
-# Unreleased — 1.5.0
+# 1.5.0 — Afterglow, rebranded for publishing (15 October 2026)
+
+- Lyrics: when Music Assistant has none (its exact LRCLIB lookup misses titles
+  listed with featured artists, and misses are rate-limited), Afterglow
+  searches LRCLIB itself and takes the hit with the same base title, artist and
+  length (same album and closer length first). The search also runs after a
+  Music Assistant error or a 5 s timeout; a failed lookup is retried once
+  after 30 s, and a manual retry clears a cached miss.
+- A simpler listening layout for Album and Lyrics.
+- Media keys: Stop pauses, fast-forward/rewind skip tracks; named media keys
+  (MediaPlayPause and friends) work too.
+- Config global `window.AFTERGLOW_CONFIG` (was `VIS_CONFIG`).
 
 - New app id: `io.github.haydengriffin.afterglow` (was `net.botworth.vizman`),
   for publishing as Afterglow. The package is now

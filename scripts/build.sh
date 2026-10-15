@@ -14,7 +14,7 @@ OUT="$ROOT/app"
 # fallback Opus decoder, imported only for Opus: the TV speaker asks for PCM.
 VERSION="$(node -p "require('$ROOT/app/appinfo.json').version")"
 esbuild "$ROOT/src/main.js" --bundle --format=iife --target=chrome68 --minify \
-  --define:OffscreenCanvas=undefined --define:VIZ_VERSION="\"$VERSION\"" --define:globalThis=window \
+  --define:OffscreenCanvas=undefined --define:AFTERGLOW_VERSION="\"$VERSION\"" --define:globalThis=window \
   --external:opus-encdec/* --log-level=warning --outfile="$OUT/app.js"
 
 # esbuild lowers syntax only. Fail on APIs the TV's Chromium 68 does not have.
@@ -26,10 +26,10 @@ if hits="$(grep -oE "$TOO_NEW" "$OUT/app.js" | sort -u)" && [ -n "$hits" ]; then
 fi
 
 if [ -f "$ROOT/config.local.json" ]; then
-  node -e 'process.stdout.write("window.VIS_CONFIG = " + JSON.stringify(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))) + ";\n")' \
+  node -e 'process.stdout.write("window.AFTERGLOW_CONFIG = " + JSON.stringify(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))) + ";\n")' \
     "$ROOT/config.local.json" > "$OUT/config.js"
 else
-  echo "window.VIS_CONFIG = {};" > "$OUT/config.js"
+  echo "window.AFTERGLOW_CONFIG = {};" > "$OUT/config.js"
 fi
 
 mkdir -p "$OUT/vendor"
