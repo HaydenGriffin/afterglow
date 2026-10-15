@@ -16,6 +16,7 @@ import { createMenu } from "./menu.js";
 import { drawSync, timingLabel } from "./sync-figure.js";
 import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, SCALE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
 import { createMock } from "./mock.js";
+import { lockFor, lockKeys, withLock } from "./preset-lock.js";
 import { timeLabel } from "./playback.js";
 import { createScan, recoverScan } from "./scan.js";
 import { SendspinPlayer } from "@sendspin/sendspin-js";
@@ -28,7 +29,7 @@ const MESSAGE_REFRESH_MS = 1000;
 const HINT_MS = 3000;
 const TOAST_MS = 3500;
 const TRACK_CARD_MS = 9000;
-const BEDTIME_TICK_MS = 1000;
+const BEDTIME_TICK_MS = 1000; // also how soon a preset lock follows a new track
 const TRACK_MODES = ["start", "always", "off"];
 const DIM_CHOICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]; // percent
 const RENEW_CHECK_MS = 8000; // after launch
@@ -330,6 +331,31 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     if (milkdrop.list === "favorites" && !milkdrop.favoriteCount) toast("No favourite presets yet: showing all presets", true);
   }
 
+  // Preset locks (preset-lock.js): this preset whenever this album or artist plays.
+  function playingTrack() {
+    return playerView ? playerView.snapshot().track : null;
+  }
+  function applyPresetLock() {
+    const lock = lockFor(loadPref("presetLocks", {}), playingTrack());
+    milkdrop.hold(lock ? lock.name : null);
+  }
+  function lockRow(kind) {
+    const key = () => lockKeys(playingTrack())[kind];
+    const locked = () => !!key() && loadPref("presetLocks", {})[key()];
+    const what = () => (kind === "album" ? playingTrack().album : playingTrack().artist);
+    return {
+      label: () => (locked() ? "Unlock preset for this " : "Lock preset for this ") + kind,
+      visible: () => milkdrop.ready && !!key(),
+      value: () => (locked() ? locked() : what()),
+      change() {
+        const name = locked() ? null : milkdrop.presetName;
+        savePref("presetLocks", withLock(loadPref("presetLocks", {}), key(), name));
+        applyPresetLock();
+        toast(name ? "Preset locked for " + what() : "Preset unlocked for " + what(), true);
+      },
+    };
+  }
+
   const menu = createMenu(byId("menu"), [
     { section: "Sound & sync" },
     {
@@ -425,6 +451,8 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       value: () => (milkdrop.isFavorite ? "Yes" : "No"),
       change: () => toast(milkdrop.toggleFavorite() ? "Added to favourite presets" : "Removed from favourite presets", true),
     },
+    lockRow("album"),
+    lockRow("artist"),
     {
       // Whether this preset is in the validated list: by measurement, or by
       // the person's own say-so.
@@ -524,7 +552,10 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     playback: playerView,
     setDark: (on) => bedtimeCover.classList.toggle("dark", on),
   });
-  setInterval(bedtime.tick, BEDTIME_TICK_MS);
+  setInterval(() => {
+    bedtime.tick();
+    applyPresetLock();
+  }, BEDTIME_TICK_MS);
 
   debug = createDebug(byId("debug"), () =>
     Object.assign(
