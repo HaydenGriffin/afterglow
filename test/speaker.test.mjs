@@ -219,7 +219,10 @@ test("Play on this TV off and on again comes back as the same player (14 Oct: it
   const tv = { name: "Living Room LG C1", id: "webos-living-room-lg-c1" };
   assert.equal(toggledSpeaker(true, tv), null);
   assert.deepEqual(toggledSpeaker(false, tv), tv);
-  assert.deepEqual(toggledSpeaker(false, null), { name: "viz-man TV", id: "webos-viz-man-tv" });
+});
+
+test("a TV never set up becomes 'Afterglow TV', under the id earlier versions gave it so it is not registered twice", () => {
+  assert.deepEqual(toggledSpeaker(false, null), { name: "Afterglow TV", id: "webos-viz-man-tv" });
 });
 
 test("Audio delay belongs to its speaker: switching neither shows nor saves the old one's on the new one", async (t) => {

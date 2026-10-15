@@ -4,8 +4,8 @@
 // and lyrics) is timed from the group clock, later by the trim. Earlier is left.
 const SPAN_MS = 600;
 
-// A timing in words that name what it is measured against: "420 ms ahead of
-// the other speakers", "75 ms after the TV's sound".
+// A timing in words that name what it is measured against: "75 ms after the
+// music", "30 ms before the music".
 export function timingLabel(ms, positive, negative, inStep) {
   if (ms === null || ms === undefined) return "…";
   if (!ms) return inStep;

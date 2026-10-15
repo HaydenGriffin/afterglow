@@ -43,10 +43,14 @@ export function playerIdFor(name) {
 // The "Play on this TV" row: off when on; on again as the player this TV was
 // last (its launch parameter or an earlier choice), so it keeps its id and its
 // place in Music Assistant's groups. Only a TV never set up gets a new player.
-export const NEW_SPEAKER_NAME = "viz-man TV";
+// The new player keeps the id it had as "viz-man TV": Music Assistant knows
+// a player by its id, so a TV that lost its stored choice (storage wiped by an
+// update) comes back as the same player rather than a second one.
+export const NEW_SPEAKER_NAME = "Afterglow TV";
+export const NEW_SPEAKER_ID = playerIdFor("viz-man TV");
 export function toggledSpeaker(current, last) {
   if (current) return null;
-  return last || { name: NEW_SPEAKER_NAME, id: playerIdFor(NEW_SPEAKER_NAME) };
+  return last || { name: NEW_SPEAKER_NAME, id: NEW_SPEAKER_ID };
 }
 
 export function createSpeaker({ host, Player, delays }) {

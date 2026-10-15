@@ -361,7 +361,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       // player's delay in Music Assistant; not an offset on the sync figure.
       label: "TV output compensation",
       visible: () => !!speaker && speaker.on,
-      value: () => (speaker.delayMs === null ? "…" : speaker.delayMs ? "Sound sent " + Math.abs(speaker.delayMs) + " ms " + (speaker.delayMs > 0 ? "early" : "late") : "None"),
+      value: () => (speaker.delayMs === null ? "…" : speaker.delayMs ? "Sound sent " + speaker.delayMs + " ms early" : "None"),
       change: (direction) => speaker.nudgeDelay(direction),
     },
     {
