@@ -70,3 +70,27 @@ test("Online lyrics Off: no request leaves for lrclib.net", async (t) => {
   assert.equal(asked.length, 1, "On again: the search runs");
   assert.match(asked[0], /^https:\/\/lrclib\.net\/api\/search\?/);
 });
+
+test("a search with no answer is aborted after 8 s and fails (retryable), not a miss", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let signal = null;
+  const hanging = (url, init) => new Promise((_, reject) => {
+    signal = init.signal;
+    signal.addEventListener("abort", () => reject(Object.assign(new Error("The operation was aborted"), { name: "AbortError" })));
+  });
+  const search = searchLyrics({ title: "X", artist: "Y" }, hanging);
+  t.mock.timers.tick(7999);
+  assert.equal(signal.aborted, false, "still waiting");
+  t.mock.timers.tick(1);
+  assert.equal(signal.aborted, true);
+  await assert.rejects(search, /aborted/);
+});
+
+test("an answer in time clears the abort timer", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let signal = null;
+  const result = await searchLyrics({ title: "X", artist: "Y" }, async (url, init) => { signal = init.signal; return { ok: true, json: async () => [] }; });
+  assert.equal(result, null);
+  t.mock.timers.tick(10000);
+  assert.equal(signal.aborted, false, "nothing aborts a finished request");
+});
