@@ -11,6 +11,9 @@ const NAMES = {
   415: "play",
   19: "pause",
   179: "playpause",
+  413: "stop",
+  417: "fastforward",
+  412: "rewind",
   32: "playpause",
   461: "back",
   27: "back",
@@ -26,8 +29,12 @@ const NAMES = {
   71: "green", // G: trim later
 };
 
+// Media keys some remotes (and injected keys) send by name only.
+const MEDIA_KEYS = { MediaPlayPause: "playpause", MediaPlay: "play", MediaPause: "pause", MediaStop: "stop", MediaTrackNext: "fastforward", MediaTrackPrevious: "rewind", MediaFastForward: "fastforward", MediaRewind: "rewind" };
+
 export function keyName(event) {
   if (event.key === "GoBack") return "back";
+  if (MEDIA_KEYS[event.key]) return MEDIA_KEYS[event.key];
   return NAMES[event.keyCode] || "";
 }
 

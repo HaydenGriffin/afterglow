@@ -392,7 +392,8 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     start() { model.start(); if (!timer) timer = setInterval(() => { model.tick(); render(); if (panel === "controls" && Date.now() > hideAt) close(); }, 250); },
     stop() { clearInterval(timer); timer = 0; model.stop(); close(); },
     handleKey(name) {
-      if (name === "playpause" || name === "play" || name === "pause") { command(name === "playpause" ? "play_pause" : name); return true; }
+      const media = { playpause: "play_pause", play: "play", pause: "pause", stop: "pause", fastforward: "next", rewind: "previous" }[name];
+      if (media) { command(media); return true; }
       if (!panel) return false;
       touch();
       if (panel === "browse") { browse.handleKey(name); return true; }

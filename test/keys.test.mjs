@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { remoteAction } from "../src/keys.js";
+import { keyName, remoteAction } from "../src/keys.js";
 
 const visuals = { mode: "visuals", visualsShown: true, milkdropReady: true, milkdropOn: true, live: true, lyrics: "idle" };
 const at = (over) => Object.assign({}, visuals, over);
@@ -59,4 +59,9 @@ test("Lyrics: untimed lyrics page on every arrow, timed lyrics seek", () => {
 test("unknown keys do nothing", () => {
   assert.equal(remoteAction("", visuals), null);
   assert.equal(remoteAction("play", visuals), null);
+});
+
+test("media keys by code and by name: stop, fast-forward and rewind too", () => {
+  for (const [code, name] of [[415, "play"], [19, "pause"], [413, "stop"], [417, "fastforward"], [412, "rewind"]]) assert.equal(keyName({ keyCode: code }), name);
+  for (const [key, name] of [["MediaPlayPause", "playpause"], ["MediaTrackNext", "fastforward"], ["MediaTrackPrevious", "rewind"], ["MediaStop", "stop"]]) assert.equal(keyName({ key, keyCode: 0 }), name);
 });
