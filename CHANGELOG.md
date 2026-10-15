@@ -1,3 +1,9 @@
+# 1.5.3 — Poster block identity (16 October 2026)
+
+- New identity: the AFTER/GLOW poster-block wordmark in Archivo; new launcher icons
+  (ink on a paper tile; AF/GL at small sizes), README wordmark, social preview
+  and a favicon for the browser demo. Masters and usage notes in `docs/brand/`.
+
 # 1.5.2 — Fewer features (15 October 2026)
 
 - Removed Bedtime: Music Assistant's sleep timer (Queue panel) and the TV's own
