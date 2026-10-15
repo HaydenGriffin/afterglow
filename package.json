@@ -4,7 +4,16 @@
   "private": true,
   "type": "module",
   "description": "An unofficial Music Assistant TV companion",
+  "author": "Hayden Griffin",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HaydenGriffin/afterglow.git"
+  },
+  "homepage": "https://github.com/HaydenGriffin/afterglow#readme",
+  "bugs": {
+    "url": "https://github.com/HaydenGriffin/afterglow/issues"
+  },
   "scripts": {
     "build": "scripts/build.sh",
     "package": "scripts/package.sh",

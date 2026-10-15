@@ -19,7 +19,7 @@ This product bundles the following third-party software:
   - eel-wasm 0.0.16, https://github.com/captbaritone/eel-wasm
     Copyright (c) Jordan Eldredge. MIT License.
   - ecma-proposal-math-extensions 0.0.2,
-    https://github.com/rwaldron/proposal-math-extensions
+    https://github.com/tc39/proposal-math-extensions
     Copyright (c) Rick Waldron. MIT License.
 
 - butterchurn-presets 2.4.7
