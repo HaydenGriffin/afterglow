@@ -1,0 +1,42 @@
+# The browser demo at https://haydengriffin.github.io/afterglow/: the app as
+# built for the TV, with a config.js that starts it on demo data (mock), so it
+# needs no Music Assistant and makes no network requests.
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Assemble the demo site
+        run: |
+          cp -R app _site
+          echo 'window.AFTERGLOW_CONFIG = {"mock":true};' > _site/config.js
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
