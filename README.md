@@ -1,4 +1,11 @@
 <p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/afterglow-wordmark-paper.svg">
+    <img src="docs/brand/afterglow-wordmark-ink.svg" alt="Afterglow" width="240">
+  </picture>
+</p>
+
+<p align="center">
   <img src="docs/images/hero.jpg" alt="Afterglow on a TV: the album artwork, the lyrics with the current line sung word by word, and MilkDrop visuals behind" width="100%">
 </p>
 
