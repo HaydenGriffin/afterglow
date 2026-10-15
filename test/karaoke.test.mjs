@@ -13,10 +13,10 @@ test("enhanced LRC keeps word timings; the line text has no tags", () => {
   assert.deepEqual(line.words, [{ at: 12, text: "Hold " }, { at: 12.5, text: "me " }, { at: 13.2, text: "close" }]);
 });
 
-test("a first word without its own tag starts with the line; the offset moves words too (as it moves lines)", () => {
+test("a first word without its own tag starts with the line; the offset moves words too (a positive offset brings them sooner)", () => {
   const [line] = parseLyrics("[offset:500]\n[01:00.00]Hello <01:00.80>there");
   assert.equal(line.text, "Hello there");
-  assert.deepEqual(line.words, [{ at: 60.5, text: "Hello " }, { at: 61.3, text: "there" }]);
+  assert.deepEqual(line.words, [{ at: 59.5, text: "Hello " }, { at: 60.3, text: "there" }]);
 });
 
 test("a repeated line takes its words along to each timestamp", () => {

@@ -28,7 +28,8 @@ export function trackInfo(item, host) {
     album: album.name || "", duration: item.duration || media.duration || 0, image, media };
 }
 
-// LRC can contain multiple timestamps per line and a signed millisecond offset.
+// LRC can contain multiple timestamps per line and a signed millisecond offset
+// (positive: the lyrics come sooner).
 // Enhanced LRC adds <mm:ss.xx> word tags: those lines also carry `words`,
 // [{ at, text }], for the karaoke highlight (karaoke.js).
 // Keep only the current song, cap malformed/untrusted provider responses.
@@ -58,7 +59,7 @@ function wordsOf(body, shift) {
 export function parseLyrics(value) {
   const text = String(value || "").slice(0, 100000);
   const offset = /\[offset:([+-]?\d+)\]/i.exec(text);
-  const shift = offset ? Number(offset[1]) / 1000 : 0;
+  const shift = offset ? -Number(offset[1]) / 1000 : 0;
   const rows = [];
   for (const line of text.split(/\r?\n/).slice(0, 2000)) {
     const pattern = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;

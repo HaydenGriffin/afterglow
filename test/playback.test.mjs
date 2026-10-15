@@ -12,9 +12,9 @@ const settle = () => new Promise(resolve => setImmediate(resolve));
 
 test('timed lyrics handle repeated timestamps, fractional seconds, offset and unsorted lines', () => {
   const lines = parseLyrics('[ar:Test]\n[offset:-100]\n[00:12.50]Second\n[00:01.2][00:05.123]First');
-  assert.deepEqual(lines, [{at:1.1,text:'First'},{at:5.023,text:'First'},{at:12.4,text:'Second'}]);
+  assert.deepEqual(lines, [{at:1.3,text:'First'},{at:5.223,text:'First'},{at:12.6,text:'Second'}]);
   assert.equal(lyricIndex(lines, 0), -1);
-  assert.equal(lyricIndex(lines, 5.023), 1);
+  assert.equal(lyricIndex(lines, 5.223), 1);
   assert.equal(lyricIndex(lines, 99), 2);
   assert.deepEqual(parseLyrics('Untimed lyrics'), []);
 });
