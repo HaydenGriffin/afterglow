@@ -2,7 +2,7 @@
 
 ## Why it exists
 
-viz-man ships all 395 MilkDrop presets from the butterchurn-presets packs.
+Afterglow ships all 395 MilkDrop presets from the butterchurn-presets packs.
 They are small programs, and they differ enormously in what they ask of a
 TV's graphics chip: on an LG CX some hold 60 frames a second and some manage
 5. There is no way to know which are which without running them on the TV in

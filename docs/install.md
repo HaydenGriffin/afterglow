@@ -1,4 +1,4 @@
-# Setting up viz-man
+# Setting up Afterglow
 
 A walkthrough from nothing to a tuned visualizer. Budget an hour the first
 time: most of it is the preset scan running on its own.
@@ -44,7 +44,7 @@ draws in time with the music. Without it the TV connects, signs in, and shows
 ## 3. Install the app on the TV
 
 Get `io.github.haydengriffin.afterglow_<version>_all.ipk` from the
-[releases page](https://github.com/mnestrud/viz-man/releases), or build it
+[releases page](https://github.com/HaydenGriffin/afterglow/releases), or build it
 with `npm install && npm run package` (it lands in `dist/`). The package is
 the same for every TV and contains no credentials.
 
@@ -83,7 +83,7 @@ Any of these works; pick what you have.
    reinstall; the TV's settings and sign-in survive a reinstall, and anything
    the TV loses comes back from your Music Assistant account.
 
-Either way, an install stops a running viz-man. Open it from the home screen.
+Either way, an install stops a running Afterglow. Open it from the home screen.
 
 ## 4. Sign in
 
@@ -102,7 +102,7 @@ OK on a field opens the TV's keyboard. Finish each field with the keyboard's
 moving. OK on **Sign in** submits.
 
 What happens: the app logs in once, asks Music Assistant for a **long-lived
-token named after the TV** (`viz-man on OLED48CXPUB (a1b2c3)`, say), stores
+token named after the TV** (`Afterglow on OLED48CXPUB (a1b2c3)`, say), stores
 that token, and forgets the password. The token appears in Music Assistant
 under Settings → Users → your user, alongside its tokens for your phone and
 browser; you can remove it there at any time, or with **Log out** in the TV's

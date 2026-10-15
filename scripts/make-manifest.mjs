@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "dist");
 const info = JSON.parse(readFileSync(join(root, "app", "appinfo.json"), "utf8"));
-const REPO = process.env.AFTERGLOW_REPOSITORY_URL || ""; // Set only when this fork has a published repository.
+const REPO = process.env.AFTERGLOW_REPOSITORY_URL || "https://github.com/HaydenGriffin/afterglow";
 
 const ipk =
   process.argv[2] ||
@@ -28,8 +28,9 @@ const manifest = {
   version: info.version,
   type: info.type,
   title: info.title,
-  appDescription: "An unofficial Music Assistant TV companion: visuals, artwork, lyrics and playback.",
-  ...(REPO ? { sourceUrl: REPO, iconUri: `${REPO.replace("github.com", "raw.githubusercontent.com")}/v${info.version}/app/largeIcon.png` } : {}),
+  appDescription: info.appDescription,
+  sourceUrl: REPO,
+  iconUri: `${REPO.replace("github.com", "raw.githubusercontent.com")}/v${info.version}/app/largeIcon.png`,
   rootRequired: false,
   ipkUrl: basename(ipk),
   ipkHash: { sha256: createHash("sha256").update(readFileSync(ipk)).digest("hex") },

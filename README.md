@@ -1,76 +1,96 @@
 # Afterglow
 
-An unofficial Music Assistant TV companion for LG webOS. Visuals, album
-artwork, timed lyrics and remote-friendly playback, following the music in
-your room. Based on [Michael Nestrud’s viz-man](https://github.com/mnestrud/viz-man).
-Independent of, and not endorsed by, Music Assistant.
+A Music Assistant companion for LG webOS TVs. Afterglow draws MilkDrop visuals
+in time with whatever your speakers are playing, and shows the album artwork,
+timed lyrics and the queue, with playback you drive from the TV remote. It can
+also make the TV itself a Music Assistant speaker.
 
-## Build and install
-
-```sh
-npm install
-npm run package
-```
-
-Install the generated `dist/net.botworth.vizman_<version>_all.ipk` (the
-version in `package.json`) with your webOS installer. The original app ID is deliberately retained: Afterglow replaces
-Vizman in place and preserves its player identity and preferences. This fork
-has not been published; upstream Vizman releases do not contain these features.
-
-Enable Music Assistant’s MilkDrop Visualizer plugin, open Afterglow, and sign
-in to your Music Assistant server. Press **OK** for the playback controls: a
-transport row with **Display** (Visuals only, Visuals + track, Album or Lyrics)
-and **Details**, and a top strip with **Browse**, **Now playing**, **Queue** and
-**Settings** (presets, picture, sound and sync, account). See
-[Settings and remote keys](docs/settings.md).
-
-The TV can also play audio through Sendspin. Existing speaker names/IDs are
-preserved so that groups and latency compensation survive the update.
-
-## TV player
-
-- Album artwork and next-track information; timed lyrics with the current line
-  highlighted, plus paged untimed lyrics when timestamps are unavailable.
-- Pure visuals, optional track card, optional lyric overlay, and optional
-  MilkDrop behind artwork or lyrics. With that background off, rendering stops
-  while the waveform buffer continues draining and audio keeps playing.
-- Browse recently played, favourites, radio, playlists and albums; play now,
-  play next, add to the queue or start radio.
-- Play/pause, previous/next, seek ±10 seconds, the next 12 queued songs (play,
-  move or remove them), music favourites, shuffle/repeat, autoplay, crossfade,
-  volume, a server-owned sleep timer, and the choice of player to follow.
-- All playback changes go through Music Assistant’s existing authenticated
-  connection. The controlled queue/group is named on screen.
-- 30 fps by default. Native graphics memory growth remains under investigation;
-  this release does not claim to eliminate the long-session leak.
+Afterglow is independent of, and not endorsed by, Music Assistant or LG. It
+began as a fork of [Michael Nestrud's viz-man](https://github.com/mnestrud/viz-man).
 
 ## What it does
 
-- Shows MilkDrop presets (through the Music Assistant fork of Butterchurn)
-  driven by the waveform Music Assistant streams for whichever speaker is playing, a few seconds ahead, so
-  the picture lands on the beat.
-- Follows the speaker that is playing, or the one you pick; sync groups are
-  resolved the way Music Assistant does.
-- Ships all 395 presets from the butterchurn-presets packs. A **preset scan**
-  measures each one on your TV and builds a *validated* list of the ones it can
-  run smoothly; you can add or remove presets from that list by hand, and keep
-  **favorites** separately. Favorites are shared with Music Assistant's own
-  MilkDrop favorites and between TVs on the same account.
-- Shows the track (artist, title, album, label) when it starts, or always, or
-  never; dims the picture and the track card independently for night-time.
-- Can color a preset's waveform, borders and motion vectors from the album
-  art, using the palette Music Assistant sends with the stream.
-- Keeps the TV's screensaver off while music plays; nudges the picture a few
-  pixels now and then against OLED burn-in.
+- **Visuals.** MilkDrop presets (through the Music Assistant fork of
+  Butterchurn) driven by the waveform Music Assistant streams a few seconds
+  ahead, so the picture lands on the beat. Presets can take their colours from
+  the album art.
+- **Display modes.** Visuals only, visuals with a track card, album artwork, or
+  lyrics: timed lyrics with the current line highlighted, paged untimed lyrics
+  otherwise. MilkDrop can run behind artwork or lyrics, or stop entirely.
+- **Playback.** Play/pause, previous/next, seek, the next queued songs (play,
+  move, remove), favourites, shuffle/repeat, crossfade, volume and a sleep
+  timer. Browse recently played, favourites, radio, playlists and albums.
+- **Following.** Follows the speaker that is playing, or the one you pick; sync
+  groups are resolved the way Music Assistant does.
+- **Preset scan.** Measures each of the 395 bundled presets on your TV and
+  keeps a validated list of the ones it runs smoothly. Favourites are shared
+  with Music Assistant's own MilkDrop favourites and between your TVs.
+- **Play on this TV.** Optionally a Music Assistant speaker through Sendspin,
+  so one app both sounds and draws.
+- **Kind to OLEDs.** Holds the screensaver off only while music plays and
+  drifts the picture against burn-in.
 
-## Documentation
+## Requirements
 
-- [Setting up, step by step](docs/install.md)
-- [The preset scan](docs/preset-scan.md)
-- [Settings and remote keys](docs/settings.md)
-- [Development](docs/development.md)
-- [Changelog](CHANGELOG.md)
+- An LG webOS TV with WebGL2 (2020 models onward; tested on a CX, webOS 5, and
+  a C1, webOS 6), either rooted with the
+  [Homebrew Channel](https://github.com/webosbrew/webos-homebrew-channel) or in
+  Developer Mode.
+- [Music Assistant](https://music-assistant.io/) 2.10 or newer on the same
+  network, with the **MilkDrop Visualizer** plugin added (Settings → Plugins).
+- Speakers Music Assistant streams to itself (Sonos, Chromecast, AirPlay,
+  Squeezelite, ...). A speaker playing on its own, such as Spotify straight from
+  the Spotify app, carries nothing to draw.
+
+## Install
+
+Download `io.github.haydengriffin.afterglow_<version>_all.ipk` from the
+[releases](https://github.com/HaydenGriffin/afterglow/releases), or build it
+(below). Then either:
+
+- **Homebrew Channel** (rooted TV): install the `.ipk` from a URL. From a
+  checkout, `npm run serve-ipk` serves `dist/` and prints the URL to enter.
+- **Developer Mode**: `npx ares-install --device <name> dist/io.github.haydengriffin.afterglow_<version>_all.ipk`.
+
+Open Afterglow and sign in with your Music Assistant address, username and
+password. The TV keeps its own long-lived token, named after the TV, which you
+can revoke in Music Assistant or with **Log out**; the password is not stored.
+Then run **Scan presets** once. The [setup guide](docs/install.md) walks
+through every step.
+
+## Settings
+
+Press **OK** for the playback controls: a transport row with **Display** and
+**Details**, and a top strip with **Browse**, **Now playing**, **Queue** and
+**Settings** (presets, picture, sound and sync, account). Per-TV settings live
+on the TV; favourites and shared preferences sync through your Music Assistant
+account. See [Settings and remote keys](docs/settings.md) and
+[The preset scan](docs/preset-scan.md).
+
+## Building
+
+```sh
+npm install
+npm test
+npm run package   # dist/io.github.haydengriffin.afterglow_<version>_all.ipk
+                  # and dist/io.github.haydengriffin.afterglow.manifest.json
+```
+
+`npm run dev` serves the app in a desktop browser. See
+[Development](docs/development.md) and the [changelog](CHANGELOG.md).
+
+## Credits
+
+- [viz-man](https://github.com/mnestrud/viz-man) by Michael Nestrud (MIT), the
+  project Afterglow grew from.
+- [Butterchurn](https://github.com/jberg/butterchurn) by Jordan Berg, in
+  [Music Assistant's fork](https://github.com/music-assistant/butterchurn) (MIT).
+- [butterchurn-presets](https://github.com/jberg/butterchurn-presets) (MIT).
+- [sendspin-js](https://github.com/Sendspin/sendspin-js) (Apache-2.0).
+- [Archivo](https://github.com/Omnibus-Type/Archivo) typeface (SIL OFL 1.1).
+
+Full notices are in [NOTICE](NOTICE) and `app/THIRD_PARTY.md`.
 
 ## Licence
 
-MIT. Third-party code and its notices are listed in `app/THIRD_PARTY.md`.
+MIT. See [LICENSE](LICENSE).
