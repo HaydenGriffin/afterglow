@@ -262,7 +262,8 @@ function fakeDelays(start) {
   return { saved, get: () => Promise.resolve(start), set: (id, ms) => (saved.push([id, ms]), Promise.resolve()) };
 }
 
-test("Audio delay: read from Music Assistant on start, nudged in 10 ms steps, saved once the presses stop", async () => {
+test("Audio delay: read from Music Assistant on start, nudged in 10 ms steps, saved once the presses stop", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   const { Player } = fakePlayer();
   const delays = fakeDelays(310);
   const speaker = createSpeaker({ host: "ma", Player, delays });
@@ -270,14 +271,15 @@ test("Audio delay: read from Music Assistant on start, nudged in 10 ms steps, sa
   assert.equal(speaker.delayMs, null);
   speaker.nudgeDelay(1); // not read yet: nothing to step from
   speaker.start();
-  await new Promise((r) => setTimeout(r, 0));
+  await flush();
   assert.equal(speaker.delayMs, 310);
   speaker.nudgeDelay(1);
   speaker.nudgeDelay(1);
   speaker.nudgeDelay(-1);
   assert.equal(speaker.delayMs, 320);
-  assert.deepEqual(delays.saved, []);
-  await new Promise((r) => setTimeout(r, 700));
+  t.mock.timers.tick(599);
+  assert.deepEqual(delays.saved, [], "still pressing");
+  t.mock.timers.tick(1);
   assert.deepEqual(delays.saved, [["webos-living-room-lg-c1", 320]]);
 });
 
