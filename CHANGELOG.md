@@ -1,4 +1,29 @@
+# Unreleased — 1.5.1
+
+- "Online lyrics" in Settings (On by default): Off stops the TV asking
+  lrclib.net for lyrics Music Assistant does not have.
+- Bedtime puts the volume back only after the pause has succeeded.
+- Holding fast-forward or rewind no longer skips many tracks.
+- Transient lyrics failures stay retryable instead of being cached as missing.
+- The TV speaker watches its connection and reconnects when it drops.
+- A queue picked in "Playing on" that is paused no longer makes the relay
+  reconnect.
+- Token renewal and Log out are safe with two TVs of the same name: each
+  touches only its own token.
+- New installs name the TV speaker `webos-afterglow-tv`; TVs that already have
+  a speaker keep its id.
+
 # 1.5.0 — Afterglow, rebranded for publishing (15 October 2026)
+
+- Display → Lyrics: a per-TV **Lyrics timing** row moves the words only, up to
+  10 s earlier or later in 100 ms steps, with **Reset lyrics timing** when it
+  is not zero. It adds to "Picture and lyrics timing" and leaves the audio,
+  MilkDrop, the progress bar and seeking alone. **Retry lyrics** sits under the
+  same heading and is offered when the lookup failed and when no lyrics were
+  found.
+- The poster no longer shows a stream-quality badge (Details still has the
+  format and quality), and the track-change animation is gone.
+- "Next" on the listening screen is now "Up next".
 
 - Lyrics: when Music Assistant has none (its exact LRCLIB lookup misses titles
   listed with featured artists, and misses are rate-limited), Afterglow
@@ -40,8 +65,8 @@
 
 - The picture comes back when Music Assistant stops sending the waveform
   without ending the stream: after 10 s with no frame while the queue still
-  plays, the relay reconnects. On the C1 on 15 October, 1.4.3 drew 4 s and then
-  nothing for 13 minutes while the audio played on.
+  plays, the relay reconnects. Before, the picture could stop for many
+  minutes while the audio played on.
 - The TV speaker's retry no longer replaces a player that has connected and
   is playing.
 - `vizmanDiagnostics()` reports relay, clock, follow and frame-age state.
@@ -81,9 +106,8 @@ Fixes
 - A positive LRC `[offset:]` now brings lyrics sooner, as the format defines.
 - The WebGL context is released on the browser's `pagehide` event and before
   app-triggered reloads; a restored context reloads cleanly. Switching to
-  another TV app only suspends rendering until the page closes. C1 memory
-  measurements are in `docs/performance.md`; the long-session leak remains
-  unresolved.
+  another TV app only suspends rendering until the page closes. The
+  long-session memory growth remains open; see `docs/performance.md`.
 - The provider list is re-read after a failure; message refresh and burn-in
   drift stop while hidden or signed out. New speakers are named Afterglow TV.
 
@@ -108,7 +132,7 @@ Features
   but pictures and lyrics are timed from the group clock. The TV's compensation
   only offsets its own output latency, so it no longer moves the picture mark;
   rows now read "TV output compensation: Sound sent 420 ms early" and
-  "Picture and lyrics timing: 75 ms after the music". Found in review on 14 October.
+  "Picture and lyrics timing: 75 ms after the music".
 
 # 1.4.1 — Launcher icon (14 October 2026)
 
@@ -144,7 +168,7 @@ Features
 
 # 1.3.0 — Afterglow TV player (14 October 2026)
 
-- Rename the local fork to Afterglow; retain the webOS ID, storage keys and
+- Rename the fork to Afterglow; retain the webOS ID, storage keys and
   existing speaker identity for in-place upgrades. Preserve upstream attribution.
 - Add a remote-friendly playback bar, artwork/lyrics views, optional overlays,
   pure visuals, up next and Music Assistant playback options.
@@ -158,7 +182,7 @@ Features
 
 ## 1.2.2 — 2026-10-14
 
-- Disable Butterchurn's unused GPU profiling by default. A guarded build patch makes timer queries opt-in (`gpuTiming: true`); it leaves the installed dependency untouched and fails if its source changes. Live C1 comparisons showed substantially faster native memory growth with these queries enabled. Longer-run findings are in `docs/performance.md`.
+- Disable Butterchurn's unused GPU profiling by default. A guarded build patch makes timer queries opt-in (`gpuTiming: true`); it leaves the installed dependency untouched and fails if its source changes. On an LG C1, native memory grew substantially faster with these queries enabled. See `docs/performance.md`.
 - Guard asynchronous speaker startup and callbacks by connection generation. A stopped player's delayed unlock can no longer connect its replacement twice; stale state/error callbacks cannot overwrite the current connection.
 - Restore Sendspin's default sync thresholds. Raising just the hard-resync threshold did not disable its separate sustained-drift correction, and audible cutouts also occurred with zero resyncs and eight seconds buffered.
 - Add bounded render and audio diagnostics and a read-only TV profiling script, without credentials or track metadata in its output.
