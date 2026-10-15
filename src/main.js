@@ -560,7 +560,10 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   const bedtime = createBedtimeController({
     bedtime: createBedtime(),
     playback: playerView,
-    setDark: (on) => bedtimeCover.classList.toggle("dark", on),
+    setDark: (on) => {
+      bedtimeCover.classList.toggle("dark", on);
+      engine.setResting(on);
+    },
   });
   setInterval(() => {
     bedtime.tick();
