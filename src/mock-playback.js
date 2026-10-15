@@ -86,6 +86,7 @@ export function createMockPlayback() {
       if (command === "music/recently_played_items") return LIBRARY.album.slice(0, 2).concat(LIBRARY.playlist.slice(0, 1)).map(i => Object.assign({ image: i.metadata.images[0] }, i)).slice(0, args.limit || 10);
       if (command === "music/albums/album_tracks") return tracksFor("library://album/" + args.item_id);
       if (command === "music/playlists/playlist_tracks") return tracksFor("library://playlist/" + args.item_id);
+      if (command === "music/artists/artist_tracks") return tracksFor("library://artist/" + args.item_id);
       if (command === "providers") return [{ instance_id: "spotify--demo", domain: "spotify", name: "Spotify (demo)" }, { instance_id: "filesystem--demo", domain: "filesystem_local", name: "Music folder (demo)" }];
       if (command === "metadata/get_track_lyrics") return [null, "[00:00]An evening without hurry\n[00:20]A little room to breathe\n[00:35]The light across the ceiling\n[00:50]The music underneath\n[01:10]Let the world grow quiet\n[01:30]Stay a little while"];
       if (command === "player_queues/items") return tracks.slice(args.offset, args.offset + args.limit);

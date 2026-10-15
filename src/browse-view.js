@@ -15,13 +15,15 @@ export const CATEGORIES = [
   { id: "playlists", label: "All playlists", command: "music/playlists/library_items", args: { order_by: "sort_name" } },
   { id: "albums", label: "All albums", command: "music/albums/library_items", args: { order_by: "timestamp_added_desc" } },
 ];
+// Where an album's, playlist's or artist's songs are read.
+const SONGS = { album: "music/albums/album_tracks", playlist: "music/playlists/playlist_tracks", artist: "music/artists/artist_tracks" };
 const KIND = { track: "Song", album: "Album", playlist: "Playlist", artist: "Artist", radio: "Radio" };
 
 // The actions an item offers; "tracks" opens an album, playlist or artist.
 export function actionsFor(item) {
   const list = [["replace", "Play now"], ["next", "Play next"], ["add", "Add to the queue"]];
   if (item.media_type !== "radio") list.push(["radio", "Start radio from this"]);
-  if (item.media_type === "album" || item.media_type === "playlist") list.push(["tracks", "Show songs"]);
+  if (SONGS[item.media_type]) list.push(["tracks", "Show songs"]);
   return list;
 }
 
@@ -89,11 +91,11 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
     changed(); render();
   }
   async function showSongs(item) {
-    const gen = ++generation, command = item.media_type === "album" ? "music/albums/album_tracks" : "music/playlists/playlist_tracks";
-    stack = { title: item.name, parent: { items, index }, item };
+    const gen = ++generation, retrying = stack && stack.item === item;
+    stack = { title: item.name, parent: retrying ? stack.parent : { items, index }, item };
     items = []; state = "loading"; index = 0; column = "list"; changed(); render();
     try {
-      const result = await live.call(command, { item_id: item.item_id, provider_instance_id_or_domain: item.provider || "library" });
+      const result = await live.call(SONGS[item.media_type], { item_id: item.item_id, provider_instance_id_or_domain: item.provider || "library" });
       if (gen !== generation) return;
       items = (Array.isArray(result) ? result : []).filter(x => x && x.uri).slice(0, 200); state = "ready";
     } catch (e) { if (gen !== generation) return; state = "error"; items = []; }

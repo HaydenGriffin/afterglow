@@ -56,3 +56,69 @@ test("moving through a list only moves the selection; rows are not rebuilt", asy
   assert.equal(h.selected().textContent, "Song 2Song");
   assert.equal(h.element.querySelectorAll(".selected").length, 1);
 });
+
+test("an artist offers Show songs and reads the artist's tracks", async t => {
+  const h = harness(t);
+  const artist = { item_id: "3", provider: "spotify--x", media_type: "artist", uri: "spotify://artist/3", name: "Demo Ensemble" };
+  assert.ok(actionsFor(artist).some(([kind]) => kind === "tracks"));
+  await openWith(h, [artist]);
+  h.key("ok");
+  const show = actionsFor(artist).findIndex(([kind]) => kind === "tracks");
+  for (let i = 0; i < show; i++) h.key("down");
+  h.key("ok");
+  const call = h.calls[h.calls.length - 1];
+  assert.equal(call.command, "music/artists/artist_tracks");
+  assert.deepEqual(call.args, { item_id: "3", provider_instance_id_or_domain: "spotify--x" });
+  call.resolve([song(1)]); await settle();
+  assert.deepEqual(h.names(), ["Song 1"]);
+  assert.equal(h.element.querySelector(".browse-title").textContent, "Demo Ensemble");
+});
+
+test("a list that fails says so, and OK tries again", async t => {
+  const h = harness(t);
+  h.browse.open();
+  h.calls[0].reject(Error("offline")); await settle();
+  h.key("right");
+  assert.deepEqual(h.names(), ["Couldn’t load this list"]);
+  h.key("ok");
+  assert.equal(h.calls.length, 2);
+  assert.deepEqual(h.names(), ["Loading…"]);
+  h.calls[1].resolve([song(1)]); await settle();
+  assert.deepEqual(h.names(), ["Song 1"]);
+});
+
+test("songs that fail to load can be retried, and Back returns to the list", async t => {
+  const h = harness(t);
+  await openWith(h, [album]);
+  h.key("ok");
+  for (let i = 0; i < 4; i++) h.key("down");
+  h.key("ok");
+  h.calls[h.calls.length - 1].reject(Error("offline")); await settle();
+  assert.deepEqual(h.names(), ["Couldn’t load this list"]);
+  h.key("ok");
+  assert.equal(h.calls[h.calls.length - 1].command, "music/albums/album_tracks");
+  h.calls[h.calls.length - 1].resolve([song(4)]); await settle();
+  assert.deepEqual(h.names(), ["Song 4"]);
+  h.key("back");
+  assert.deepEqual(h.names(), ["Coastline"]);
+});
+
+test("lists are read once while Browse is open and afresh after it closes", async t => {
+  const h = harness(t);
+  await openWith(h, [song(1)]);
+  h.key("left"); h.key("down");
+  h.calls[1].resolve([album]); await settle();
+  h.key("up");
+  assert.equal(h.calls.length, 2, "the first list comes from the cache");
+  assert.deepEqual(h.names(), ["Song 1"]);
+  h.browse.close(); h.browse.open();
+  assert.equal(h.calls.length, 3, "closing drops the cache");
+});
+
+test("a late answer for a category left behind does not replace the current one", async t => {
+  const h = harness(t);
+  h.browse.open(); h.key("down");
+  h.calls[1].resolve([album]); await settle();
+  h.calls[0].resolve([song(9)]); await settle();
+  assert.deepEqual(h.names(), ["Coastline"]);
+});
