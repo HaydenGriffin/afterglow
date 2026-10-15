@@ -12,6 +12,16 @@ This product bundles the following third-party software:
   https://github.com/jberg/butterchurn)
   Copyright (c) 2013-2018 Jordan Berg. MIT License.
 
+  Butterchurn's build inlines:
+  - @assemblyscript/loader 0.28.20, https://github.com/AssemblyScript/assemblyscript
+    Copyright The AssemblyScript Authors (Daniel Wirtz and contributors).
+    Apache License 2.0.
+  - eel-wasm 0.0.16, https://github.com/captbaritone/eel-wasm
+    Copyright (c) Jordan Eldredge. MIT License.
+  - ecma-proposal-math-extensions 0.0.2,
+    https://github.com/rwaldron/proposal-math-extensions
+    Copyright (c) Rick Waldron. MIT License.
+
 - butterchurn-presets 2.4.7
   https://github.com/jberg/butterchurn-presets
   Copyright (c) 2013-2018 Jordan Berg. MIT License.
@@ -24,5 +34,6 @@ This product bundles the following third-party software:
   https://github.com/Omnibus-Type/Archivo
   Copyright (c) 2020 The Archivo Project Authors. SIL Open Font License 1.1.
 
-Full license texts ship with the app: app/THIRD_PARTY.md,
-app/sendspin-js-LICENSE.txt and app/fonts/OFL.txt.
+Full license texts ship with the app: app/THIRD_PARTY.md (MIT),
+app/sendspin-js-LICENSE.txt and app/assemblyscript-loader-LICENSE.txt
+(Apache 2.0), and app/fonts/OFL.txt (SIL OFL 1.1).
