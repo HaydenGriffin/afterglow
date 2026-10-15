@@ -29,9 +29,25 @@ playback.
   here too.
 - **Details:** what the song is and how it is streamed (source, format,
   quality), with Start radio from this song and Add to favourites.
-- **Display:** the view (Visuals only, Visuals + track, Album, Lyrics), MilkDrop
-  behind artwork and lyrics (off by default; off stops GPU drawing in Album and
-  Lyrics), and lyrics over Visuals + track. Untimed lyrics get a page control.
+- **Display** (saved on this TV):
+  - The view: **Visuals only** (MilkDrop alone), **Visuals + track** (MilkDrop
+    with the track card), **Album** (the complete artwork, song, artist and up
+    next) or **Lyrics** (the artwork with the song's lyrics beside it: the
+    current line leads, with word-by-word karaoke when the lyrics carry word
+    timing).
+  - **Lyrics**, shown in the Lyrics view or while lyrics are over Visuals +
+    track: **Lyrics timing** moves the words only, up to 10 s earlier or
+    later in 100 ms steps (left/right; "With the music" at zero), and
+    **Reset lyrics timing** puts it back to zero. **Online lyrics** (On by
+    default, synced with your other TVs): when Music Assistant has no lyrics
+    for a song, the TV asks lrclib.net directly, sending the title and artist;
+    Off keeps lyrics to what Music Assistant provides, and switching it back
+    On looks up a song that had none again. **Retry lyrics** appears
+    when the lookup failed or found nothing, and asks again (a manual retry
+    also clears a remembered "no lyrics").
+  - **Extras:** **MilkDrop behind artwork and lyrics** (off by default; off
+    stops GPU drawing in Album and Lyrics), **Lyrics over Visuals + track**,
+    and **Lyrics page** for untimed lyrics.
 - **Settings:** the settings menu below.
 
 Failed actions are shown; nothing is assumed to have worked while Music
@@ -72,6 +88,17 @@ track:
 | Blue | Cycle the preset list: runs well here → all → favourites |
 | Red / Green | Picture and lyrics timing −25 ms / +25 ms |
 | Back | Close the menu; pause a running scan; otherwise leave the app |
+
+In every view, and with the playback controls open:
+
+| Key | Action |
+|---|---|
+| Play / Pause / Play-pause | Play, pause, or toggle the queue commands act on |
+| Stop | Pause (Music Assistant keeps the queue) |
+| Fast-forward / Rewind | Next / previous track |
+
+These keys act once per press, even when held (the arrows still repeat), and
+skips pressed while one is under way collapse to one waiting skip per direction.
 
 In Album and Lyrics the keys work the song instead:
 
@@ -135,8 +162,11 @@ Assistant's clock. **TV output compensation** is the player's Sendspin delay
 (positive sends the TV's sound earlier) and only makes up for the TV's own
 output path, such as ARC to a soundbar; it is not added again to the picture.
 MilkDrop and timed lyrics follow the group clock, shifted by **Picture and
-lyrics timing** (positive means later). The progress bar shows the queue's
-media position. The sync figure in the menu draws the music and the picture on
+lyrics timing** (positive means later), which you set by eye against the
+sound. **Lyrics timing** (Display → Lyrics) is a second, words-only offset on
+top of it, for lyrics whose own timestamps run early or late: it moves neither
+the picture nor the sound, nor the progress bar or seeking. The progress bar
+shows the queue's media position. The sync figure in the menu draws the music and the picture on
 one timeline.
 
 ## Presets, validation and favorites

@@ -6,6 +6,5 @@ app/app.js
 app/config.js
 app/vendor/
 node_modules
-.impeccable/review/
-.impeccable/questions/*.log
-.impeccable/questions/*.state.json
+.impeccable/
+backups/

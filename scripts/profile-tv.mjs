@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Read-only TV soak telemetry. First forward the TV's debug port over SSH:
-// ssh -N -L 127.0.0.1:19998:127.0.0.1:9998 lg-tv
+// ssh -N -L 127.0.0.1:19998:127.0.0.1:9998 tv
 // node scripts/profile-tv.mjs [seconds=600] [output=.dev/profile.jsonl]
 // No auth/config/localStorage dumps; the output contains timing and memory only.
 import { appendFileSync, mkdirSync } from "node:fs";
@@ -13,7 +13,7 @@ const seconds = Number(process.argv[2] || 600);
 if (!Number.isFinite(seconds) || seconds < 0) throw new Error("seconds must be a finite non-negative number");
 const output = process.argv[3] || ".dev/profile.jsonl";
 const endpoint = process.env.TV_DEBUG_URL || "http://127.0.0.1:19998";
-const sshHost = process.env.TV_SSH_HOST || "lg-tv";
+const sshHost = process.env.TV_SSH_HOST || "tv";
 mkdirSync(dirname(output), { recursive: true });
 const write = (data) => appendFileSync(output, JSON.stringify({ at: new Date().toISOString(), ...data }) + "\n", { mode: 0o600 });
 const tabs = await (await fetch(endpoint + "/json/list", { signal: AbortSignal.timeout(10000) })).json();

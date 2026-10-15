@@ -152,21 +152,21 @@ components:
 
 ## Overview
 
-## Listening screen update — 15 October 2026
+## Listening screen (1.5)
 
-Hayden chose complete artwork and lyrics over the cropped cover and large colour blocks. For Album and Lyrics views, this section supersedes the poster layout, field components, and track-change motion described below. The controls and panels keep the established Archivo, ink/paper palette, remote focus, and navigation.
+Album and Lyrics views favour complete artwork and lyrics over the cropped cover and large colour blocks. For Album and Lyrics views, this section supersedes the poster layout, field components, and track-change motion described below. The controls and panels keep the established Archivo, ink/paper palette, remote focus, and navigation.
 
 Artwork is contained inside a square at 6vw from the left and 16vh from the top, 30vw wide, with no cropping. The right column starts at 43vw. In Lyrics view, quiet song and artist text sits below the cover; the current line leads the right column, with smaller preceding and following lines. Album view uses that column for the song title and artist. A single plain “Up next” line and a thin progress rule finish the screen. All content has TV-safe breathing room. Large coloured information blocks and their reveal animation are removed. Visuals captions and lyric overlays use a dark ink ground with paper text.
 
-The lyrics timing adjustment affects words only; it does not move the audio, visualizer, progress, or seek target. A failed lookup and a confirmed missing recording remain distinct states, both with a retry action in Display settings.
+The lyrics timing adjustment affects words only; it does not move the audio, visualizer, progress, or seek target. A failed lookup and a confirmed missing recording remain distinct states, both with a Retry lyrics row under Lyrics in Display.
 
 Pure black remains intentional for the underlying visualizer canvas and the OLED bedtime screen.
 
 **Original poster system (retained for the existing controls and reference)**
 
-Every song is set as a Swiss International Style concert poster (Müller-Brockmann, Tonhalle Zürich): one enormous condensed grotesk title locked to a strict 12-column grid, the cover bleeding off the left edge at full height, and two flat colour fields cut from that cover's own palette. The world refuses the category default of a blurred-artwork backdrop with a polite square cover beside centred text. Nothing glows, nothing blurs, nothing is gradated; the poster changes colour with every track because the artwork does, and there is no fixed house accent.
+Every song is set as a Swiss International Style concert poster (Müller-Brockmann, Tonhalle Zürich): one enormous condensed grotesk title locked to a strict 12-column grid, the cover bleeding off the left edge at full height, and two flat colour fields cut from that cover's own palette. The world refuses the category default of a blurred-artwork backdrop with a polite square cover beside centred text. Nothing glows, nothing blurs, nothing is gradated; the poster changes colour with every track because the artwork does, and there is no fixed accent colour.
 
-The surface is a TV, a 65" LG C1 OLED read from about 3 m in a dim room with a 5-way remote and Back. Density is low and the type is very large: the title owns the upper two thirds of the right side, panels slide in as full-height ink sheets over the right zone, and every interactive row is at least 6.4vh tall. The UI is drawn in viewport units (vh for type, vw for the grid) so 720p and 1080p panels render the same poster.
+The surface is a TV, a large OLED read from about 3 m in a dim room with a 5-way remote and Back. Density is low and the type is very large: the title owns the upper two thirds of the right side, panels slide in as full-height ink sheets over the right zone, and every interactive row is at least 6.4vh tall. The UI is drawn in viewport units (vh for type, vw for the grid) so 720p and 1080p panels render the same poster.
 
 MilkDrop stays the visual authority. In the two Visuals modes the poster is hidden and the only Afterglow element is a single flat field caption over the visualizer; the poster world never paints over MilkDrop with its own effects.
 
@@ -201,7 +201,7 @@ Two fixed neutrals and two fields that belong to the song, not the app.
 
 **The Flat Field Rule.** Fields are solid colour. No gradients, blur, glow, tint overlays or translucency on the Afterglow layer; the only partial opacities are the ground at 82% when MilkDrop runs behind artwork or lyrics, night artwork at 72%, and disabled at 45%.
 
-**The No House Accent Rule.** The app owns no brand colour. Anything that needs emphasis takes paper (focus) or a field (content), never a new hue.
+**The No Brand Accent Rule.** The app owns no brand colour. Anything that needs emphasis takes paper (focus) or a field (content), never a new hue.
 
 ## Typography
 
@@ -298,7 +298,7 @@ Toast: paper fill, ink text, 2.6vh 700, top centre, .4s fade. Error: paper strip
 - **Don't** add gradients, blur, glow, filters or backdrop-filter to the Afterglow layer; Chromium 68 on a memory-tight TV cannot afford them and the world does not use them.
 - **Don't** paint over MilkDrop in Visuals modes beyond the single caption field and the optional lyric overlay.
 - **Don't** add shadows or rounded corners.
-- **Don't** introduce a house accent colour, a second typeface, or an icon font; icons are drawn SVG strokes.
+- **Don't** introduce a brand accent colour, a second typeface, or an icon font; icons are drawn SVG strokes.
 - **Don't** add a second expressive animation or animate type size; utility fades on transient notices are the only other motion.
 - **Don't** add per-frame effects or animated background layers; audio reliability and the 30 fps renderer come first.
 - **Don't** put labels above headings as kickers; the target-player and quality line carries real information, not decoration.

@@ -23,11 +23,12 @@ drift; never patch the shared `node_modules` directory.
 With Node 22 or later and SSH/debug access to the TV, in separate terminals:
 
 ```
-ssh -N -T -o ServerAliveInterval=5 -o ServerAliveCountMax=2 -o ExitOnForwardFailure=yes -L 127.0.0.1:19998:127.0.0.1:9998 lg-tv
+ssh -N -T -o ServerAliveInterval=5 -o ServerAliveCountMax=2 -o ExitOnForwardFailure=yes -L 127.0.0.1:19998:127.0.0.1:9998 tv
 node scripts/profile-tv.mjs 1800 .dev/profile.jsonl
 ```
 
-`TV_DEBUG_URL` and `TV_SSH_HOST` override those endpoints. The tool records
+`tv` is an SSH host alias for the rooted TV. `TV_DEBUG_URL` and `TV_SSH_HOST`
+(default `tv`) override those endpoints. The tool records
 30-second snapshots of native process RSS **and swap**, JS heap, frame timings,
 and speaker buffering/corrections. Retained console messages are marked
 `fresh: false`; do not count them as new events. Console `resyncs` is an interval
@@ -119,29 +120,31 @@ copy `.dev/bench-tv.json` over.
 2. `npm test && npm run package` with no `host`/`token` in `config.local.json`.
 3. Attach `dist/io.github.haydengriffin.afterglow_<version>_all.ipk` to the release.
 
-## Afterglow first-pass development
+## Mock mode and browser checks
 
-`?mock=1` also provides labelled demo metadata/lyrics and local controls; no
+`?mock=1` also provides labelled demo metadata, lyrics and local controls; no
 Music Assistant writes occur in that mode. TV-facing CSS must support Chromium
 68 (for example, use explicit edges rather than the newer `inset` shorthand).
 
 Targeted checks: `node --test test/playback.test.mjs`,
 `node --test test/follow.test.mjs`, `node --test test/engine.test.mjs`, then
-`npm run package`. Run them sequentially on the household laptop.
+`npm run package`. Run them one after another; the package step rebuilds
+`app/`.
 
-The first-pass API was checked against the installed Music Assistant server:
+The Music Assistant commands the player uses are
 `player_queues/{items,play_pause,previous,next,seek,play_index,shuffle,repeat,autoplay,crossfade}`,
 `players/cmd/volume_set`, `players/sleep_timer/{set,clear}`,
-`music/favorites/add_item`, `metadata/get_track_lyrics`. Missing permissions or
-unsupported commands produce a visible refusal. Artwork uses the current
+`music/favorites/add_item` and `metadata/get_track_lyrics`. Missing permissions
+or unsupported commands produce a visible refusal. Artwork uses the current
 `proxy_id` image endpoint, with accessible HTTP images as a fallback.
 
-No fork repository has been published. The Homebrew manifest omits upstream
-source/icon URLs for this unpublished build. Set `AFTERGLOW_REPOSITORY_URL` to
-the actual fork URL only when preparing an authorized public release.
+`npm run package` writes a Homebrew Channel manifest pointing at
+github.com/HaydenGriffin/afterglow; set `AFTERGLOW_REPOSITORY_URL` to build one
+for a fork.
 
 `test/browser-player.js` is an executable browser regression expression. Load
-`?mock=1` afresh and pass its contents to T3 `preview_evaluate` (awaitPromise),
-or paste it in DevTools. It refuses a non-mock page. Through real remote events
-it checks the top strip, queue arrow safety and song actions, artwork draw
-suspension, pure visuals, Browse → Add to the queue, Details, and overflow.
+`?mock=1` afresh and evaluate its contents in the page (DevTools, or a browser
+automation tool's evaluate with promise awaiting). It refuses a non-mock page.
+Through real remote events it checks the top strip, queue arrow safety and song
+actions, artwork draw suspension, pure visuals, Browse → Add to the queue,
+Details, and overflow.
