@@ -67,6 +67,7 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
   let queueReceivedAt = 0;
   let queueElapsed = 0;
   let wanted = preferred || ""; // the picked speaker, "" for automatic
+  let sentToken = ""; // the token the last login on this socket carried
 
   function setState(next) {
     if (next !== state) {
@@ -344,7 +345,12 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
   // refreshes it; the auth reply then asks for auth/me.
   function readAccount() {
     if (!socket || socket.readyState !== 1 || !authed) return;
-    socket.send(JSON.stringify({ message_id: "auth", command: "auth", args: { token } }));
+    sendAuth(socket);
+  }
+
+  function sendAuth(ws) {
+    sentToken = token;
+    ws.send(JSON.stringify({ message_id: "auth", command: "auth", args: { token } }));
   }
 
   // Asks for a fresh copy of the account first, so the merge is against what
@@ -421,7 +427,7 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
         return;
       }
       if (!authed && message.server_version && !message.message_id) {
-        ws.send(JSON.stringify({ message_id: "auth", command: "auth", args: { token } }));
+        sendAuth(ws);
       } else if (message.message_id === "auth") {
         if (message.result && message.result.authenticated) {
           const again = authed;
@@ -431,6 +437,10 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
             reconcile(gen);
             if (streaming) trackPoll(gen);
           }
+        } else if (sentToken !== token) {
+          // The token was renewed (and the old one revoked) while this login
+          // was on its way: log in again with the fresh one.
+          sendAuth(ws);
         } else {
           setState("rejected");
           closeApi();
@@ -488,6 +498,10 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
 
   return {
     call,
+    // A renewed token: every login from here on uses it.
+    setToken(next) {
+      token = next;
+    },
     get playback() {
       const queue = queues[current];
       return queue ? { queue, player: players[current] || null, connected: authed,

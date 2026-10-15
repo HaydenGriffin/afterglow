@@ -1,23 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import vm from "node:vm";
-import { normalizeParams } from "../src/settings.js";
+import { createRelaunchHandler } from "../src/relaunch.js";
 
-// Exercise the registered production handler without booting WebGL or a TV.
-const source = readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
-const handler = source.match(/  document\.addEventListener\("webOSRelaunch", \(relaunch\) => \{[\s\S]*?\n  \}\);/)[0];
 function app(running = true) {
-  let callback;
   const events = [];
-  vm.runInNewContext(handler, {
-    document: { addEventListener: (_name, fn) => { callback = fn; } },
-    normalizeParams,
-    location: { reload: () => events.push("reload") },
-    suspend: () => { events.push("disconnect"); running = false; },
+  const handler = createRelaunchHandler({
+    reload: () => events.push("reload"),
     resume: () => { if (!running) { events.push("connect"); running = true; } },
   });
-  return { events, launch: (detail) => callback({ detail }) };
+  return { events, launch: (detail) => handler({ detail }) };
 }
 
 test("opening an already-playing app repeatedly keeps its audio connection", () => {
@@ -35,5 +26,6 @@ test("opening a suspended app resumes once", () => {
 test("launch parameters still reload to apply the new player", () => {
   const tv = app();
   tv.launch({ player: "another-speaker" });
-  assert.deepEqual(tv.events, ["reload"]);
+  tv.launch('{"speaker":"Kitchen"}');
+  assert.deepEqual(tv.events, ["reload", "reload"]);
 });

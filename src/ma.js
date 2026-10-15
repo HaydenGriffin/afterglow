@@ -122,11 +122,14 @@ export async function signOut({ host, token, tokenName, WebSocketImpl }) {
 }
 
 // A fresh long-lived token in the same name, with the old one revoked.
-export async function renewToken({ host, token, tokenName, WebSocketImpl }) {
+// onCreated gets the fresh token before anything is revoked, so whatever runs
+// on the old one can move over first.
+export async function renewToken({ host, token, tokenName, onCreated, WebSocketImpl }) {
   const api = await connectApi(host, WebSocketImpl);
   try {
     await api.call("auth", { token });
     const fresh = await api.call("auth/token/create", { name: tokenName });
+    if (onCreated) onCreated(fresh);
     await api.call("auth", { token: fresh });
     // The list carries no token text, so every long-lived token in this name
     // but the newest (the fresh one) is revoked.

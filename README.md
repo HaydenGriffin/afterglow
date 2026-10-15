@@ -12,15 +12,17 @@ npm install
 npm run package
 ```
 
-Install the generated `dist/net.botworth.vizman_1.3.0_all.ipk` with your webOS
-installer. The original app ID is deliberately retained: Afterglow replaces
+Install the generated `dist/net.botworth.vizman_<version>_all.ipk` (the
+version in `package.json`) with your webOS installer. The original app ID is deliberately retained: Afterglow replaces
 Vizman in place and preserves its player identity and preferences. This fork
 has not been published; upstream Vizman releases do not contain these features.
 
 Enable Music Assistant’s MilkDrop Visualizer plugin, open Afterglow, and sign
-in to your Music Assistant server. Press **OK** for playback controls and
-**Display** to choose Visuals only, Visuals + track, Album or Lyrics. **Options →
-Visualizer settings** opens the original preset, brightness and audio settings.
+in to your Music Assistant server. Press **OK** for the playback controls: a
+transport row with **Display** (Visuals only, Visuals + track, Album or Lyrics)
+and **Details**, and a top strip with **Browse**, **Now playing**, **Queue** and
+**Settings** (presets, picture, sound and sync, account). See
+[Settings and remote keys](docs/settings.md).
 
 The TV can also play audio through Sendspin. Existing speaker names/IDs are
 preserved so that groups and latency compensation survive the update.
@@ -32,9 +34,11 @@ preserved so that groups and latency compensation survive the update.
 - Pure visuals, optional track card, optional lyric overlay, and optional
   MilkDrop behind artwork or lyrics. With that background off, rendering stops
   while the waveform buffer continues draining and audio keeps playing.
-- Play/pause, previous/next, seek ±10 seconds, a bounded 12-track up-next list
-  with direct selection, music favourites, shuffle/repeat, autoplay, crossfade,
-  group volume and a server-owned sleep timer.
+- Browse recently played, favourites, radio, playlists and albums; play now,
+  play next, add to the queue or start radio.
+- Play/pause, previous/next, seek ±10 seconds, the next 12 queued songs (play,
+  move or remove them), music favourites, shuffle/repeat, autoplay, crossfade,
+  volume, a server-owned sleep timer, and the choice of player to follow.
 - All playback changes go through Music Assistant’s existing authenticated
   connection. The controlled queue/group is named on screen.
 - 30 fps by default. Native graphics memory growth remains under investigation;

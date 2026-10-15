@@ -176,7 +176,8 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   }
   async function readProviders() {
     if (providers) return;
-    try { providers = await live.call("providers", {}); } catch (e) { providers = []; }
+    // A failure is not kept: the next look at the details asks again.
+    try { providers = await live.call("providers", {}); } catch (e) { return; }
     detailsKey = ""; if (panel === "details") render();
   }
   // The back of the poster: what the song is and how it sounds, then what you can do with it.

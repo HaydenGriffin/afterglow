@@ -237,3 +237,21 @@ test("the Music Assistant port is 8095 unless the host names one", (t) => {
   assert.equal(made[0].url, "ws://10.0.0.5:9000/milkdrop_visualizer?player=p");
   relay.close();
 });
+
+test("after a token renewal a socket closed for the old token reconnects with the fresh one", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { Fake, made } = fakeSockets();
+  const relay = createRelay({ host: "h", token: "old", WebSocketImpl: Fake, now: () => 0, handlers: {} });
+  relay.connect("p");
+  made[0].open();
+  made[0].text({ type: "auth_ok" });
+  relay.setToken("fresh");
+  made[0].onclose({ code: 4001, reason: "Invalid or expired token" });
+  assert.notEqual(relay.state, "rejected");
+  t.mock.timers.tick(2000);
+  assert.equal(made.length, 2);
+  made[1].open();
+  assert.deepEqual(made[1].sent[0], { type: "auth", token: "fresh" });
+  made[1].onclose({ code: 4001, reason: "Invalid or expired token" });
+  assert.equal(relay.state, "rejected", "the fresh token refused is a real sign-out");
+});

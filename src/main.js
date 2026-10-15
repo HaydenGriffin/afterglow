@@ -2,9 +2,10 @@ import "./polyfills.js";
 import { createPlayerView } from "./player-view.js";
 import { createMockPlayback } from "./mock-playback.js";
 import { createAnalysis } from "./analysis.js";
+import { renewIfDue, shouldForget } from "./auth.js";
 import { createDebug } from "./debug.js";
 import { startDevlink } from "./devlink.js";
-import { startDrift } from "./drift.js";
+import { createDrift } from "./drift.js";
 import { createEngine } from "./engine.js";
 import { createKeepAwake } from "./keepawake.js";
 import { exitApp, installKeys } from "./keys.js";
@@ -15,6 +16,7 @@ import { createMenu } from "./menu.js";
 import { drawSync, timingLabel } from "./sync-figure.js";
 import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, SCALE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
 import { createMock } from "./mock.js";
+import { createRelaunchHandler } from "./relaunch.js";
 import { createScan, recoverScan } from "./scan.js";
 import { SendspinPlayer } from "@sendspin/sendspin-js";
 import { createSpeaker, playerIdFor, toggledSpeaker } from "./speaker.js";
@@ -30,7 +32,6 @@ const TRACK_MODES = ["start", "always", "off"];
 const DIM_CHOICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]; // percent
 const DIM_STEP = 10;
 const RENEW_CHECK_MS = 8000; // after launch
-const RENEW_WITHIN_DAYS = 30;
 
 let booted = false;
 
@@ -274,7 +275,9 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   // Signing out: the TV's token is revoked on the account and forgotten here;
   // the sign-in form comes back. Also what happens when the token is refused.
   let leaving = false;
-  function forgetAndRelaunch(messageText) {
+  // rejectedToken: the refused token; the stored sign-in is kept if it holds
+  // a newer one.
+  function forgetAndRelaunch(messageText, rejectedToken) {
     if (leaving) return;
     leaving = true;
     menu.close();
@@ -283,7 +286,8 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     if (speaker) speaker.stop();
     if (live) live.stop();
     engine.stop();
-    clearPref("auth");
+    stopScreenTimers();
+    if (shouldForget(loadPref("auth", null), rejectedToken)) clearPref("auth");
     login.show({ host: auth ? auth.host : settings.host, user: auth ? auth.user : "", message: messageText });
   }
   function logOut() {
@@ -295,20 +299,26 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       .catch((e) => forgetAndRelaunch("Signed out here; the token could not be removed from the account (" + e.message + "). Remove it in Music Assistant's settings."));
   }
   if (live && auth) {
-    live.onRejected(() => forgetAndRelaunch("Music Assistant no longer accepts this TV's token. Sign in again."));
-    // Long-lived tokens do not renew themselves: replace ours before it runs out.
+    live.onRejected((token) => {
+      // Only the token in use counts: a renewed one has replaced the rest.
+      if (token !== settings.token) return debug.record("refusal of a replaced token ignored");
+      forgetAndRelaunch("Music Assistant no longer accepts this TV's token. Sign in again.", token);
+    });
+    // Long-lived tokens do not renew themselves: replace ours before it runs
+    // out, moving everything over to the fresh one before the old is revoked.
     setTimeout(() => {
-      listTokens({ host: auth.host, token: auth.token })
-        .then((tokens) => {
-          const ours = tokens.filter((t) => t.name === auth.tokenName && t.is_long_lived);
-          if (!ours.length) return;
-          const soonest = Math.min.apply(null, ours.map((t) => Date.parse(t.expires_at) || Infinity));
-          if (soonest - Date.now() > RENEW_WITHIN_DAYS * 86400000) return;
-          return renewToken({ host: auth.host, token: auth.token, tokenName: auth.tokenName }).then((fresh) => {
-            savePref("auth", Object.assign({}, auth, { token: fresh }));
-            debug.record("token renewed; takes effect on the next launch");
-          });
-        })
+      renewIfDue({
+        auth,
+        listTokens,
+        renewToken,
+        onFresh(fresh) {
+          auth.token = fresh;
+          settings.token = fresh; // the speaker's delay calls read it from here
+          savePref("auth", Object.assign({}, auth));
+          live.setToken(fresh);
+        },
+      })
+        .then((fresh) => fresh && debug.record("token renewed"))
         .catch((e) => debug.record("token check: " + e.message));
     }, RENEW_CHECK_MS);
   }
@@ -351,7 +361,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       // player's delay in Music Assistant; not an offset on the sync figure.
       label: "TV output compensation",
       visible: () => !!speaker && speaker.on,
-      value: () => (speaker.delayMs === null ? "…" : speaker.delayMs ? "Sound sent " + Math.abs(speaker.delayMs) + " ms " + (speaker.delayMs > 0 ? "early" : "late") : "None"),
+      value: () => (speaker.delayMs === null ? "…" : speaker.delayMs ? "Sound sent " + speaker.delayMs + " ms early" : "None"),
       change: (direction) => speaker.nudgeDelay(direction),
     },
     {
@@ -457,7 +467,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       value: () => "off: " + milkdropOff + " (OK to retry)",
       change() {
         clearMilkdropBlocks();
-        location.reload();
+        reloadPage();
       },
     },
     { section: "Performance" },
@@ -573,7 +583,17 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     message.style.display = "block";
   }
   engine.onIdleChange(refreshMessage);
-  setInterval(refreshMessage, MESSAGE_REFRESH_MS);
+  // Kept current while shown; stopped while hidden or signed out.
+  let messageTimer = 0;
+  function startScreenTimers() {
+    if (!messageTimer) messageTimer = setInterval(refreshMessage, MESSAGE_REFRESH_MS);
+    drift.start();
+  }
+  function stopScreenTimers() {
+    clearInterval(messageTimer);
+    messageTimer = 0;
+    drift.stop();
+  }
 
   function onKey(name) {
     if (leaving) {
@@ -624,7 +644,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   });
   hint.addEventListener("click", () => playerView.open());
 
-  startDrift([byId("stage"), message, trackCard, document.querySelector(".poster"), document.querySelector(".lyric-overlay")]);
+  const drift = createDrift([byId("stage"), message, trackCard, document.querySelector(".poster"), document.querySelector(".lyric-overlay")]);
 
   startDevlink({
     base: settings.report,
@@ -653,13 +673,16 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   // A hidden app is suspended by webOS and its sockets may die unnoticed, so
   // drop everything when hidden and start afresh when shown again.
   function resume() {
+    if (reloadWhenShown) return reloadPage();
     if (engine.running || leaving) return;
     if (live) live.start();
     if (speaker) speaker.start();
     playerView.start();
     engine.start();
+    startScreenTimers();
   }
   function suspend() {
+    stopScreenTimers();
     playerView.stop();
     scan.stop();
     engine.stop();
@@ -673,19 +696,34 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   }
   document.addEventListener("visibilitychange", onVisibility);
   document.addEventListener("webkitvisibilitychange", onVisibility);
+  // The GL context is given back before the page goes, not left behind in
+  // the web runtime (see milkdrop.js release).
+  function releaseGraphics() {
+    engine.stop();
+    milkdrop.release();
+  }
+  function reloadPage() {
+    releaseGraphics();
+    location.reload();
+  }
+  // A lost GL context that comes back needs a fresh page; a hidden app gets
+  // it when shown again.
+  let reloadWhenShown = false;
+  milkdrop.onRestored(() => {
+    if (document.hidden) reloadWhenShown = true;
+    else reloadPage();
+  });
   window.addEventListener("pagehide", () => {
     playerView.stop();
     scan.stop();
     milkdrop.settle();
+    releaseGraphics();
   });
-  document.addEventListener("webOSRelaunch", (relaunch) => {
-    // Relaunched with parameters (a different player, say): start over so
-    // they are read the same way as on a first launch.
-    if (Object.keys(normalizeParams(relaunch.detail)).length) return location.reload();
-    // Repeated app-open commands must not tear down an already-playing speaker.
-    // resume() is guarded; visibilitychange already suspended a hidden app.
-    resume();
+  // Back from the page cache with its context released: start afresh.
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) location.reload();
   });
+  document.addEventListener("webOSRelaunch", createRelaunchHandler({ reload: reloadPage, resume }));
 
   refreshMessage();
   if (!document.hidden) resume();

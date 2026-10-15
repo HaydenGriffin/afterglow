@@ -438,3 +438,41 @@ test("a long list sent in parts is answered whole", async (t) => {
   sockets[0].receive({ message_id: id, result: [{ name: "d" }] });
   assert.deepEqual((await answer).map((x) => x.name), ["a", "b", "c", "d"], "every part, in order; each part restarts the wait");
 });
+
+test("after a token renewal the account is re-read with the fresh token and polling carries on", (t) => {
+  const { follow, sockets } = harness(t);
+  follow.start();
+  sockets[0].login();
+  sockets[0].receive({ message_id: "me", result: { preferences: {} } });
+  follow.setToken("fresh");
+  t.mock.timers.tick(60000);
+  const reread = sockets[0].sent.filter((m) => m.command === "auth").pop();
+  assert.deepEqual(reread.args, { token: "fresh" });
+  sockets[0].receive({ message_id: "auth", result: { authenticated: true } });
+  assert.notEqual(follow.state, "rejected");
+});
+
+test("a refusal of the token that was just replaced is not a sign-out: it logs in again with the fresh one", (t) => {
+  const { follow, sockets } = harness(t);
+  follow.start();
+  sockets[0].login();
+  sockets[0].receive({ message_id: "me", result: { preferences: {} } });
+  t.mock.timers.tick(60000); // re-read sent with "tok"
+  follow.setToken("fresh"); // "tok" revoked meanwhile
+  sockets[0].receive({ message_id: "auth", result: { authenticated: false } });
+  assert.notEqual(follow.state, "rejected");
+  assert.deepEqual(sockets[0].sent[sockets[0].sent.length - 1].args, { token: "fresh" });
+  sockets[0].receive({ message_id: "auth", result: { authenticated: false } });
+  assert.equal(follow.state, "rejected", "the fresh token refused is a real sign-out");
+});
+
+test("a socket reopened after renewal logs in with the fresh token", (t) => {
+  const { follow, sockets } = harness(t);
+  follow.start();
+  sockets[0].login();
+  follow.setToken("fresh");
+  sockets[0].onclose();
+  t.mock.timers.tick(3000);
+  sockets[1].receive({ server_version: "2.10.5" });
+  assert.deepEqual(sockets[1].sent[0].args, { token: "fresh" });
+});
