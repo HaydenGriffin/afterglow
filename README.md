@@ -105,7 +105,8 @@ proxy has none. The other exception is lyrics. They come from Music Assistant; w
 song, the TV asks [lrclib.net](https://lrclib.net) directly, sending the song's
 title and artist (the album and length are only used on the TV to pick the
 best match). LRCLIB sees the request coming from your network. Turn
-**Settings → Online lyrics** off to stop it; it is on by default.
+**Online lyrics** off (OK → Display → Lyrics, shown in the Lyrics view) to
+stop it; it is on by default and synced with your other TVs.
 
 The TV stores its Music Assistant token in the app's own storage, never your
 password. There is no analytics or telemetry.

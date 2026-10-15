@@ -50,7 +50,7 @@ description: |
 
   Afterglow talks to your Music Assistant server. The one exception is lyrics: when Music
   Assistant has none for a song, the TV asks [lrclib.net](https://lrclib.net) directly,
-  sending the song's title and artist. **Settings → Online lyrics → Off** stops that.
+  sending the song's title and artist. **Display → Lyrics → Online lyrics → Off** stops that.
 
   ![Sign in](https://raw.githubusercontent.com/HaydenGriffin/afterglow/main/docs/screenshots/sign-in.jpg)
 

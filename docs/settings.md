@@ -38,7 +38,11 @@ playback.
   - **Lyrics**, shown in the Lyrics view or while lyrics are over Visuals +
     track: **Lyrics timing** moves the words only, up to 10 s earlier or
     later in 100 ms steps (left/right; "With the music" at zero), and
-    **Reset lyrics timing** puts it back to zero. **Retry lyrics** appears
+    **Reset lyrics timing** puts it back to zero. **Online lyrics** (On by
+    default, synced with your other TVs): when Music Assistant has no lyrics
+    for a song, the TV asks lrclib.net directly, sending the title and artist;
+    Off keeps lyrics to what Music Assistant provides, and switching it back
+    On looks up a song that had none again. **Retry lyrics** appears
     when the lookup failed or found nothing, and asks again (a manual retry
     also clears a remembered "no lyrics").
   - **Extras:** **MilkDrop behind artwork and lyrics** (off by default; off
@@ -93,6 +97,9 @@ In every view, and with the playback controls open:
 | Stop | Pause (Music Assistant keeps the queue) |
 | Fast-forward / Rewind | Next / previous track |
 
+These keys act once per press, even when held (the arrows still repeat), and
+skips pressed while one is under way collapse to one waiting skip per direction.
+
 In Album and Lyrics the keys work the song instead:
 
 | Key | Action |
@@ -127,7 +134,6 @@ that do not apply (no speaker on, MilkDrop off) are hidden.
 | Track info | When a song starts / Always / Off | When a song starts | The artist, title, album and label card, lower left |
 | Dim track info | 0% … 90% | 0% | Darkens the card, independently of the picture |
 | Hold screen when idle | On / Off | Off | Keep the screensaver off even while nothing plays |
-| Online lyrics | On / Off | On | When Music Assistant has no lyrics for a song, the TV asks lrclib.net directly, sending the title and artist. Off keeps lyrics to what Music Assistant provides |
 | Color | The preset's own / From the artwork | The preset's own | Gives the preset's waveform, borders and motion vectors the hue of the track's artwork, at the brightness the preset meant for them, from the palette Music Assistant sends with the stream ("Tint with track color" in the plugin's settings, on by default). Presets that paint everything in their own shaders change little |
 | Color strength | 25% … 100% | 100% | How far toward the artwork colors; shown while Color is From the artwork |
 | **Visuals & presets** | | | |

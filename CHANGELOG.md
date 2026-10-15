@@ -1,17 +1,23 @@
 # Unreleased — 1.5.1
 
-- "Online lyrics" in Settings (On by default): Off stops the TV asking
-  lrclib.net for lyrics Music Assistant does not have.
-- Bedtime puts the volume back only after the pause has succeeded.
-- Holding fast-forward or rewind no longer skips many tracks.
-- Transient lyrics failures stay retryable instead of being cached as missing.
+- Display → Lyrics gains **Online lyrics** (On by default, synced): Off keeps
+  lyrics to what Music Assistant provides and nothing is sent to lrclib.net;
+  switching it back On looks up a song that had no lyrics again.
+- Bedtime brings the volume back only after the pause has succeeded; if the
+  pause fails, the music stays silenced and bedtime keeps retrying.
+- Play, Pause, Play/Pause, Stop, fast-forward, rewind and Space act once per
+  press, so holding fast-forward or rewind no longer skips many tracks; skips
+  pressed while one is under way collapse to one waiting skip per direction.
+- Transient lyrics failures stay retryable instead of being remembered as
+  missing.
 - The TV speaker watches its connection and reconnects when it drops.
-- A queue picked in "Playing on" that is paused no longer makes the relay
-  reconnect.
-- Token renewal and Log out are safe with two TVs of the same name: each
-  touches only its own token.
-- New installs name the TV speaker `webos-afterglow-tv`; TVs that already have
-  a speaker keep its id.
+- A pinned speaker that pauses no longer makes the relay reconnect every 10 s.
+- Token renewal and Log out are safe with two TVs of the same name: tokens are
+  revoked by id, and Log out removes only this TV's own token. New sign-ins
+  name the token "Afterglow on <model> (<device id>)".
+- New Play on this TV speakers get the id `webos-afterglow-tv`. A TV keeps its
+  stored speaker id; a TV with none reuses `webos-viz-man-tv` only while Music
+  Assistant still knows that player.
 
 # 1.5.0 — Afterglow, rebranded for publishing (15 October 2026)
 

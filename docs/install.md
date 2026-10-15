@@ -103,7 +103,7 @@ OK on a field opens the TV's keyboard. Finish each field with the keyboard's
 moving. OK on **Sign in** submits.
 
 What happens: the app logs in once, asks Music Assistant for a **long-lived
-token named after the TV** (`Afterglow on OLED48CXPUB (a1b2c3)`, say), stores
+token named after the TV** (`Afterglow on OLED55C1 (tv-1a2b3c4d)`, say: the TV's model and its device id), stores
 that token, and forgets the password. The token appears in Music Assistant
 under Settings → Users → your user, alongside its tokens for your phone and
 browser; you can remove it there at any time, or with **Log out** in the TV's
@@ -230,8 +230,9 @@ When Music Assistant has no lyrics, the TV asks [lrclib.net](https://lrclib.net)
 directly, sending the song's title and artist; the album and length are only
 used on the TV to pick the best match. This is the only request Afterglow
 makes to a service other than your Music Assistant server (besides artwork
-that Music Assistant points at its source). **Settings → Online lyrics** turns
-it off; it is on by default.
+that Music Assistant points at its source). **Display → Lyrics → Online lyrics**
+(shown in the Lyrics view) turns it off; it is on by default. Turning it back
+on looks up a song that had no lyrics again.
 
 If the words run early or late on a TV, **Display → Lyrics timing** moves them
 up to 10 s either way, in 100 ms steps, without touching the picture or the

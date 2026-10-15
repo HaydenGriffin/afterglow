@@ -19,8 +19,9 @@ Afterglow, an unofficial Music Assistant TV companion. This is a fork of
 Michael Nestrud's viz-man, not a fork of Music Assistant or an official client.
 The webOS application ID is `io.github.haydengriffin.afterglow` (from 1.5.0;
 before that `net.botworth.vizman`). Keep the Music Assistant preferences key
-(`vizman`) and the new-speaker id (`webos-viz-man-tv`): synced favourites and
-the TV's player identity depend on them.
+(`vizman`): synced favourites depend on it. New TV speakers are
+`webos-afterglow-tv`; existing ones keep their stored id, and the old
+`webos-viz-man-tv` is reused only while Music Assistant still knows it.
 
 ## Scope
 Music Assistant parity from the TV remote: Browse and Search, queue editing,
