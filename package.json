@@ -22,7 +22,8 @@
     "probe": "node scripts/relay-probe.mjs",
     "bench": "node scripts/bench-presets.mjs",
     "serve-ipk": "scripts/serve-ipk.sh",
-    "install-tv": "scripts/install-tv.sh"
+    "install-tv": "scripts/install-tv.sh",
+    "showcase": "node scripts/showcase.mjs"
   },
   "devDependencies": {
     "@webos-tools/cli": "^3.2.6",
