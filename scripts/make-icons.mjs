@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-// The launcher icon in the poster's world: paper on ink, no house accent.
+// The launcher icon in the poster's world: paper on ink, no brand accent.
 // A sun setting on a horizon rule (the afterglow) over two lines of poster
 // type. Shapes are in unit space; each pixel is supersampled 4×4.
 const INK = [18, 20, 23];
