@@ -172,3 +172,63 @@ test("a group target fades and restores the group volume", async () => {
   await new Promise((r) => setImmediate(r));
   assert.deepEqual(h.calls.slice(1), [["pause", undefined], ["volume", 30]]);
 });
+
+test("a pause that fails keeps the volume faded and bedtime retrying until the pause lands", async () => {
+  const h = controllerHarness(40);
+  let pauseWorks = false;
+  const playback = {
+    snapshot: () => ({ track: null, position: 0, player: null, target: h.snap }),
+    command(action, value) {
+      h.calls.push([action, value]);
+      if (action === "volume") h.snap.player.volume_level = value;
+      return Promise.resolve(action === "pause" ? pauseWorks : true);
+    },
+  };
+  let now = 0;
+  const darks = [];
+  const ctl = createBedtimeController({ bedtime: createBedtime(), playback, setDark: (on) => darks.push(on), now: () => now });
+  ctl.set(15);
+  now = 15 * MIN - 15000;
+  ctl.tick();
+  assert.deepEqual(h.calls, [["volume", 20]]);
+  now = 15 * MIN;
+  ctl.tick();
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(h.calls.slice(1), [["pause", undefined], ["volume", 0]], "the music still plays: silenced, not put back");
+  assert.equal(ctl.choice, 15, "bedtime is still on");
+  assert.match(ctl.label, /^15 min/);
+  now += 1000;
+  ctl.tick();
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(h.calls.slice(3), [["pause", undefined]], "the pause is tried again on the next tick");
+  pauseWorks = true;
+  now += 1000;
+  ctl.tick();
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(h.calls.slice(4), [["pause", undefined], ["volume", 40]], "paused at last: the volume goes back");
+  assert.equal(ctl.choice, 0);
+  assert.equal(darks[darks.length - 1], false);
+});
+
+test("only one pause is in flight at a time", async () => {
+  const h = controllerHarness(40);
+  let release;
+  const playback = {
+    snapshot: () => ({ track: null, position: 0, player: null, target: h.snap }),
+    command(action, value) {
+      h.calls.push([action, value]);
+      return action === "pause" ? new Promise((r) => (release = r)) : Promise.resolve(true);
+    },
+  };
+  let now = 15 * MIN;
+  const ctl = createBedtimeController({ bedtime: createBedtime(), playback, setDark: () => {}, now: () => now });
+  ctl.set(15);
+  now = 30 * MIN;
+  ctl.tick();
+  ctl.tick();
+  ctl.tick();
+  assert.equal(h.calls.filter((c) => c[0] === "pause").length, 1);
+  release(true);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(ctl.choice, 0);
+});
