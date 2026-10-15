@@ -52,10 +52,11 @@ test('queue requests are bounded and late old-queue replies are ignored', async 
 test('commands capture the displayed queue, clamp seeks and serialize writes without false success', async () => {
   const h=harness();const first=h.model.command('seek',999);
   assert.deepEqual(h.calls[0],{command:'player_queues/seek',args:{queue_id:'group',position:120}});
-  assert.equal(await h.model.command('next'),false);assert.equal(h.calls.length,1);
-  h.pending[0].reject(Error('refused'));assert.equal(await first,false);
-  assert.equal(h.model.snapshot().error,'refused');assert.equal(h.model.snapshot().busy,false);
-  h.live.playback.connected=false;assert.equal(await h.model.command('next'),false);assert.equal(h.calls.length,1);
+  const second=h.model.command('next');assert.equal(h.calls.length,1,'waits for the write in flight');
+  h.pending[0].reject(Error('refused'));assert.equal(await first,false);await settle();
+  assert.equal(h.model.snapshot().error,'refused');assert.equal(h.calls[1].command,'player_queues/next','then sends the next one');
+  h.pending[1].resolve(null);assert.equal(await second,true);assert.equal(h.model.snapshot().busy,false);
+  h.live.playback.connected=false;assert.equal(await h.model.command('next'),false);assert.equal(h.calls.length,2);
 });
 test('queue selections use stable item IDs; sleep timer belongs to the group', async () => {
   const h=harness();let p=h.model.command('play_index','item-27');assert.equal(h.calls[0].args.index,'item-27');h.pending[0].resolve(null);assert.equal(await p,true);
@@ -85,4 +86,85 @@ test('browse and queue edits send Music Assistant 2.10 arguments on the current 
   assert.deepEqual(h.calls[3], { command: 'player_queues/delete_item', args: { queue_id: 'group', item_id_or_index: 'q7' } });
   assert.equal(await h.model.command('play_media', { media: '', option: 'replace' }), false, 'nothing to play is refused locally');
   assert.equal(h.calls.length, 4);
+});
+
+function targeted(target) {
+  const pending = [], calls = [];
+  const live = { playback: null, target, call(command, args) { calls.push({ command, args }); return new Promise((resolve, reject) => pending.push({ resolve, reject })); } };
+  return { model: createPlayback({ live, host: 'ma' }), live, calls, pending };
+}
+const answer = async (h, i) => { await settle(); h.pending[i].resolve(null); await settle(); };
+
+test('from a cold start commands go to the target, not a dead end', async () => {
+  const h = targeted({ queueId: 'tv', playerId: 'tv', name: 'TV', reason: 'this-tv', connected: true, queue: { queue_id: 'tv', state: 'idle' }, player: { player_id: 'tv', volume_level: 20 } });
+  assert.equal(h.model.snapshot().queue, null);
+  assert.equal(h.model.snapshot().target.name, 'TV');
+  const p = h.model.command('play_media', { media: 'library://album/1', option: 'replace' });
+  assert.deepEqual(h.calls[0], { command: 'player_queues/play_media', args: { queue_id: 'tv', media: 'library://album/1', option: 'replace' } });
+  await answer(h, 0); assert.equal(await p, true);
+  h.live.target = null;
+  assert.equal(await h.model.command('play'), false);
+  assert.match(h.model.snapshot().error, /No speaker/);
+});
+
+test('a chosen speaker takes commands while another queue is drawn', async () => {
+  const h = harness();
+  h.live.target = { queueId: 'den', playerId: 'den', name: 'Den', reason: 'chosen', connected: true, queue: { queue_id: 'den', state: 'idle', shuffle_enabled: true }, player: { player_id: 'den', volume_level: 10 } };
+  h.model.command('shuffle');
+  assert.deepEqual(h.calls[0], { command: 'player_queues/shuffle', args: { queue_id: 'den', shuffle_enabled: false } });
+  h.model.wantQueue(true); h.model.tick(); await answer(h, 0);
+  assert.equal(h.calls[1].args.queue_id, 'den', 'the queue panel reads the target');
+});
+
+test('held volume and quick seeks coalesce into the latest value after the write in flight', async () => {
+  const h = harness();
+  h.live.playback.player = { player_id: 'group', volume_level: 30 };
+  const presses = [1, 2, 3, 4].map(() => h.model.command('volume_by', 5));
+  assert.deepEqual(h.calls.map(c => c.args.volume_level), [35]);
+  await answer(h, 0);
+  assert.deepEqual(h.calls.map(c => c.args.volume_level), [35, 50], 'three waiting presses sent once, from the value just set');
+  await answer(h, 1);
+  assert.deepEqual(await Promise.all(presses), [true, true, true, true]);
+  h.model.command('seek_by', -10); h.model.command('seek_by', -10); h.model.command('seek_by', -10);
+  assert.equal(h.calls[2].args.position, 10);
+  await answer(h, 2);
+  assert.equal(h.calls[3].args.position, 0, 'from the seek just sent, clamped');
+  await answer(h, 3);
+});
+
+test('toggles pressed in a row are queued and flip from the value just sent', async () => {
+  const h = harness();
+  h.q.shuffle_enabled = false; h.q.repeat_mode = 'off';
+  h.model.command('shuffle'); h.model.command('shuffle'); h.model.command('repeat', 1); h.model.command('repeat', 1);
+  await answer(h, 0); await answer(h, 1); await answer(h, 2); await answer(h, 3);
+  assert.deepEqual(h.calls.map(c => c.args.shuffle_enabled === undefined ? c.args.repeat_mode : c.args.shuffle_enabled), [true, false, 'all', 'one']);
+});
+
+test('a group sets the volume of every member', async () => {
+  const h = harness();
+  h.live.playback.player = { player_id: 'group', volume_level: 80, group_volume: 40, group_members: ['group', 'kitchen'] };
+  h.model.command('volume_by', 5);
+  assert.deepEqual(h.calls[0], { command: 'players/cmd/group_volume', args: { player_id: 'group', volume_level: 45 } });
+  await answer(h, 0);
+  h.live.playback.player = { player_id: 'group', type: 'player', volume_level: 80, group_members: [] };
+  h.model.command('volume', 50);
+  assert.deepEqual(h.calls[1], { command: 'players/cmd/volume_set', args: { player_id: 'group', volume_level: 50 } });
+});
+
+test('transfer and grouping send Music Assistant 2.10 arguments for the target', async () => {
+  const h = harness();
+  h.model.command('transfer', { to: 'tv', autoPlay: true });
+  assert.deepEqual(h.calls[0], { command: 'player_queues/transfer', args: { source_queue_id: 'group', target_queue_id: 'tv', auto_play: true } });
+  await answer(h, 0);
+  h.model.command('transfer', { to: 'den' });
+  assert.deepEqual(h.calls[1].args, { source_queue_id: 'group', target_queue_id: 'den' }, 'Music Assistant keeps the paused or playing state');
+  await answer(h, 1);
+  h.model.command('transfer', { from: 'kitchen', to: 'den' });
+  assert.equal(h.calls[2].args.source_queue_id, 'kitchen', 'a named source wins over the target');
+  await answer(h, 2);
+  h.model.command('group', { add: 'den' });
+  assert.deepEqual(h.calls[3], { command: 'players/cmd/set_members', args: { target_player: 'group', player_ids_to_add: ['den'] } });
+  await answer(h, 3);
+  h.model.command('group', { remove: 'den' });
+  assert.deepEqual(h.calls[4], { command: 'players/cmd/set_members', args: { target_player: 'group', player_ids_to_remove: ['den'] } });
 });
