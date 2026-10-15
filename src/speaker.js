@@ -46,15 +46,17 @@ export function playerIdFor(name) {
 // The "Play on this TV" row: off when on; on again as the player this TV was
 // last (its launch parameter or an earlier choice), so it keeps its id and its
 // place in Music Assistant's groups. Only a TV never set up gets a new player.
-// The new player keeps the id it had before the rebrand (as "viz-man TV"):
-// Music Assistant knows a player by its id, so a TV that lost its stored choice
-// (storage wiped by an update or reinstall) comes back as the same player
-// rather than a second one.
+// Music Assistant knows a player by its id. A TV whose stored choice is gone
+// (the new app id starts with empty storage) but whose player from before the
+// rebrand ("viz-man TV") Music Assistant still knows (isKnown(id)) comes back
+// under that id rather than as a second player.
 export const NEW_SPEAKER_NAME = "Afterglow TV";
-export const NEW_SPEAKER_ID = "webos-viz-man-tv";
-export function toggledSpeaker(current, last) {
+export const NEW_SPEAKER_ID = "webos-afterglow-tv";
+export const OLD_SPEAKER_ID = "webos-viz-man-tv";
+export function toggledSpeaker(current, last, isKnown) {
   if (current) return null;
-  return last || { name: NEW_SPEAKER_NAME, id: NEW_SPEAKER_ID };
+  if (last) return last;
+  return { name: NEW_SPEAKER_NAME, id: isKnown && isKnown(OLD_SPEAKER_ID) ? OLD_SPEAKER_ID : NEW_SPEAKER_ID };
 }
 
 export function createSpeaker({ host, Player, delays }) {

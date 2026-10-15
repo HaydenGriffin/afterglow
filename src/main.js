@@ -396,7 +396,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       visible: () => !!speaker,
       value: () => (speaker.on ? speaker.name + " · " + speaker.state.charAt(0).toUpperCase() + speaker.state.slice(1) : "Off"),
       change() {
-        const next = toggledSpeaker(speaker.on, loadPref("speakerLast", null));
+        const next = toggledSpeaker(speaker.on, loadPref("speakerLast", null), (id) => !!live && live.hasPlayer(id));
         if (next) savePref("speakerLast", next);
         savePref("speaker", next);
         speaker.set(next ? next.name : "", next ? next.id : "");

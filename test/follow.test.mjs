@@ -573,3 +573,12 @@ test("frames that stop because the queue paused do not replace the relay", (t) =
   assert.deepEqual(relay.connects, ["tv"]);
   assert.equal(follow.frames.streaming, false, "no longer counted as streaming");
 });
+
+test("hasPlayer tells whether Music Assistant knows a player id, available or not", (t) => {
+  const { follow, sockets } = harness(t);
+  follow.start();
+  sockets[0].login();
+  sockets[0].players({ "webos-viz-man-tv": { available: false }, kitchen: {} });
+  assert.equal(follow.hasPlayer("webos-viz-man-tv"), true);
+  assert.equal(follow.hasPlayer("webos-afterglow-tv"), false);
+});

@@ -156,6 +156,9 @@ export function createLive(settings) {
     speakers() {
       return follow.speakers();
     },
+    hasPlayer(playerId) {
+      return follow.hasPlayer(playerId);
+    },
     setPreferred(playerId) {
       follow.setPreferred(playerId);
     },

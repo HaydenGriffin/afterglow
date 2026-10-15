@@ -642,6 +642,10 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
     speakers() {
       return speakersOf(players);
     },
+    // Whether Music Assistant has a player by this id (available or not).
+    hasPlayer(playerId) {
+      return !!players[playerId];
+    },
     // Save a snapshot of the preferences remotely; sent once things settle,
     // and never before the remote copy has been read and merged.
     savePrefs(snapshot) {

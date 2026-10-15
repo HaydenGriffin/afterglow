@@ -297,8 +297,15 @@ test("Play on this TV off and on again comes back as the same player (14 Oct: it
   assert.deepEqual(toggledSpeaker(false, tv), tv);
 });
 
-test("a TV never set up becomes 'Afterglow TV', under the id earlier versions gave it so it is not registered twice", () => {
-  assert.deepEqual(toggledSpeaker(false, null), { name: "Afterglow TV", id: "webos-viz-man-tv" });
+test("a TV never set up becomes 'Afterglow TV' under an Afterglow id", () => {
+  assert.deepEqual(toggledSpeaker(false, null), { name: "Afterglow TV", id: "webos-afterglow-tv" });
+  assert.deepEqual(toggledSpeaker(false, null, (id) => id === "webos-somewhere-else"), { name: "Afterglow TV", id: "webos-afterglow-tv" });
+});
+
+test("a TV that was a speaker before keeps its id: a stored one, or the old id Music Assistant still knows", () => {
+  const old = { name: "Afterglow TV", id: "webos-viz-man-tv" };
+  assert.deepEqual(toggledSpeaker(false, old), old, "stored under the old id: kept");
+  assert.deepEqual(toggledSpeaker(false, null, (id) => id === "webos-viz-man-tv"), old, "storage gone (new app id) but Music Assistant has the old player: not registered twice");
 });
 
 test("Audio delay belongs to its speaker: switching neither shows nor saves the old one's on the new one", async (t) => {
