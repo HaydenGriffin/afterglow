@@ -2,6 +2,7 @@ import "./polyfills.js";
 import { createPlayerView } from "./player-view.js";
 import { createMockPlayback } from "./mock-playback.js";
 import { createAnalysis } from "./analysis.js";
+import { createBedtime, createBedtimeController } from "./bedtime.js";
 import { createDebug } from "./debug.js";
 import { startDevlink } from "./devlink.js";
 import { startDrift } from "./drift.js";
@@ -27,6 +28,7 @@ const MESSAGE_REFRESH_MS = 1000;
 const HINT_MS = 3000;
 const TOAST_MS = 3500;
 const TRACK_CARD_MS = 9000;
+const BEDTIME_TICK_MS = 1000;
 const TRACK_MODES = ["start", "always", "off"];
 const DIM_CHOICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]; // percent
 const RENEW_CHECK_MS = 8000; // after launch
@@ -360,6 +362,12 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       value: () => timingLabel(live.trimMs, "after the music", "before the music", "With the music"),
       change: (direction) => live.nudgeTrim(direction * TRIM_STEP_MS),
     },
+    {
+      // Stops the music after a while; the picture goes black in the meantime.
+      label: "Bedtime",
+      value: () => bedtime.label,
+      change: (direction) => bedtime.cycle(direction),
+    },
     { section: "Display" },
     {
       label: "Dim visualizer",
@@ -508,6 +516,16 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     onMode(mode) { trackCard.style.display = mode === "track" ? "" : "none"; applyDim(); }
   });
 
+  const bedtimeCover = document.createElement("div");
+  bedtimeCover.id = "bedtime";
+  document.body.appendChild(bedtimeCover);
+  const bedtime = createBedtimeController({
+    bedtime: createBedtime(),
+    playback: playerView,
+    setDark: (on) => bedtimeCover.classList.toggle("dark", on),
+  });
+  setInterval(bedtime.tick, BEDTIME_TICK_MS);
+
   debug = createDebug(byId("debug"), () =>
     Object.assign(
       {
@@ -591,6 +609,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       if (name === "back") scan.stop();
       return;
     }
+    if (bedtime.wake()) return; // a black picture: the key only wakes it
     if (menu.handleKey(name)) return;
     if (playerView.handleKey(name)) return;
     runKeyAction(remoteAction(name, keyContext()));
