@@ -67,10 +67,35 @@
   key(DOWN); key(DOWN); key(OK); await wait(600);
   assert(player.getAttribute('data-panel') === 'browse' && document.querySelector('.browse-list .browse-thumb'), 'Adding returns to the list');
 
+  // Search: above the categories; a real field takes the TV keyboard; Enter shows grouped results.
+  key(LEFT); await wait(100);
+  for (let i = 0; i < 12 && selected().textContent !== 'Search'; i++) { key(UP); await wait(100); }
+  key(RIGHT); await wait(); key(OK); await wait();
+  const field = document.querySelector('.browse-input');
+  assert(document.activeElement === field, 'OK on the Search row focuses its text field');
+  field.value = 'demo';
+  field.dispatchEvent(new KeyboardEvent('keydown', { keyCode: OK, key: 'Enter', bubbles: true })); await wait(600);
+  assert(document.activeElement !== field, 'Enter puts the keyboard away');
+  const groups = Array.from(document.querySelectorAll('.browse-group')).map(g => g.textContent);
+  assert(groups[0] === 'Artists' && groups.indexOf('Songs') > 0, 'Search results come grouped');
+  key(DOWN); await wait(); key(OK); await wait();
+  assert(document.querySelector('.browse-list strong').textContent === 'Play now', 'A search result offers its actions');
+  key(BACK); await wait(); key(BACK); await wait();
+
   // Details: the back of the poster carries the stream's format.
   await closeAll(); key(OK); await wait(); document.querySelector('[aria-label="Details"]').click(); await wait(800);
   assert(/FLAC|OGG/.test(document.querySelector('.details-facts').textContent), 'Details show the stream format');
   await closeAll();
+
+  // Idle: pause, and after a few seconds the recent music is set as a poster; OK resumes.
+  const idle = document.getElementById('idle'), paused = title();
+  key(32); await wait(9500);
+  assert(idle.classList.contains('shown'), 'Nothing playing shows the idle poster');
+  assert(idle.querySelector('.idle-title').textContent === paused && idle.querySelector('.idle-hint').textContent === 'OK resumes', 'The paused song comes first');
+  key(RIGHT); await wait();
+  assert(idle.querySelector('.idle-title').textContent !== paused && idle.querySelectorAll('.idle-tile.selected').length === 1, 'Right moves along the strip');
+  key(LEFT); await wait(); key(OK); await wait(1500);
+  assert(!idle.classList.contains('shown'), 'OK resumes and the poster leaves');
   assert(document.documentElement.scrollWidth <= innerWidth, 'Screen must not overflow horizontally');
-  return { passed: 16, viewport: [innerWidth, innerHeight] };
+  return { passed: 20, viewport: [innerWidth, innerHeight] };
 })()

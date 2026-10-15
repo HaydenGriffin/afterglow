@@ -75,9 +75,11 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   });
 
   const karaoke = createKaraoke(() => model.snapshot().lyricPosition);
+  // The one place Browse and the idle poster start music.
+  function playMedia(media, option) { return command("play_media", { media, option }); }
   const browse = createBrowse({
     element: el(".player-browse"), live, host,
-    play: (media, option) => command("play_media", { media, option }),
+    play: playMedia,
     target: () => { const t = model.snapshot().target; return t ? t.name : "no speaker yet"; },
     onNotice, onLeave: toNow => toNow ? close() : openControls()
   });
@@ -373,6 +375,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     get mode() { return mode; },
     get isOpen() { return !!panel; },
     open: openControls, close,
+    playMedia, resume: () => command("play"), openBrowse: () => openPanel("browse"),
     setMode,
     snapshot: () => model.snapshot(),
     command,

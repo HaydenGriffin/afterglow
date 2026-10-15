@@ -67,6 +67,20 @@ function tracksFor(uri) {
   return LIBRARY.track.slice(0, 3);
 }
 
+// Search by name across the demo library. "fail" fails, to show the error state.
+function search(args) {
+  const q = String(args.search_query || "").toLowerCase();
+  if (q === "fail") throw new Error("Demo search failed");
+  const found = kind => LIBRARY[kind].filter(i => i.name.toLowerCase().indexOf(q) >= 0 || (i.artists || []).some(a => a.name.toLowerCase().indexOf(q) >= 0)).slice(0, args.limit || 25);
+  return { artists: found("artist"), albums: found("album"), tracks: found("track"), playlists: found("playlist"), radio: [] };
+}
+
+// What the idle poster and Browse show as played lately: every kind, each with a cover.
+function recentlyPlayed() {
+  return [LIBRARY.album[2], LIBRARY.track[4], LIBRARY.playlist[0], LIBRARY.album[0], LIBRARY.artist[1], LIBRARY.radio[0], LIBRARY.album[1], LIBRARY.playlist[2]]
+    .map(i => Object.assign({ image: i.metadata.images[0] }, i));
+}
+
 let sequence = 0;
 function queueItem(media) {
   const quality = media.item_id % 3 === 0 ? ["flac", 96000, 24, "hi_res"] : media.item_id % 3 === 1 ? ["flac", 44100, 16, "lossless"] : ["ogg", 44100, 16, "lossy"];
@@ -126,9 +140,11 @@ export function createMockPlayback() {
       args = args || {};
       const library = /^music\/(\w+)s\/library_items$/.exec(command);
       if (library) return page((LIBRARY[library[1]] || []).filter(i => !args.favorite || i.favorite), args);
-      if (command === "music/recently_played_items") return LIBRARY.album.slice(0, 2).concat(LIBRARY.playlist.slice(0, 1)).map(i => Object.assign({ image: i.metadata.images[0] }, i)).slice(0, args.limit || 10);
+      if (command === "music/recently_played_items") return recentlyPlayed().slice(0, args.limit || 10);
+      if (command === "music/search") return search(args);
       if (command === "music/albums/album_tracks") return tracksFor("library://album/" + args.item_id);
       if (command === "music/playlists/playlist_tracks") return tracksFor("library://playlist/" + args.item_id);
+      if (command === "music/artists/artist_tracks") return tracksFor("library://artist/" + args.item_id);
       if (command === "providers") return [{ instance_id: "spotify--demo", domain: "spotify", name: "Spotify (demo)" }, { instance_id: "filesystem--demo", domain: "filesystem_local", name: "Music folder (demo)" }];
       if (command === "metadata/get_track_lyrics") return [null, "[00:00]An evening without hurry\n[00:20]<00:20.0>A <00:20.6>little <00:21.4>room <00:22.4>to <00:23.0>breathe\n[00:35]<00:35.0>The <00:35.5>light <00:36.4>across <00:37.4>the <00:37.8>ceiling\n[00:50]The music underneath\n[01:10]Let the world grow quiet\n[01:30]Stay a little while"];
       if (command === "player_queues/items") return args.queue_id === queue.queue_id ? tracks.slice(args.offset, args.offset + args.limit) : [];
