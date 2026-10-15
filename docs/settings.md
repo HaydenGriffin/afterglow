@@ -29,9 +29,21 @@ playback.
   here too.
 - **Details:** what the song is and how it is streamed (source, format,
   quality), with Start radio from this song and Add to favourites.
-- **Display:** the view (Visuals only, Visuals + track, Album, Lyrics), MilkDrop
-  behind artwork and lyrics (off by default; off stops GPU drawing in Album and
-  Lyrics), and lyrics over Visuals + track. Untimed lyrics get a page control.
+- **Display** (saved on this TV):
+  - The view: **Visuals only** (MilkDrop alone), **Visuals + track** (MilkDrop
+    with the track card), **Album** (the complete artwork, song, artist and up
+    next) or **Lyrics** (the artwork with the song's lyrics beside it: the
+    current line leads, with word-by-word karaoke when the lyrics carry word
+    timing).
+  - **Lyrics**, shown in the Lyrics view or while lyrics are over Visuals +
+    track: **Lyrics timing** moves the words only, up to 10 s earlier or
+    later in 100 ms steps (left/right; "With the music" at zero), and
+    **Reset lyrics timing** puts it back to zero. **Retry lyrics** appears
+    when the lookup failed or found nothing, and asks again (a manual retry
+    also clears a remembered "no lyrics").
+  - **Extras:** **MilkDrop behind artwork and lyrics** (off by default; off
+    stops GPU drawing in Album and Lyrics), **Lyrics over Visuals + track**,
+    and **Lyrics page** for untimed lyrics.
 - **Settings:** the settings menu below.
 
 Failed actions are shown; nothing is assumed to have worked while Music
@@ -73,6 +85,14 @@ track:
 | Red / Green | Picture and lyrics timing −25 ms / +25 ms |
 | Back | Close the menu; pause a running scan; otherwise leave the app |
 
+In every view, and with the playback controls open:
+
+| Key | Action |
+|---|---|
+| Play / Pause / Play-pause | Play, pause, or toggle the queue commands act on |
+| Stop | Pause (Music Assistant keeps the queue) |
+| Fast-forward / Rewind | Next / previous track |
+
 In Album and Lyrics the keys work the song instead:
 
 | Key | Action |
@@ -107,6 +127,7 @@ that do not apply (no speaker on, MilkDrop off) are hidden.
 | Track info | When a song starts / Always / Off | When a song starts | The artist, title, album and label card, lower left |
 | Dim track info | 0% … 90% | 0% | Darkens the card, independently of the picture |
 | Hold screen when idle | On / Off | Off | Keep the screensaver off even while nothing plays |
+| Online lyrics | On / Off | On | When Music Assistant has no lyrics for a song, the TV asks lrclib.net directly, sending the title and artist. Off keeps lyrics to what Music Assistant provides |
 | Color | The preset's own / From the artwork | The preset's own | Gives the preset's waveform, borders and motion vectors the hue of the track's artwork, at the brightness the preset meant for them, from the palette Music Assistant sends with the stream ("Tint with track color" in the plugin's settings, on by default). Presets that paint everything in their own shaders change little |
 | Color strength | 25% … 100% | 100% | How far toward the artwork colors; shown while Color is From the artwork |
 | **Visuals & presets** | | | |
@@ -135,8 +156,11 @@ Assistant's clock. **TV output compensation** is the player's Sendspin delay
 (positive sends the TV's sound earlier) and only makes up for the TV's own
 output path, such as ARC to a soundbar; it is not added again to the picture.
 MilkDrop and timed lyrics follow the group clock, shifted by **Picture and
-lyrics timing** (positive means later). The progress bar shows the queue's
-media position. The sync figure in the menu draws the music and the picture on
+lyrics timing** (positive means later), which you set by eye against the
+sound. **Lyrics timing** (Display → Lyrics) is a second, words-only offset on
+top of it, for lyrics whose own timestamps run early or late: it moves neither
+the picture nor the sound, nor the progress bar or seeking. The progress bar
+shows the queue's media position. The sync figure in the menu draws the music and the picture on
 one timeline.
 
 ## Presets, validation and favorites
