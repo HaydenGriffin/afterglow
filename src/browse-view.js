@@ -5,6 +5,7 @@ import { imageUrl, thumbOf, timeLabel } from "./playback.js";
 // chosen, at most LIMIT items, and dropped when Browse closes. The list is
 // rebuilt only when what it shows changes; arrow keys just move the selection.
 const LIMIT = 60;
+const CONFIRM_MS = 2500; // how long a row reads "Added to the queue"
 export const CATEGORIES = [
   { id: "recent", label: "Recently played", command: "music/recently_played_items", args: { limit: 30, fully_played_only: false } },
   { id: "fav-playlists", label: "Favourite playlists", command: "music/playlists/library_items", args: { favorite: true, order_by: "sort_name" } },
@@ -43,6 +44,7 @@ function make(tag, cls, parent, value) {
   if (parent) parent.appendChild(node);
   return node;
 }
+function setDetail(button, value) { text(button.querySelector(".browse-words").lastChild, value); }
 function text(node, value) { const v = String(value == null ? "" : value); if (node.textContent !== v) node.textContent = v; }
 
 // One list row: an optional thumbnail, a name and a detail line.
@@ -67,6 +69,7 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
   let column = "cats", cat = 0, index = 0, action = 0, generation = 0, version = 0, built = -1;
   let items = [], state = "idle", stack = null, chosen = null; // stack: { title, parent, item } while showing an album's songs
   let rows = [], selected = null; // rows: what OK can activate in the list column, in order
+  let isOpen = false, running = false, confirmed = null; // confirmed: { uri, text } while an item's row confirms an action
   const lists = new Map();
 
   const cats = CATEGORIES.map((c, i) => {
@@ -103,22 +106,36 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
   }
   function choose(i) { cat = i; index = 0; stack = null; chosen = null; load(i); render(); }
   function retry() { if (stack) showSongs(stack.item); else { lists.delete(CATEGORIES[cat].id); load(cat); } }
-  async function run(kind) {
-    const item = chosen;
+  async function run(kind, button) {
+    const item = chosen, gen = generation;
     if (kind === "tracks") return showSongs(item);
+    if (running) return;
     const media = kind === "radio" ? "radio_playlist://playlist/" + item.uri : item.uri;
+    running = true;
     const ok = await play(media, kind === "radio" ? "replace" : kind);
-    if (!ok) return;
-    onNotice(kind === "next" ? item.name + " plays next" : kind === "add" ? item.name + " added to the queue" : "Playing " + item.name + (kind === "radio" ? " radio" : ""));
-    if (kind === "replace" || kind === "radio") onLeave(true);
-    else { column = "list"; chosen = null; changed(); render(); }
+    running = false;
+    if (gen !== generation) return; // Browse closed or moved on meanwhile
+    if (!ok) return setDetail(button, "Couldn’t do that. OK tries again");
+    if (kind === "replace" || kind === "radio") { onNotice("Playing " + item.name + (kind === "radio" ? " radio" : "")); return onLeave(true); }
+    confirm(item, kind === "next" ? "Plays next" : "Added to the queue");
+    if (column === "actions" && chosen === item) { column = "list"; chosen = null; }
+    changed(); render();
+  }
+  // The item's row reads what happened, with the tick, for a moment.
+  function confirm(item, value) {
+    const mark = confirmed = { uri: item.uri, text: value };
+    setTimeout(() => {
+      if (confirmed !== mark) return;
+      confirmed = null;
+      rows.filter(b => b.dataset.uri === item.uri).forEach(b => { b.classList.remove("browse-added"); setDetail(b, detailOf(item)); });
+    }, CONFIRM_MS);
   }
   function openItem(i) { index = i; chosen = items[i]; column = "actions"; action = 0; changed(); render(); }
 
   function addRow(button, activate) { list.appendChild(make("li")).appendChild(button); button.addEventListener("click", activate); rows.push(button); }
   function buildActions() {
     text(title, chosen.name);
-    actionsFor(chosen).forEach(([kind, label], i) => addRow(makeRow(label, "", undefined, "browse-action"), () => { action = i; run(kind); }));
+    actionsFor(chosen).forEach(([kind, label], i) => { const b = makeRow(label, "", undefined, "browse-action"); addRow(b, () => { action = i; run(kind, b); }); });
   }
   function buildList() {
     text(title, stack ? stack.title : CATEGORIES[cat].label);
@@ -126,7 +143,11 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
     if (state === "loading") status("Loading…", "");
     else if (state === "error") status("Couldn’t load this list", "OK tries again", retry);
     else if (!items.length) status(stack ? "No songs here" : "Nothing here yet", stack ? "" : "Favourite music in Music Assistant and it appears here");
-    items.forEach((item, i) => addRow(makeRow(item.name, detailOf(item), imageUrl(thumbOf(item), host, 160)), () => openItem(i)));
+    items.forEach((item, i) => {
+      const done = confirmed && confirmed.uri === item.uri;
+      const b = makeRow(item.name, done ? confirmed.text : detailOf(item), imageUrl(thumbOf(item), host, 160), done ? "browse-added" : "");
+      b.dataset.uri = item.uri; addRow(b, () => openItem(i));
+    });
   }
   function rebuild() {
     built = version; rows = []; selected = null;
@@ -155,8 +176,8 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
     render();
   }
   return {
-    open() { column = "cats"; if (state === "idle") choose(0); else render(); },
-    close() { generation++; lists.clear(); items = []; state = "idle"; stack = null; chosen = null; changed(); },
+    open() { isOpen = true; column = "cats"; if (state === "idle") choose(0); else render(); },
+    close() { isOpen = false; confirmed = null; running = false; generation++; lists.clear(); items = []; state = "idle"; stack = null; chosen = null; changed(); },
     handleKey(name) {
       const count = rows.length;
       if (name === "back") return back();

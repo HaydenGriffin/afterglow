@@ -16,11 +16,13 @@ function harness(t) {
   const element = doc.createElement("section");
   doc.body.appendChild(element);
   const browse = createBrowse({ element, live, host: "ma", target: () => "Kitchen",
-    play: async (media, option) => { plays.push({ media, option }); return true; },
+    play: async (media, option) => { plays.push({ media, option }); return h.playResult; },
     onNotice: text => notices.push(text), onLeave: toNow => leaves.push(toNow) });
+  let h;
   const names = () => element.querySelector(".browse-list").querySelectorAll("strong").map(s => s.textContent);
   const selected = () => element.querySelector(".selected");
-  return { doc, browse, element, calls, plays, notices, leaves, names, selected, key: name => browse.handleKey(name) };
+  h = { doc, browse, element, calls, plays, notices, leaves, names, selected, playResult: true, key: name => browse.handleKey(name) };
+  return h;
 }
 // Opens Browse on its first list and answers it with the given items.
 async function openWith(h, items) {
@@ -121,4 +123,32 @@ test("a late answer for a category left behind does not replace the current one"
   h.calls[1].resolve([album]); await settle();
   h.calls[0].resolve([song(9)]); await settle();
   assert.deepEqual(h.names(), ["Coastline"]);
+});
+
+test("Play next and Add to the queue confirm on the item's own row, then settle", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const h = harness(t);
+  await openWith(h, [album, song(2)]);
+  h.key("ok"); h.key("down"); h.key("down"); // Add to the queue
+  h.key("ok"); await settle();
+  assert.deepEqual(h.plays, [{ media: "library://album/7", option: "add" }]);
+  const row = h.selected();
+  assert.ok(row.classList.contains("browse-added"), "the row carries the tick");
+  assert.equal(row.querySelector("strong").textContent, "Coastline");
+  assert.equal(row.querySelectorAll("span").pop().textContent, "Added to the queue");
+  h.key("down"); h.key("up");
+  assert.ok(h.selected().classList.contains("browse-added"), "moving does not lose it");
+  t.mock.timers.tick(3000);
+  assert.ok(!h.selected().classList.contains("browse-added"));
+  assert.equal(h.selected().querySelectorAll("span").pop().textContent, "Album · Demo");
+});
+
+test("an action that fails says so on its row and stays put", async t => {
+  const h = harness(t);
+  await openWith(h, [album]);
+  h.key("ok"); h.key("down"); // Play next
+  h.playResult = false;
+  h.key("ok"); await settle();
+  assert.equal(h.selected().querySelector("strong").textContent, "Play next");
+  assert.equal(h.selected().querySelectorAll("span").pop().textContent, "Couldn’t do that. OK tries again");
 });
