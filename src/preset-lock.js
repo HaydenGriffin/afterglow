@@ -34,3 +34,37 @@ export function withLock(locks, key, name) {
   for (let i = 0; i < keys.length - LOCK_LIMIT; i++) delete next[keys[i]];
   return next;
 }
+
+// The locks as the app uses them. follow(track) runs every second, so the
+// saved locks are read once (and again after reload(), when the account's
+// copy arrives), and hold(name or null) only hears of a change of album,
+// artist or locks.
+export function createPresetLocks({ load, save, hold }) {
+  let locks = null;
+  let heldFor = null; // the lock keys hold() was last told about
+  const all = () => locks || (locks = load() || {});
+  return {
+    follow(track) {
+      const keys = lockKeys(track), at = keys.album + "\n" + keys.artist;
+      if (at === heldFor) return;
+      heldFor = at;
+      const lock = lockFor(all(), track);
+      hold(lock ? lock.name : null);
+    },
+    // The preset locked to a key, or null.
+    locked(key) {
+      return (key && all()[key]) || null;
+    },
+    // Lock key to name (null unlocks), then apply it to the playing track.
+    set(key, name, track) {
+      locks = withLock(all(), key, name);
+      save(locks);
+      heldFor = null;
+      this.follow(track);
+    },
+    reload() {
+      locks = null;
+      heldFor = null;
+    },
+  };
+}
