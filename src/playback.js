@@ -29,7 +29,32 @@ export function trackInfo(item, host) {
 }
 
 // LRC can contain multiple timestamps per line and a signed millisecond offset.
+// Enhanced LRC adds <mm:ss.xx> word tags: those lines also carry `words`,
+// [{ at, text }], for the karaoke highlight (karaoke.js).
 // Keep only the current song, cap malformed/untrusted provider responses.
+const seconds = (m, n, frac) => Number(m) * 60 + Number(n) + Number("0." + (frac || "0"));
+const roundAt = (at) => Math.max(0, Math.round(at * 1000) / 1000);
+
+// The words of a line with their own times (null: starts with the line), or
+// null when the line has no word tags.
+function wordsOf(body, shift) {
+  const tag = /<(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?>/g;
+  const words = [];
+  let at = null, last = 0, match, tagged = false;
+  const push = (text) => { if (text.trim()) words.push({ at, text }); };
+  while ((match = tag.exec(body))) {
+    tagged = true;
+    push(body.slice(last, match.index));
+    at = seconds(match[1], match[2], match[3]) + shift;
+    last = tag.lastIndex;
+  }
+  push(body.slice(last));
+  if (!tagged || !words.length) return null;
+  words[0].text = words[0].text.replace(/^\s+/, "");
+  words[words.length - 1].text = words[words.length - 1].text.replace(/\s+$/, "");
+  return words;
+}
+
 export function parseLyrics(value) {
   const text = String(value || "").slice(0, 100000);
   const offset = /\[offset:([+-]?\d+)\]/i.exec(text);
@@ -38,9 +63,17 @@ export function parseLyrics(value) {
   for (const line of text.split(/\r?\n/).slice(0, 2000)) {
     const pattern = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
     const stamps = []; let match;
-    while ((match = pattern.exec(line))) stamps.push(Number(match[1]) * 60 + Number(match[2]) + Number("0." + (match[3] || "0")) + shift);
-    const words = line.replace(/\[[^\]]*\]/g, "").replace(/<\d+:\d+(?:\.\d+)?>/g, "").trim();
-    for (const at of stamps) rows.push({ at: Math.max(0, Math.round(at * 1000) / 1000), text: words });
+    while ((match = pattern.exec(line))) stamps.push(seconds(match[1], match[2], match[3]) + shift);
+    if (!stamps.length) continue;
+    const body = line.replace(/\[[^\]]*\]/g, "");
+    const words = wordsOf(body, shift);
+    const plain = words ? words.map((w) => w.text).join("") : body.replace(/<\d+:\d+(?:[.:]\d+)?>/g, "").trim();
+    for (const at of stamps) {
+      const row = { at: roundAt(at), text: plain };
+      // a repeated line moves its words along with it
+      if (words) row.words = words.map((w) => ({ at: roundAt(w.at === null ? at : w.at + at - stamps[0]), text: w.text }));
+      rows.push(row);
+    }
   }
   return rows.sort((a, b) => a.at - b.at).slice(0, 2000);
 }

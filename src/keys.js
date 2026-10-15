@@ -50,3 +50,38 @@ export function exitApp() {
   if (system && typeof system.platformBack === "function") system.platformBack();
   else window.close();
 }
+
+const SEEK_SECONDS = 10;
+const DIM_STEP = 10; // percent
+const TRIM_STEP_MS = 25;
+
+// What a key does on the main screen (no menu or panel open), as data:
+// { do, by? } or null. ctx: { mode (playback.js VIEW_MODES), visualsShown
+// (MilkDrop is on screen), milkdropReady, milkdropOn, live, lyrics (status) }.
+// In the Visuals modes the arrows work the visualizer. On the poster (Album,
+// Lyrics) they work the song: left/right seek, untimed lyrics page on every
+// arrow, and yellow favourites the song rather than the preset.
+export function remoteAction(name, ctx) {
+  const poster = ctx.mode === "album" || ctx.mode === "lyrics";
+  const paging = ctx.mode === "lyrics" && ctx.lyrics === "plain";
+  if (name === "left" || name === "right") {
+    const sign = name === "left" ? -1 : 1;
+    if (paging) return { do: "lyricsPage", by: sign };
+    if (poster) return { do: "seek", by: sign * SEEK_SECONDS };
+    return { do: "dim", by: sign * DIM_STEP };
+  }
+  if (name === "up" || name === "down") {
+    if (paging) return { do: "lyricsPage", by: name === "up" ? -1 : 1 };
+    if (poster && !ctx.visualsShown) return { do: "hint" };
+    return { do: "preset", by: name === "up" ? 1 : -1 };
+  }
+  if (name === "yellow") {
+    if (poster) return { do: "favoriteSong" };
+    return ctx.milkdropReady ? { do: "favoritePreset" } : null;
+  }
+  if (name === "blue") return ctx.milkdropOn && (!poster || ctx.visualsShown) ? { do: "presetList" } : null;
+  if (name === "red" || name === "green") return ctx.live ? { do: "trim", by: (name === "red" ? -1 : 1) * TRIM_STEP_MS } : null;
+  if (name === "ok") return { do: "controls" };
+  if (name === "back") return { do: "exit" };
+  return null;
+}

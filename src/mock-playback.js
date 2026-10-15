@@ -87,7 +87,7 @@ export function createMockPlayback() {
       if (command === "music/albums/album_tracks") return tracksFor("library://album/" + args.item_id);
       if (command === "music/playlists/playlist_tracks") return tracksFor("library://playlist/" + args.item_id);
       if (command === "providers") return [{ instance_id: "spotify--demo", domain: "spotify", name: "Spotify (demo)" }, { instance_id: "filesystem--demo", domain: "filesystem_local", name: "Music folder (demo)" }];
-      if (command === "metadata/get_track_lyrics") return [null, "[00:00]An evening without hurry\n[00:20]A little room to breathe\n[00:35]The light across the ceiling\n[00:50]The music underneath\n[01:10]Let the world grow quiet\n[01:30]Stay a little while"];
+      if (command === "metadata/get_track_lyrics") return [null, "[00:00]An evening without hurry\n[00:20]<00:20.0>A <00:20.6>little <00:21.4>room <00:22.4>to <00:23.0>breathe\n[00:35]<00:35.0>The <00:35.5>light <00:36.4>across <00:37.4>the <00:37.8>ceiling\n[00:50]The music underneath\n[01:10]Let the world grow quiet\n[01:30]Stay a little while"];
       if (command === "player_queues/items") return tracks.slice(args.offset, args.offset + args.limit);
       if (command === "player_queues/play_media") {
         const radio = /^radio_playlist:\/\/playlist\//.test(args.media);

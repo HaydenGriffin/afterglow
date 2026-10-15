@@ -3,6 +3,7 @@ import { createPlayback, lyricIndex, timeLabel, trackInfo, VIEW_LABELS, VIEW_MOD
 import { css, onField, posterColours } from "./poster-colour.js";
 import { createBrowse } from "./browse-view.js";
 import { badgeOf, describeStream } from "./stream-details.js";
+import { createKaraoke } from "./karaoke.js";
 
 // Drawn UI runs at 4 Hz, independently of the visualizer. Text only changes
 // when its value changes; artwork is requested once per URL at 512 pixels.
@@ -73,6 +74,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     toolbar.appendChild(button);
   });
 
+  const karaoke = createKaraoke(() => model.snapshot().lyricPosition);
   const browse = createBrowse({
     element: el(".player-browse"), live, host,
     play: (media, option) => command("play_media", { media, option }),
@@ -134,7 +136,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     model.wantLyrics(mode === "lyrics" || (overlay && mode !== "visuals"));
     onMode(mode);
   }
-  function setMode(next) { mode = next; savePref("viewMode", mode); lyricsKey = ""; plainPage = 0; applyMode(); render(); }
+  function setMode(next) { karaoke.show(null); mode = next; savePref("viewMode", mode); lyricsKey = ""; plainPage = 0; applyMode(); render(); }
 
   // The track's palette sets the fields; after 22:00 the whole poster steps down.
   function applyColours() {
@@ -242,24 +244,28 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     addRow(minutes ? "Start a " + minutes + "-minute sleep timer" : "Clear the sleep timer", "Left and right change it", () => command("sleep", minutes), disabled,
       dir => { sleepIndex = (sleepIndex + dir + SLEEP_MINUTES.length) % SLEEP_MINUTES.length; });
   }
+  const plainLines = s => s.lyrics.plain.split(/\r?\n/).filter(Boolean);
+  const plainPages = s => Math.max(1, Math.ceil(plainLines(s).length / 4));
   function renderLyrics(s) {
     const index = lyricIndex(s.lyrics.lines, s.lyricPosition);
     const signature = trackKey + ":" + s.lyrics.status + ":" + index + ":" + plainPage;
     if (lyricsKey !== signature) {
-      lyricsKey = signature; const box = el(".poster-lyrics"); box.textContent = "";
+      lyricsKey = signature; const box = el(".poster-lyrics"); box.textContent = ""; karaoke.show(null);
       const line = (cls, value) => { const p = document.createElement("p"); p.className = cls; text(p, value); box.appendChild(p); };
       if (s.lyrics.status === "timed") {
         const at = i => s.lyrics.lines[i] ? s.lyrics.lines[i].text : "";
         line("lyric-before", at(index - 1)); line("lyric-now", at(index)); line("lyric-after", at(index + 1));
+        if (mode === "lyrics") karaoke.show(box.children[1], s.lyrics.lines[index]);
       } else if (s.lyrics.status === "plain") {
-        const lines = s.lyrics.plain.split(/\r?\n/).filter(Boolean);
-        plainPage = Math.min(plainPage, Math.max(0, Math.ceil(lines.length / 4) - 1));
+        const lines = plainLines(s);
+        plainPage = Math.min(plainPage, plainPages(s) - 1);
         line("lyric-plain", lines.slice(plainPage * 4, plainPage * 4 + 4).join("\n"));
-        line("lyric-note", "Untimed lyrics · page " + (plainPage + 1) + " · change it in Display");
+        line("lyric-note", "Untimed lyrics · page " + (plainPage + 1) + " of " + plainPages(s) + " · arrows turn the page");
       } else {
         line("lyric-note", s.lyrics.status === "error" ? "Lyrics couldn’t load. Retry in Display." : s.lyrics.status === "missing" ? "No lyrics for this track" : s.track ? "Finding lyrics…" : "");
       }
     }
+    karaoke.update();
     const showOverlay = overlay && mode === "track" && s.lyrics.status === "timed";
     const current = s.lyrics.lines[index];
     text(el(".lyric-overlay"), showOverlay && current ? current.text : "");
@@ -327,6 +333,16 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     get isOpen() { return !!panel; },
     open: openControls, close,
     setMode,
+    snapshot: () => model.snapshot(),
+    command,
+    // Turn the page of untimed lyrics; returns { page, pages } (1-based) or null.
+    pageLyrics(by) {
+      const s = model.snapshot();
+      if (s.lyrics.status !== "plain") return null;
+      const pages = plainPages(s);
+      plainPage = Math.max(0, Math.min(pages - 1, plainPage + by)); lyricsKey = ""; optionKey = ""; render();
+      return { page: plainPage + 1, pages };
+    },
     reloadPrefs() { const next = loadPref("viewMode", "track"); if (VIEW_MODES.indexOf(next) >= 0) mode = next; background = loadPref("playerBackground", false); overlay = loadPref("lyricsOverlay", false); applyMode(); },
     start() { model.start(); if (!timer) timer = setInterval(() => { model.tick(); render(); if (panel === "controls" && Date.now() > hideAt) close(); }, 250); },
     stop() { clearInterval(timer); timer = 0; model.stop(); close(); },

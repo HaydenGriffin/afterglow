@@ -3,12 +3,13 @@ import { createPlayerView } from "./player-view.js";
 import { createMockPlayback } from "./mock-playback.js";
 import { createAnalysis } from "./analysis.js";
 import { renewIfDue, shouldForget } from "./auth.js";
+import { createBedtime, createBedtimeController } from "./bedtime.js";
 import { createDebug } from "./debug.js";
 import { startDevlink } from "./devlink.js";
 import { createDrift } from "./drift.js";
 import { createEngine } from "./engine.js";
 import { createKeepAwake } from "./keepawake.js";
-import { exitApp, installKeys } from "./keys.js";
+import { exitApp, installKeys, remoteAction } from "./keys.js";
 import { createLive } from "./live.js";
 import { createLogin } from "./login.js";
 import { getPlayerDelay, listTokens, renewToken, setPlayerDelay, signOut } from "./ma.js";
@@ -17,6 +18,8 @@ import { drawSync, timingLabel } from "./sync-figure.js";
 import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, SCALE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
 import { createMock } from "./mock.js";
 import { createRelaunchHandler } from "./relaunch.js";
+import { lockFor, lockKeys, withLock } from "./preset-lock.js";
+import { timeLabel } from "./playback.js";
 import { createScan, recoverScan } from "./scan.js";
 import { SendspinPlayer } from "@sendspin/sendspin-js";
 import { createSpeaker, playerIdFor, toggledSpeaker } from "./speaker.js";
@@ -28,9 +31,9 @@ const MESSAGE_REFRESH_MS = 1000;
 const HINT_MS = 3000;
 const TOAST_MS = 3500;
 const TRACK_CARD_MS = 9000;
+const BEDTIME_TICK_MS = 1000; // also how soon a preset lock follows a new track
 const TRACK_MODES = ["start", "always", "off"];
 const DIM_CHOICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]; // percent
-const DIM_STEP = 10;
 const RENEW_CHECK_MS = 8000; // after launch
 
 let booted = false;
@@ -338,6 +341,31 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     if (milkdrop.list === "favorites" && !milkdrop.favoriteCount) toast("No favourite presets yet: showing all presets", true);
   }
 
+  // Preset locks (preset-lock.js): this preset whenever this album or artist plays.
+  function playingTrack() {
+    return playerView ? playerView.snapshot().track : null;
+  }
+  function applyPresetLock() {
+    const lock = lockFor(loadPref("presetLocks", {}), playingTrack());
+    milkdrop.hold(lock ? lock.name : null);
+  }
+  function lockRow(kind) {
+    const key = () => lockKeys(playingTrack())[kind];
+    const locked = () => !!key() && loadPref("presetLocks", {})[key()];
+    const what = () => (kind === "album" ? playingTrack().album : playingTrack().artist);
+    return {
+      label: () => (locked() ? "Unlock preset for this " : "Lock preset for this ") + kind,
+      visible: () => milkdrop.ready && !!key(),
+      value: () => (locked() ? locked() : what()),
+      change() {
+        const name = locked() ? null : milkdrop.presetName;
+        savePref("presetLocks", withLock(loadPref("presetLocks", {}), key(), name));
+        applyPresetLock();
+        toast(name ? "Preset locked for " + what() : "Preset unlocked for " + what(), true);
+      },
+    };
+  }
+
   const menu = createMenu(byId("menu"), [
     { section: "Sound & sync" },
     {
@@ -369,6 +397,12 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       visible: () => !!live,
       value: () => timingLabel(live.trimMs, "after the music", "before the music", "With the music"),
       change: (direction) => live.nudgeTrim(direction * TRIM_STEP_MS),
+    },
+    {
+      // Stops the music after a while; the picture goes black in the meantime.
+      label: "Bedtime",
+      value: () => bedtime.label,
+      change: (direction) => bedtime.cycle(direction),
     },
     { section: "Display" },
     {
@@ -427,6 +461,8 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       value: () => (milkdrop.isFavorite ? "Yes" : "No"),
       change: () => toast(milkdrop.toggleFavorite() ? "Added to favourite presets" : "Removed from favourite presets", true),
     },
+    lockRow("album"),
+    lockRow("artist"),
     {
       // Whether this preset is in the validated list: by measurement, or by
       // the person's own say-so.
@@ -517,6 +553,19 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     engine, onSettings: () => menu.open(), onNotice: text => toast(text, true),
     onMode(mode) { trackCard.style.display = mode === "track" ? "" : "none"; applyDim(); }
   });
+
+  const bedtimeCover = document.createElement("div");
+  bedtimeCover.id = "bedtime";
+  document.body.appendChild(bedtimeCover);
+  const bedtime = createBedtimeController({
+    bedtime: createBedtime(),
+    playback: playerView,
+    setDark: (on) => bedtimeCover.classList.toggle("dark", on),
+  });
+  setInterval(() => {
+    bedtime.tick();
+    applyPresetLock();
+  }, BEDTIME_TICK_MS);
 
   debug = createDebug(byId("debug"), () =>
     Object.assign(
@@ -611,22 +660,46 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       if (name === "back") scan.stop();
       return;
     }
+    if (bedtime.wake()) return; // a black picture: the key only wakes it
     if (menu.handleKey(name)) return;
     if (playerView.handleKey(name)) return;
-    if (name === "up") milkdrop.step(1);
-    else if (name === "down") milkdrop.step(-1);
-    else if (name === "left" || name === "right") {
-      setDimViz(dimViz + (name === "left" ? -DIM_STEP : DIM_STEP));
+    runKeyAction(remoteAction(name, keyContext()));
+    menu.redraw(); // Settings, if open, shows what a colour key changed
+  }
+  function keyContext() {
+    const mode = playerView.mode;
+    const visualsShown = !milkdropOff && (mode === "visuals" || mode === "track" || loadPref("playerBackground", false));
+    return { mode, visualsShown, milkdropReady: milkdrop.ready, milkdropOn: !milkdropOff, live: !!live, lyrics: playerView.snapshot().lyrics.status };
+  }
+  function seekBy(seconds) {
+    const s = playerView.snapshot();
+    if (!s.track || !s.track.duration) return toast("Seeking is unavailable for this stream", true);
+    const to = Math.max(0, Math.min(s.track.duration, s.position + seconds));
+    toast((seconds < 0 ? "Back " : "Ahead ") + Math.abs(seconds) + " s · " + timeLabel(to), true);
+    playerView.command("seek", to);
+  }
+  function runKeyAction(action) {
+    if (!action) return;
+    if (action.do === "preset") milkdrop.step(action.by);
+    else if (action.do === "dim") {
+      setDimViz(dimViz + action.by);
       toast("Dim " + dimViz + "%", true);
-    } else if (name === "ok") playerView.open();
-    else if (name === "red" && live) live.nudgeTrim(-TRIM_STEP_MS);
-    else if (name === "green" && live) live.nudgeTrim(TRIM_STEP_MS);
-    else if (name === "yellow" && milkdrop.ready) {
+    } else if (action.do === "seek") seekBy(action.by);
+    else if (action.do === "lyricsPage") {
+      const page = playerView.pageLyrics(action.by);
+      if (page) toast("Lyrics page " + page.page + " of " + page.pages, true);
+    } else if (action.do === "hint") {
+      toast(playerView.mode === "lyrics" ? "Lyrics follow the song · ← → seek 10 s" : "← → seek 10 s · OK for controls", true);
+    } else if (action.do === "favoriteSong") {
+      playerView.command("favorite").then((ok) => ok || toast("Couldn’t add the song to favourites", true));
+    } else if (action.do === "favoritePreset") {
       toast(milkdrop.toggleFavorite() ? "Added to favourite presets" : "Removed from favourite presets", true);
-    } else if (name === "blue" && !milkdropOff) {
+    } else if (action.do === "presetList") {
       cycleList(1);
       toast("Presets: " + listText(), true);
-    } else if (name === "back") exitApp();
+    } else if (action.do === "trim") live.nudgeTrim(action.by);
+    else if (action.do === "controls") playerView.open();
+    else if (action.do === "exit") exitApp();
   }
   installKeys(onKey);
 

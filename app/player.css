@@ -61,6 +61,9 @@
 #player[data-mode="lyrics"] .poster-lyrics { display: flex; flex-direction: column; justify-content: flex-end; position: absolute; left: 35.42vw; right: 5vw; top: 13vh; height: 46vh; padding-bottom: 1vh; box-sizing: border-box; }
 .lyric-before { font-size: 3vh; line-height: 1.2; color: var(--paper-2); min-height: 3.6vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lyric-now { margin: 2.2vh 0 !important; padding-bottom: .2em; font-size: 8.4vh; line-height: .98; font-weight: 800; font-stretch: 82%; letter-spacing: -.015em; max-height: 27vh; overflow: hidden; }
+/* Karaoke: words still to come in faded paper, sung words in paper. No transition. */
+.lyric-now.karaoke span { color: var(--paper-2); }
+.lyric-now.karaoke span.sung { color: var(--paper); }
 .lyric-after { font-size: 3.6vh; line-height: 1.2; font-weight: 500; color: var(--paper-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lyric-plain { font-size: 4.4vh; line-height: 1.25; font-weight: 600; white-space: pre-line; max-height: 40vh; overflow: hidden; }
 .lyric-note { margin-top: 2vh !important; font-size: 2.4vh; color: var(--paper-2); }
@@ -155,3 +158,6 @@
   .poster-art { width: 30vw; } .poster-title { font-size: 7vw; } .poster-title[data-length="long"] { font-size: 5vw; }
   .player-panel { left: 20vw; } .transport button { width: 12vw; margin-right: .8vw; }
 }
+/* Bedtime: the picture goes to black (an OLED at black is off); the music plays on. */
+#bedtime { position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 6; background: #000; opacity: 0; pointer-events: none; transition: opacity 3s linear; }
+#bedtime.dark { opacity: 1; }
