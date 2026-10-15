@@ -33,7 +33,7 @@ export function createKeepAwake(shouldHold) {
     attempts++;
     // The service keeps a name registered until the TV restarts and refuses it
     // a second time, so every launch registers under a new one.
-    name = "net.botworth.vizman." + Date.now().toString(36);
+    name = "io.github.haydengriffin.afterglow." + Date.now().toString(36);
     status = "registering";
     subscription = new Bridge();
     subscription.onservicecallback = (payload) => {

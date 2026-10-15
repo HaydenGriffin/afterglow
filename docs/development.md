@@ -5,7 +5,7 @@ npm install
 npm test               # node --test
 npm run dev            # serves app/ on port 8137
 npm run build          # bundles src/ into app/app.js and app/vendor/
-npm run package        # dist/net.botworth.vizman_<version>_all.ipk
+npm run package        # dist/io.github.haydengriffin.afterglow_<version>_all.ipk
 ```
 
 `src/` is bundled by esbuild for Chromium 68 (the LG CX). The build fails on
@@ -117,7 +117,7 @@ copy `.dev/bench-tv.json` over.
 
 1. Bump `version` in `package.json` and `app/appinfo.json`; add a `CHANGELOG.md` entry.
 2. `npm test && npm run package` with no `host`/`token` in `config.local.json`.
-3. Attach `dist/net.botworth.vizman_<version>_all.ipk` to the release.
+3. Attach `dist/io.github.haydengriffin.afterglow_<version>_all.ipk` to the release.
 
 ## Afterglow first-pass development
 

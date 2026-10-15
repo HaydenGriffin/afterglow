@@ -1,8 +1,8 @@
 # Catalog entry for the webOS Homebrew Channel (https://github.com/webosbrew/apps-repo).
-# Copy to packages/net.botworth.vizman.yml in a fork of that repository.
+# Copy to packages/io.github.haydengriffin.afterglow.yml in a fork of that repository.
 title: viz-man
 iconUri: https://raw.githubusercontent.com/mnestrud/viz-man/main/app/largeIcon.png
-manifestUrl: https://github.com/mnestrud/viz-man/releases/latest/download/net.botworth.vizman.manifest.json
+manifestUrl: https://github.com/HaydenGriffin/afterglow/releases/latest/download/io.github.haydengriffin.afterglow.manifest.json
 category: multimedia
 pool: main
 requirements:

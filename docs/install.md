@@ -43,7 +43,7 @@ draws in time with the music. Without it the TV connects, signs in, and shows
 
 ## 3. Install the app on the TV
 
-Get `net.botworth.vizman_<version>_all.ipk` from the
+Get `io.github.haydengriffin.afterglow_<version>_all.ipk` from the
 [releases page](https://github.com/mnestrud/viz-man/releases), or build it
 with `npm install && npm run package` (it lands in `dist/`). The package is
 the same for every TV and contains no credentials.
@@ -62,7 +62,7 @@ Any of these works; pick what you have.
   sideloading off again afterwards. From a checkout, `npm run install-tv --
   <tv-ip>` does the upload and the confirmation through Glasshouse's API.
 - **Shell on the TV** (SSH or telnet): copy the package over and run
-  `luna-send -n 1 luna://com.webos.appInstallService/dev/install '{"id":"net.botworth.vizman","ipkUrl":"/tmp/vizman.ipk","subscribe":true}'`.
+  `luna-send -n 1 luna://com.webos.appInstallService/dev/install '{"id":"io.github.haydengriffin.afterglow","ipkUrl":"/tmp/afterglow.ipk","subscribe":true}'`.
 
 ### Developer Mode (any webOS TV, no root)
 
@@ -75,7 +75,7 @@ Any of these works; pick what you have.
 
    ```
    npx ares-setup-device        # add the TV: its IP, port 9922, user prisoner, the passphrase
-   npx ares-install --device <name> dist/net.botworth.vizman_<version>_all.ipk
+   npx ares-install --device <name> dist/io.github.haydengriffin.afterglow_<version>_all.ipk
    ```
 
 3. Developer Mode's session expires after 50 hours and takes sideloaded apps
@@ -212,4 +212,4 @@ on each TV; what one TV can draw says nothing about another.
 - **Signing out**: OK → **Log out** removes the TV's token from the account
   and shows the sign-in form. Do this before uninstalling or lending the TV.
 - **Uninstalling**: from the TV's home screen, Glasshouse's Apps tab, or
-  `npx ares-install --device <name> --remove net.botworth.vizman`.
+  `npx ares-install --device <name> --remove io.github.haydengriffin.afterglow`.
