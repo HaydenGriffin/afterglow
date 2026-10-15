@@ -73,9 +73,11 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     toolbar.appendChild(button);
   });
 
+  // The one place Browse and the idle poster start music.
+  function playMedia(media, option) { return command("play_media", { media, option }); }
   const browse = createBrowse({
     element: el(".player-browse"), live, host,
-    play: (media, option) => command("play_media", { media, option }),
+    play: playMedia,
     target: () => { const q = model.snapshot().queue; return q && q.display_name || "the current player"; },
     onNotice, onLeave: toNow => toNow ? close() : openControls()
   });
@@ -325,6 +327,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     get mode() { return mode; },
     get isOpen() { return !!panel; },
     open: openControls, close,
+    playMedia, resume: () => command("play"), openBrowse: () => openPanel("browse"),
     setMode,
     reloadPrefs() { const next = loadPref("viewMode", "track"); if (VIEW_MODES.indexOf(next) >= 0) mode = next; background = loadPref("playerBackground", false); overlay = loadPref("lyricsOverlay", false); applyMode(); },
     start() { model.start(); if (!timer) timer = setInterval(() => { model.tick(); render(); if (panel === "controls" && Date.now() > hideAt) close(); }, 250); },

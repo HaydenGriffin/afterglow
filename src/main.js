@@ -6,6 +6,7 @@ import { createDebug } from "./debug.js";
 import { startDevlink } from "./devlink.js";
 import { startDrift } from "./drift.js";
 import { createEngine } from "./engine.js";
+import { createIdle } from "./idle-view.js";
 import { createKeepAwake } from "./keepawake.js";
 import { exitApp, installKeys } from "./keys.js";
 import { createLive } from "./live.js";
@@ -502,10 +503,18 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     { label: "Log out", visible: () => !!live, value: () => (auth ? auth.user + " @ " + auth.host : "dev token"), change: logOut },
   ], { onBack: () => playerView.open() });
 
+  const playback = live || createMockPlayback();
   playerView = createPlayerView({
-    root: byId("player"), live: live || createMockPlayback(), host: settings.host,
+    root: byId("player"), live: playback, host: settings.host,
     engine, onSettings: () => menu.open(), onNotice: text => toast(text, true),
     onMode(mode) { trackCard.style.display = mode === "track" ? "" : "none"; applyDim(); }
+  });
+
+  const idle = createIdle({
+    element: byId("idle"), live: playback, host: settings.host,
+    play: (media, option) => playerView.playMedia(media, option),
+    resume: () => playerView.resume(),
+    onBrowse() { playerView.openBrowse(); refreshMessage(); },
   });
 
   debug = createDebug(byId("debug"), () =>
@@ -559,6 +568,8 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   }
 
   function refreshMessage() {
+    idle.update(!(live && live.problem) && !playerView.isOpen && !menu.isOpen && !scan.running && !login.isOpen && !leaving);
+    if (idle.showing) { message.style.display = "none"; return; }
     if (playerView && (playerView.mode === "album" || playerView.mode === "lyrics")) { message.style.display = "none"; return; }
     if (milkdropOff) {
       message.textContent = "MilkDrop can't run on this TV: " + milkdropOff + (hasWebGL2() ? " (OK, then MilkDrop, to retry)" : "");
@@ -593,6 +604,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     }
     if (menu.handleKey(name)) return;
     if (playerView.handleKey(name)) return;
+    if (idle.handleKey(name)) return;
     if (name === "up") milkdrop.step(1);
     else if (name === "down") milkdrop.step(-1);
     else if (name === "left" || name === "right") {
@@ -624,7 +636,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   });
   hint.addEventListener("click", () => playerView.open());
 
-  startDrift([byId("stage"), message, trackCard, document.querySelector(".poster"), document.querySelector(".lyric-overlay")]);
+  startDrift([byId("stage"), byId("idle"), message, trackCard, document.querySelector(".poster"), document.querySelector(".lyric-overlay")]);
 
   startDevlink({
     base: settings.report,

@@ -143,6 +143,36 @@
 .player-error { position: absolute; left: 35.42vw; right: 5vw; top: 2vh; padding: 1vh 1vw; font-size: 2.4vh; font-weight: 600; background: var(--paper); color: var(--ink); }
 .player-error:empty { display: none; }
 
+/* Idle: what was played recently, set as a poster while nothing plays. Below
+   the player's sheets (z 2) and menu; drifts with the picture; dims at rest. */
+#idle { display: none; position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 1; background: var(--ink); color: var(--paper); font-family: var(--face); transition: transform 4s linear; }
+#idle.shown { display: block; }
+#idle.night { --paper: rgb(196,192,185); --paper-2: rgba(196,192,185,.72); }
+#idle.night .idle-art img { opacity: .72; }
+#idle.rest { opacity: .35; }
+#idle p, #idle h1, #idle ol { margin: 0; padding: 0; }
+#idle::before { content: ""; position: absolute; left: 35.42vw; right: 5vw; top: 10.5vh; border-top: var(--hair) solid var(--rule); }
+.idle-art { position: absolute; left: 0; top: 0; bottom: 0; width: 34.16vw; background: var(--field-b); overflow: hidden; }
+.idle-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.idle-target, .idle-state { position: absolute; top: 6vh; font-size: 2.2vh; font-weight: 500; letter-spacing: .01em; color: var(--paper-2); }
+.idle-target { left: 35.42vw; right: 40vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.idle-state { right: 5vw; }
+.idle-title { position: absolute; left: 35.42vw; right: 5vw; top: 13vh; height: 46vh; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: .24em; box-sizing: border-box;
+  font-size: 13.6vh; line-height: .9; font-weight: 820; font-stretch: 80%; letter-spacing: -.02em; overflow-wrap: break-word; }
+.idle-title[data-length="short"] { font-size: 18vh; line-height: .86; }
+.idle-title[data-length="long"] { font-size: 9.8vh; line-height: .92; }
+.idle-title[data-length="xlong"] { font-size: 7.4vh; line-height: .95; }
+.idle-field { position: absolute; top: 62vh; left: 35.42vw; width: 36.77vw; height: 23vh; box-sizing: border-box; padding: 2.6vh 1.4vw; overflow: hidden; background: var(--field-a); color: var(--on-a); }
+.idle-detail { font-size: 4vh; line-height: 1.1; font-weight: 750; font-stretch: 88%; max-height: 8.8vh; overflow: hidden; }
+.idle-hint { margin-top: 1.4vh !important; font-size: 2.6vh; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.idle-strip { position: absolute; left: 35.42vw; right: 5vw; top: 87vh; display: flex; list-style: none; }
+.idle-strip li { margin-right: .9vw; }
+.idle-tile { display: block; width: 4.9vw; height: 4.9vw; padding: .5vh; box-sizing: border-box; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.idle-tile img { width: 100%; height: 100%; object-fit: cover; display: block; background: var(--field-b); }
+.idle-tile.selected { background: var(--paper); color: var(--ink); outline: none; }
+.idle-word { display: flex; align-items: flex-end; height: 100%; box-sizing: border-box; padding: .4vh .3vw; font-size: 1.9vh; font-weight: 700; border-top: var(--hair) solid var(--rule); }
+.idle-tile.selected .idle-word { border-top-color: transparent; }
+
 #menu { z-index: 3; max-height: 100vh; overflow-y: auto; }
 #menu h2 { margin: 0 0 1vh; padding-bottom: 2vh; font-size: 9vh; line-height: .92; font-weight: 820; font-stretch: 80%; letter-spacing: -.02em; border-bottom: var(--hair) solid var(--rule); }
 #menu h3 { margin: 3.4vh 0 .6vh; font-size: 2.2vh; font-weight: 800; letter-spacing: .02em; color: var(--paper-2); }
