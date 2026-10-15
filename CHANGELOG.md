@@ -7,8 +7,9 @@
 - **Migration.** webOS treats the new id as a different app: it installs
   beside the old one rather than replacing it. Remove `net.botworth.vizman`
   afterwards (and its Music Assistant token, "viz-man on ..." / "Afterglow on
-  ...", under Settings → Users). On the new app, sign in again; per-TV settings
-  (login, Play on this TV, audio delay, preset scan results) start fresh.
+  ...", under Settings → Users). On the new app, sign in again; what is kept
+  only on the TV (its login, device id, Play on this TV choice, a scan in
+  progress) starts fresh.
   Favourites and the preferences synced through the Music Assistant account
   come back after sign-in. A TV that turns Play on this TV on again without its
   launch parameter rejoins as the same player (`webos-viz-man-tv`).
