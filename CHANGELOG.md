@@ -10,8 +10,9 @@
   ...", under Settings → Users). On the new app, sign in again; what is kept
   only on the TV (its login, device id, Play on this TV choice, a scan in
   progress) starts fresh.
-  Favourites and the preferences synced through the Music Assistant account
-  come back after sign-in. A TV that turns Play on this TV on again without its
+  Favourites and the shared preferences synced through the Music Assistant
+  account come back after sign-in; this TV's own synced settings are keyed by
+  its device id, which is new, so they start from the shared ones. A TV that turns Play on this TV on again without its
   launch parameter rejoins as the same player (`webos-viz-man-tv`).
 - Anything that launches the app by id (launchApp, deep links, scripts) must
   use the new id.
