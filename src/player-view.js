@@ -303,7 +303,8 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   }
   function renderNext(s) {
     const list = el(".poster-next");
-    const items = [s.next].concat((s.items || []).slice(1, 2)).filter(Boolean);
+    // The queue list belongs to the target; it only extends Next when that is what is drawn.
+    const items = [s.next].concat(s.target && s.target.drawn ? (s.items || []).slice(1, 2) : []).filter(Boolean);
     const signature = JSON.stringify(items.map(t => t.title));
     if (list.dataset.key === signature) return;
     list.dataset.key = signature; list.textContent = "";
@@ -341,7 +342,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     // The transport acts on the target, which a chosen idle speaker can make differ from the poster.
     const t = s.target, tt = t && t.track, tPosition = t && t.drawn ? s.position : t ? t.position : 0;
     const tPaused = t && t.queue && t.queue.state === "paused";
-    text(el(".control-track"), tt ? tt.title + (tt.artist ? " · " + tt.artist : "") + (t.drawn ? "" : " · " + t.name) : t ? "Nothing playing on " + t.name : "No speaker found");
+    text(el(".control-track"), tt ? tt.title + (tt.artist ? " · " + tt.artist : "") + (t.drawn ? "" : " · " + t.name) : t ? "Nothing playing on " + t.name : "Finding speakers…");
     text(el(".control-time"), (tPaused ? "Paused · " : "") + timeLabel(tPosition) + " / " + (tt && tt.duration ? timeLabel(tt.duration) : "Live"));
     const progress = track && track.duration ? Math.min(100, s.position / track.duration * 100) : 0;
     el(".progress-track div").style.width = progress + "%";
