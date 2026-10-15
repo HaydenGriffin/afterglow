@@ -5,7 +5,7 @@ import { createAnalysis } from "./analysis.js";
 import { renewIfDue, shouldForget } from "./auth.js";
 import { createDebug } from "./debug.js";
 import { startDevlink } from "./devlink.js";
-import { startDrift } from "./drift.js";
+import { createDrift } from "./drift.js";
 import { createEngine } from "./engine.js";
 import { createKeepAwake } from "./keepawake.js";
 import { exitApp, installKeys } from "./keys.js";
@@ -285,6 +285,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     if (speaker) speaker.stop();
     if (live) live.stop();
     engine.stop();
+    stopScreenTimers();
     if (shouldForget(loadPref("auth", null), rejectedToken)) clearPref("auth");
     login.show({ host: auth ? auth.host : settings.host, user: auth ? auth.user : "", message: messageText });
   }
@@ -581,7 +582,17 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     message.style.display = "block";
   }
   engine.onIdleChange(refreshMessage);
-  setInterval(refreshMessage, MESSAGE_REFRESH_MS);
+  // Kept current while shown; stopped while hidden or signed out.
+  let messageTimer = 0;
+  function startScreenTimers() {
+    if (!messageTimer) messageTimer = setInterval(refreshMessage, MESSAGE_REFRESH_MS);
+    drift.start();
+  }
+  function stopScreenTimers() {
+    clearInterval(messageTimer);
+    messageTimer = 0;
+    drift.stop();
+  }
 
   function onKey(name) {
     if (leaving) {
@@ -632,7 +643,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   });
   hint.addEventListener("click", () => playerView.open());
 
-  startDrift([byId("stage"), message, trackCard, document.querySelector(".poster"), document.querySelector(".lyric-overlay")]);
+  const drift = createDrift([byId("stage"), message, trackCard, document.querySelector(".poster"), document.querySelector(".lyric-overlay")]);
 
   startDevlink({
     base: settings.report,
@@ -666,8 +677,10 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     if (speaker) speaker.start();
     playerView.start();
     engine.start();
+    startScreenTimers();
   }
   function suspend() {
+    stopScreenTimers();
     playerView.stop();
     scan.stop();
     engine.stop();
