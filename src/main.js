@@ -3,7 +3,6 @@ import { createPlayerView } from "./player-view.js";
 import { createMockPlayback } from "./mock-playback.js";
 import { createAnalysis } from "./analysis.js";
 import { renewIfDue, shouldForget } from "./auth.js";
-import { createBedtime, createBedtimeController } from "./bedtime.js";
 import { createDebug } from "./debug.js";
 import { startDevlink } from "./devlink.js";
 import { createDrift } from "./drift.js";
@@ -19,7 +18,6 @@ import { drawSync, timingLabel } from "./sync-figure.js";
 import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, SCALE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
 import { createMock } from "./mock.js";
 import { createRelaunchHandler } from "./relaunch.js";
-import { createPresetLocks, lockKeys } from "./preset-lock.js";
 import { timeLabel } from "./playback.js";
 import { createScan, recoverScan } from "./scan.js";
 import { SendspinPlayer } from "@sendspin/sendspin-js";
@@ -32,7 +30,6 @@ const MESSAGE_REFRESH_MS = 1000;
 const HINT_MS = 3000;
 const TOAST_MS = 3500;
 const TRACK_CARD_MS = 9000;
-const BEDTIME_TICK_MS = 1000; // also how soon a preset lock follows a new track
 const TRACK_MODES = ["start", "always", "off"];
 const DIM_CHOICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]; // percent
 const RENEW_CHECK_MS = 8000; // after launch
@@ -244,7 +241,6 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     dimTrack = loadPref("dimTrack", 0);
     applyDim();
     milkdrop.reloadPrefs();
-    presetLocks.reload();
     if (playerView) playerView.reloadPrefs();
     if (live) {
       live.reloadTrim();
@@ -362,31 +358,6 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     if (milkdrop.list === "favorites" && !milkdrop.favoriteCount) toast("No favourite presets yet: showing all presets", true);
   }
 
-  // Preset locks (preset-lock.js): this preset whenever this album or artist plays.
-  function playingTrack() {
-    return playerView ? playerView.snapshot().track : null;
-  }
-  const presetLocks = createPresetLocks({
-    load: () => loadPref("presetLocks", {}),
-    save: (locks) => savePref("presetLocks", locks),
-    hold: (name) => milkdrop.hold(name),
-  });
-  function lockRow(kind) {
-    const key = () => lockKeys(playingTrack())[kind];
-    const locked = () => presetLocks.locked(key());
-    const what = () => (kind === "album" ? playingTrack().album : playingTrack().artist);
-    return {
-      label: () => (locked() ? "Unlock preset for this " : "Lock preset for this ") + kind,
-      visible: () => milkdrop.ready && !!key(),
-      value: () => (locked() ? locked() : what()),
-      change() {
-        const name = locked() ? null : milkdrop.presetName;
-        presetLocks.set(key(), name, playingTrack());
-        toast(name ? "Preset locked for " + what() : "Preset unlocked for " + what(), true);
-      },
-    };
-  }
-
   const menu = createMenu(byId("menu"), [
     { section: "Sound & sync" },
     {
@@ -419,12 +390,6 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       visible: () => !!live,
       value: () => timingLabel(live.trimMs, "after the music", "before the music", "With the music"),
       change: (direction) => live.nudgeTrim(direction * TRIM_STEP_MS),
-    },
-    {
-      // Stops the music after a while; the picture goes black in the meantime.
-      label: "Bedtime",
-      value: () => bedtime.label,
-      change: (direction) => bedtime.cycle(direction),
     },
     { section: "Display" },
     {
@@ -483,8 +448,6 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       value: () => (milkdrop.isFavorite ? "Yes" : "No"),
       change: () => toast(milkdrop.toggleFavorite() ? "Added to favourite presets" : "Removed from favourite presets", true),
     },
-    lockRow("album"),
-    lockRow("artist"),
     {
       // Whether this preset is in the validated list: by measurement, or by
       // the person's own say-so.
@@ -583,22 +546,6 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   sheetWatch.observe(byId("player"), { attributes: true, attributeFilter: ["class"] });
   sheetWatch.observe(byId("menu"), { attributes: true, attributeFilter: ["style"] });
 
-  const bedtimeCover = document.createElement("div");
-  bedtimeCover.id = "bedtime";
-  document.body.appendChild(bedtimeCover);
-  const bedtime = createBedtimeController({
-    bedtime: createBedtime(),
-    playback: playerView,
-    setDark: (on) => {
-      bedtimeCover.classList.toggle("dark", on);
-      engine.setResting(on);
-    },
-  });
-  function everySecond() {
-    bedtime.tick();
-    presetLocks.follow(playingTrack());
-  }
-
   const idle = createIdle({
     element: byId("idle"), live: playback, host: settings.host,
     play: (media, option) => playerView.playMedia(media, option),
@@ -651,7 +598,6 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     speaker: speaker ? speaker.stats : null,
     speakerState: speaker ? speaker.state + (speaker.error ? " (" + speaker.error + ")" : "") : null,
     idle: engine.idle,
-    resting: engine.resting,
     running: engine.running,
     live: live ? live.diagnostics() : null,
   });
@@ -679,16 +625,13 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   engine.onIdleChange(refreshMessage);
   // Kept current while shown; stopped while hidden or signed out.
   let messageTimer = 0;
-  let secondTimer = 0; // bedtime and preset locks
   function startScreenTimers() {
     if (!messageTimer) messageTimer = setInterval(refreshMessage, MESSAGE_REFRESH_MS);
-    if (!secondTimer) secondTimer = setInterval(everySecond, BEDTIME_TICK_MS);
     drift.start();
   }
   function stopScreenTimers() {
     clearInterval(messageTimer);
-    clearInterval(secondTimer);
-    messageTimer = secondTimer = 0;
+    messageTimer = 0;
     drift.stop();
   }
 
@@ -708,7 +651,6 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       if (name === "back") scan.stop();
       return;
     }
-    if (bedtime.wake()) return; // a black picture: the key only wakes it
     if (menu.handleKey(name)) return;
     if (playerView.handleKey(name)) return;
     if (idle.handleKey(name)) return;

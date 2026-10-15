@@ -1,3 +1,10 @@
+# 1.5.2 — Fewer features (15 October 2026)
+
+- Removed Bedtime: Music Assistant's sleep timer (Queue panel) and the TV's own
+  sleep timer cover it.
+- Removed preset locks per album or artist: favourite presets with automatic
+  changes off cover holding a preset.
+
 # 1.5.1 — Review fixes and an Online lyrics switch (15 October 2026)
 
 - Display → Lyrics gains **Online lyrics** (On by default, synced): Off keeps

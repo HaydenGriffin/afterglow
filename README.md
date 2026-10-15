@@ -31,9 +31,6 @@ began as a fork of [Michael Nestrud's viz-man](https://github.com/mnestrud/viz-m
   or leaves a sync group.
 - **Idle poster.** With nothing playing, the paused song or recent music is
   set as a poster, one OK away from playing.
-- **Bedtime.** After 15, 30 or 60 minutes or at the end of the track: the
-  picture goes black, the volume fades over the last 30 s, then playback
-  pauses.
 - **Presets.** 395 MilkDrop presets (through Music Assistant's fork of
   Butterchurn), driven by the waveform Music Assistant streams a few seconds
   ahead, so the picture lands on the beat. **Scan presets** measures each one

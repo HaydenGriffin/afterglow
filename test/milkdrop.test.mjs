@@ -81,14 +81,3 @@ test("a lost context stops MilkDrop; its restoration is reported so the page can
   assert.equal(restored, 1);
 });
 
-test("a held (locked) preset is shown but never becomes the saved default", async () => {
-  page();
-  const { loadPref, savePref } = await import("../src/settings.js");
-  savePref("preset", "a");
-  const mode = createMilkdropMode(() => {}, () => {});
-  await started(mode, new FakeCanvas());
-  assert.equal(mode.presetName, "a");
-  mode.hold("b");
-  assert.equal(mode.presetName, "b");
-  assert.equal(loadPref("preset", ""), "a", "the lock does not overwrite the person's choice");
-});

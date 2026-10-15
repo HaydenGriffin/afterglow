@@ -44,21 +44,3 @@ test("artwork mode drains the waveform without analysis or GPU draws, and resume
   assert.equal(waves,3);assert.equal(analyses,1);assert.equal(draws,1);assert.equal(canvas.style.display,'none');
   engine.setDrawing(true);tick(136);assert.equal(draws,2);assert.equal(canvas.style.display,'');engine.stop();
 });
-
-test("resting (bedtime's black picture) drains the waveform but neither draws nor copies the picture", (t) => {
-  let tick, waves = 0, draws = 0, copies = 0;
-  const previous = Object.fromEntries(["window", "requestAnimationFrame", "cancelAnimationFrame"].map(k => [k, Object.getOwnPropertyDescriptor(globalThis, k)]));
-  t.after(() => { for (const [k, d] of Object.entries(previous)) { if (d) Object.defineProperty(globalThis, k, d); else delete globalThis[k]; } });
-  globalThis.window = { innerWidth: 1920, innerHeight: 1080 };
-  globalThis.requestAnimationFrame = fn => { tick = fn; return 1; };
-  globalThis.cancelAnimationFrame = () => {};
-  const engine = createEngine({ canvas: { style: {} }, analysis: { setWave() {} }, source: { wave() { waves++; return new Uint8Array(2); } } });
-  engine.setRenderer({ create: () => ({ draw() { draws++; } }) });
-  engine.onAfterRender(() => copies++);
-  engine.start(); tick(34);
-  engine.setResting(true); tick(68); tick(102);
-  assert.deepEqual({ waves, draws, copies }, { waves: 3, draws: 1, copies: 1 });
-  engine.setResting(false); tick(136);
-  assert.deepEqual({ draws, copies }, { draws: 2, copies: 2 });
-  engine.stop();
-});

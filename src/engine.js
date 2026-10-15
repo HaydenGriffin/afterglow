@@ -17,7 +17,6 @@ export function createEngine({ canvas, analysis, source }) {
   let raf = 0;
   let running = false;
   let drawing = true;
-  let resting = false; // bedtime's black picture: nothing is drawn or copied
   let lastFrameMs = 0;
   let fpsCap = 60;
   let fps = 0;
@@ -49,8 +48,7 @@ export function createEngine({ canvas, analysis, source }) {
     }
     fpsFrames++;
 
-    const wave = feed.wave(nowMs); // drained even when resting, so it never backs up
-    if (resting) return;
+    const wave = feed.wave(nowMs);
     if (wave === null) {
       // Nothing is playing: blank the picture once and wait.
       if (!idle) {
@@ -81,8 +79,6 @@ export function createEngine({ canvas, analysis, source }) {
   return {
     setDrawing(on) { drawing = !!on; canvas.style.display = drawing ? "" : "none"; },
     get drawing() { return drawing; },
-    setResting(on) { resting = !!on; },
-    get resting() { return resting; },
     setRenderer(renderer) {
       const scale = renderer.scale || DEFAULT_SCALE;
       const w = Math.round(window.innerWidth * scale);

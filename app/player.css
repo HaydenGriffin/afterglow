@@ -199,6 +199,3 @@
   .lyric-now { font-size: 5.4vw; }
   .player-panel { left: 20vw; } .transport button { width: 12vw; margin-right: .8vw; }
 }
-/* Bedtime: the picture goes to black (an OLED at black is off); the music plays on. */
-#bedtime { position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 6; background: #000; opacity: 0; pointer-events: none; transition: opacity 3s linear; }
-#bedtime.dark { opacity: 1; }

@@ -160,7 +160,7 @@ Artwork is contained inside a square at 6vw from the left and 16vh from the top,
 
 The lyrics timing adjustment affects words only; it does not move the audio, visualizer, progress, or seek target. A failed lookup and a confirmed missing recording remain distinct states, both with a Retry lyrics row under Lyrics in Display.
 
-Pure black remains intentional for the underlying visualizer canvas and the OLED bedtime screen.
+Pure black remains intentional for the underlying visualizer canvas.
 
 **Original poster system (retained for the existing controls and reference)**
 

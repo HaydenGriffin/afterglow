@@ -18,7 +18,7 @@ few things to stay light.
   on for profiling.
 - **Drawing only when it shows.** Album and Lyrics views without a MilkDrop
   background stop drawing and analysis. Switching to another TV app suspends
-  rendering; bedtime rests the renderer after a minute of black screen.
+  rendering.
 - **WebGL released on `pagehide`.** The WebGL context is released when the page
   closes and before the app reloads itself, so the TV gets its graphics memory
   back; a restored context reloads cleanly.

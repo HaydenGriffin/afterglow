@@ -114,7 +114,6 @@ export function createMilkdropMode(onFail, onNotice) {
   let output = null; // the canvas the picture is copied to
   let released = false; // the page is going: nothing more is drawn
   let restoredListener = null;
-  let held = null; // a preset locked to the playing album or artist (preset-lock.js): shown, and not rotated away from
 
   function loadFavorites() {
     // The plain list from before the timestamps is folded in whenever present,
@@ -207,8 +206,7 @@ export function createMilkdropMode(onFail, onNotice) {
   function showIndexed(blend) {
     watching = true;
     show(names[index], presets[names[index]], blend);
-    // A held preset is the lock's choice, not the person's: their default stays.
-    if (names[index] !== held) savePref("preset", names[index]);
+    savePref("preset", names[index]);
     onNotice(names[index]);
   }
 
@@ -276,7 +274,7 @@ export function createMilkdropMode(onFail, onNotice) {
     validation.rated[name] = Math.round(fps);
     ratingsDirty = true;
     commitRatings();
-    if (favorites.indexOf(name) >= 0 || validation.overrides[name] === true || name === held || listed(name)) return;
+    if (favorites.indexOf(name) >= 0 || validation.overrides[name] === true || listed(name)) return;
     if (++skippedInARow >= GIVE_UP_AFTER) return fail("too slow on this TV");
     onNotice("Too slow, skipped: " + name);
     step(1, 0);
@@ -309,7 +307,7 @@ export function createMilkdropMode(onFail, onNotice) {
         validation.bench = window.afterglowPresetBench || {};
         names = Object.keys(presets).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
         if (!names.length) throw new Error("no presets in the package");
-        index = Math.max(0, names.indexOf(held && names.indexOf(held) >= 0 ? held : loadPref("preset", "")));
+        index = Math.max(0, names.indexOf(loadPref("preset", "")));
         if (!listed(names[index])) index = Math.max(0, names.findIndex(listed));
         const options = { width: canvas.width, height: canvas.height, pixelRatio: 1, meshWidth: 32, meshHeight: 24 };
         // Butterchurn only uses the audio context to tap live audio; the
@@ -363,27 +361,12 @@ export function createMilkdropMode(onFail, onNotice) {
           if (scanning) return; // the scan does its own timing
           sincePreset += f.dt;
           watchFrameRate(f.dt);
-          if (rotateSeconds && !held && sincePreset >= rotateSeconds) random();
+          if (rotateSeconds && sincePreset >= rotateSeconds) random();
         },
       };
     },
     step,
     fail,
-    // Hold a locked preset (null lets go). Acts only when the lock changes, so
-    // the arrows still move away from it; rotation waits while one is held.
-    hold(name) {
-      const next = name || null;
-      if (next === held) return;
-      held = next;
-      if (!held || !visualizer) return;
-      const at = names.indexOf(held);
-      if (at < 0 || current === held) return;
-      index = at;
-      showIndexed(BLEND_SECONDS);
-    },
-    get held() {
-      return held;
-    },
     // Jump to a preset by name, browsing the full list from there.
     select(name) {
       const at = names.indexOf(name);

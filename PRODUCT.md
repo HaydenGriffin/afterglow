@@ -25,6 +25,6 @@ before that `net.botworth.vizman`). Keep the Music Assistant preferences key
 
 ## Scope
 Music Assistant parity from the TV remote: Browse and Search, queue editing,
-choosing the player or sync group, Start radio, bedtime and the TV as a
+choosing the player or sync group, Start radio, a sleep timer and the TV as a
 Sendspin speaker. Colour comes from each song's artwork; no fixed accent
 colour. Podcast and audiobook browsing are later work.

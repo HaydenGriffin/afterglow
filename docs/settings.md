@@ -109,8 +109,7 @@ In Album and Lyrics the keys work the song instead:
 | Yellow | Add the song to the favourites in Music Assistant |
 | Blue | Cycle the preset list, only when MilkDrop runs behind |
 
-While bedtime has blacked out the picture, the first key only wakes it. In a
-browser, F and L stand in for Yellow and Blue, R and G for Red and Green;
+In a browser, F and L stand in for Yellow and Blue, R and G for Red and Green;
 arrows, Enter and Escape work as on the remote. The settings menu and the
 idle poster handle keys of their own; the on-screen focus shows what a key
 will act on.
@@ -128,7 +127,6 @@ that do not apply (no speaker on, MilkDrop off) are hidden.
 | Play on this TV | Off / player name · state | Off | Plays the music on the TV too, as a Music Assistant player through Sendspin. Switching it on again comes back as the same player |
 | TV output compensation | None / Sound sent n ms early | from Music Assistant | Shown while Play on this TV is on. Compensates the TV's own output latency so its sound lands with the other speakers, in 10 ms steps; saved as the player's Sendspin delay in Music Assistant |
 | Picture and lyrics timing | With the music / n ms after / before the music | With the music | Shifts MilkDrop and timed lyrics together, in 25 ms steps. Also Red/Green |
-| Bedtime | Off / 15 min / 30 min / 60 min / End of track, with the time left | Off | Pauses the speaker commands act on when the time is up (End of track only for a song with a length). A minute after it is set, or after the last key, the picture goes black while the music plays on; the volume fades over the last 30 s and is put back after the pause. Turns itself off |
 | **Display** | | | |
 | Dim visualizer | 0% … 90% | 0% | Darkens the picture; black stays black |
 | Track info | When a song starts / Always / Off | When a song starts | The artist, title, album and label card, lower left |
@@ -139,7 +137,6 @@ that do not apply (no speaker on, MilkDrop off) are hidden.
 | **Visuals & presets** | | | |
 | Preset | position and name | last used | Left/right step through the list being browsed |
 | Favorite | Yes / No | — | Shared with Music Assistant's MilkDrop favourites and with other TVs on the account |
-| Lock preset for this album / artist | the album or artist; once locked, the preset's name | — | OK keeps the current preset whenever this album (or artist) plays; the row then reads Unlock. An album lock wins over an artist lock. A locked preset is not rotated away from, and does not replace the preset you chose. Kept with this TV's settings on the account |
 | Validated | Yes (52 fps) / No (18 fps) / Yes (by you) / No (by you) / Not tested | by measurement | OK adds or removes this preset from the validated list by hand. An override that agrees with the measurement again is dropped |
 | Preset list | Runs well here / All presets / Favourite presets, with a count | Runs well here | Which presets ↑/↓, shuffle and the timer draw from. A favourites list with nothing in it shows all |
 | Preset order | Shuffled / In order | Shuffled | How ↑/↓ move |
