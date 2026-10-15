@@ -168,3 +168,20 @@ test('transfer and grouping send Music Assistant 2.10 arguments for the target',
   h.model.command('group', { remove: 'den' });
   assert.deepEqual(h.calls[4], { command: 'players/cmd/set_members', args: { target_player: 'group', player_ids_to_remove: ['den'] } });
 });
+
+test('skips pressed while one is in flight collapse into one pending skip per direction', async () => {
+  const h = harness();
+  const first = h.model.command('next');
+  const more = [h.model.command('next'), h.model.command('next'), h.model.command('previous'), h.model.command('previous'), h.model.command('next')];
+  assert.equal(h.calls.length, 1, 'one skip in flight');
+  h.pending[0].resolve(null);
+  assert.equal(await first, true);
+  await settle();
+  assert.deepEqual(h.calls.map((c) => c.command), ['player_queues/next', 'player_queues/next']);
+  h.pending[1].resolve(null);
+  await settle();
+  assert.deepEqual(h.calls.map((c) => c.command), ['player_queues/next', 'player_queues/next', 'player_queues/previous']);
+  h.pending[2].resolve(null);
+  assert.deepEqual(await Promise.all(more), [true, true, true, true, true], 'every press hears back');
+  assert.equal(h.calls.length, 3);
+});

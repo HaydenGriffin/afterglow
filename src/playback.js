@@ -99,6 +99,7 @@ export function volumeOf(player) {
 
 const TOGGLES = { shuffle: "shuffle_enabled", autoplay: "autoplay_enabled", crossfade: "crossfade_enabled" };
 const LATEST = { volume: true, seek: true }; // presses that only need their last value
+const ONCE = { next: true, previous: true }; // at most one waiting per direction
 const ASSUME_MS = 4000; // how long a value just sent outranks the queue's own
 const WAITING_MAX = 8;
 
@@ -291,15 +292,17 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
       lyrics = { status: "idle", lines: [], plain: "" };
     },
     // Presses made while a command is in flight wait their turn instead of
-    // being lost; repeated volume and seek presses collapse into one.
+    // being lost; repeated volume and seek presses collapse into one, and
+    // skips into one waiting skip per direction.
     // Resolves true once Music Assistant accepted the command.
     command(action, value) {
       return new Promise(resolve => {
         const family = action.replace(/_by$/, "");
         const relative = family !== action;
-        const pending = LATEST[family] && waiting.filter(job => job.family === family)[0];
+        const pending = (LATEST[family] || ONCE[family]) && waiting.filter(job => job.family === family)[0];
         if (pending) {
-          if (relative) pending.value += value; else { pending.value = value; pending.relative = false; }
+          // A waiting skip stands for this press too.
+          if (LATEST[family]) { if (relative) pending.value += value; else { pending.value = value; pending.relative = false; } }
           pending.done.push(resolve);
           return;
         }

@@ -42,12 +42,17 @@ export function isTyping(target) {
   return !!target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA");
 }
 
+// Media keys act once per press: a held fast-forward would otherwise queue a
+// skip for every auto-repeat. Arrows keep repeating for moving through lists.
+const ONCE_PER_PRESS = { play: true, pause: true, playpause: true, stop: true, fastforward: true, rewind: true };
+
 export function installKeys(handler) {
   window.addEventListener("keydown", (event) => {
     const name = keyName(event);
     if (!name) return;
     if (isTyping(event.target)) return; // login.js handles Enter and Back on its inputs
     event.preventDefault();
+    if (event.repeat && ONCE_PER_PRESS[name]) return;
     handler(name);
   });
 }
