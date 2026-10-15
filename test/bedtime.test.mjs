@@ -58,9 +58,10 @@ function controllerHarness(volume = 40) {
   let now = 0;
   const calls = [];
   const darks = [];
+  // Bedtime acts on the target (what commands reach), as drawn here by default.
   const snap = { track: { id: "a", duration: 600 }, position: 0, player: { volume_level: volume } };
   const playback = {
-    snapshot: () => snap,
+    snapshot: () => ({ track: null, position: 0, player: null, target: snap }),
     command(action, value) {
       calls.push([action, value]);
       if (action === "volume") snap.player.volume_level = value;
@@ -134,4 +135,40 @@ test("setting a longer bedtime during the fade puts the volume back", () => {
   h.ctl.tick();
   assert.deepEqual(h.calls[1], ["volume", 30]);
   assert.equal(h.ctl.choice, 60);
+});
+
+test("bedtime follows the target, not the queue drawn on the poster", () => {
+  const h = controllerHarness(40);
+  const drawn = { track: { id: "drawn", duration: 30 }, position: 25, player: { volume_level: 90 } };
+  const target = h.snap;
+  target.track = { id: "target", duration: 600 };
+  target.position = 500;
+  const playback = {
+    snapshot: () => ({ track: drawn.track, position: drawn.position, player: drawn.player, target }),
+    command(action, value) {
+      h.calls.push([action, value]);
+      return Promise.resolve(true);
+    },
+  };
+  let now = 0;
+  const ctl = createBedtimeController({ bedtime: createBedtime(), playback, setDark: () => {}, now: () => now });
+  assert.equal(ctl.set("track"), true);
+  assert.equal(ctl.label, "End of track · 1:40 left", "the target's time left, not the drawn song's 0:05");
+  target.position = 585;
+  now = 85000;
+  ctl.tick();
+  assert.deepEqual(h.calls, [["volume", 20]], "faded from the target's own volume");
+});
+
+test("a group target fades and restores the group volume", async () => {
+  const h = controllerHarness(80);
+  h.snap.player = { player_id: "lead", type: "player", group_members: ["lead", "kitchen"], volume_level: 80, group_volume: 30 };
+  h.ctl.set(15);
+  h.at(15 * MIN - 15000);
+  h.ctl.tick();
+  assert.deepEqual(h.calls, [["volume", 15]]);
+  h.at(15 * MIN);
+  h.ctl.tick();
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(h.calls.slice(1), [["pause", undefined], ["volume", 30]]);
 });
