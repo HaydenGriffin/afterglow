@@ -1,6 +1,6 @@
 import { loadPref, savePref } from "./settings.js";
 import { createPlayback, lyricIndex, timeLabel, trackInfo, VIEW_LABELS, VIEW_MODES, volumeOf } from "./playback.js";
-import { css, onField, posterColours } from "./poster-colour.js";
+import { css, posterTheme } from "./poster-colour.js";
 import { createBrowse } from "./browse-view.js";
 import { badgeOf, describeStream } from "./stream-details.js";
 import { createKaraoke } from "./karaoke.js";
@@ -140,17 +140,18 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   }
   function setMode(next) { karaoke.show(null); mode = next; savePref("viewMode", mode); lyricsKey = ""; plainPage = 0; applyMode(); render(); }
 
-  // The track's palette sets the fields; after 22:00 the whole poster steps down.
-  function applyColours() {
+  // The track's palette sets the fields (neutral with no track drawn, so the
+  // empty poster does not keep the last song's colours); after 22:00 the
+  // whole poster steps down.
+  function applyColours(hasTrack) {
     const late = new Date().getHours(); const isNight = late >= 22 || late < 6;
-    if (live.palette === palette && isNight === night) return;
-    palette = live.palette; night = isNight;
-    const c = posterColours(palette);
-    const dim = f => isNight ? onField(f.map(v => Math.round(v * 0.72))) : null;
-    const a = dim(c.fieldA) || { field: c.fieldA, text: c.onA }, b = dim(c.fieldB) || { field: c.fieldB, text: c.onB };
+    const next = hasTrack ? live.palette : null;
+    if (next === palette && isNight === night) return;
+    palette = next; night = isNight;
+    const c = posterTheme(palette, isNight);
     const style = document.documentElement.style;
-    style.setProperty("--field-a", css(a.field)); style.setProperty("--on-a", css(a.text));
-    style.setProperty("--field-b", css(b.field)); style.setProperty("--on-b", css(b.text));
+    style.setProperty("--field-a", css(c.fieldA)); style.setProperty("--on-a", css(c.onA));
+    style.setProperty("--field-b", css(c.fieldB)); style.setProperty("--on-b", css(c.onB));
     style.setProperty("--ground", css(c.ground));
     root.classList.toggle("night", isNight);
   }
@@ -325,7 +326,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   }
   function render() {
     const s = model.snapshot(), track = s.track;
-    applyColours();
+    applyColours(!!track);
     const nextTrackKey = s.queue ? s.queue.queue_id + ":" + (track ? track.id : "") : "";
     if (nextTrackKey !== trackKey) {
       trackKey = nextTrackKey; lyricsKey = ""; plainPage = 0;
