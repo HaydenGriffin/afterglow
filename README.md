@@ -1,14 +1,18 @@
+<p align="center">
+  <img src="docs/images/hero.jpg" alt="Afterglow on a TV: the album artwork, the lyrics with the current line sung word by word, and MilkDrop visuals behind" width="100%">
+</p>
+
 # Afterglow
 
-An unofficial Music Assistant player for LG webOS TVs. Afterglow shows the
-album artwork, word-by-word lyrics and the queue, lets you browse, search and
-play from the TV remote, and draws MilkDrop visuals in time with whatever your
-speakers are playing. It can also make the TV itself a Music Assistant speaker.
+An unofficial Music Assistant player for LG webOS TVs. It shows the artwork, word-by-word lyrics and the queue, lets
+you browse and play from the remote, and draws MilkDrop visuals in time with whatever your speakers are playing.
 
-![Lyrics view, with word-by-word karaoke](docs/screenshots/lyrics.jpg)
+**[Try the demo in a browser →](https://haydengriffin.github.io/afterglow/)** It runs on made-up data. Use the arrow
+keys and Enter as the remote's arrows and OK, and Escape as Back; OK → Display switches between Visuals, Album and
+Lyrics.
 
-Afterglow is independent of, and not endorsed by, Music Assistant or LG. It
-began as a fork of [Michael Nestrud's viz-man](https://github.com/mnestrud/viz-man).
+Afterglow is independent of, and not endorsed by, Music Assistant or LG. It began as a fork of
+[Michael Nestrud's viz-man](https://github.com/mnestrud/viz-man).
 
 ## What it does
 
@@ -46,11 +50,7 @@ began as a fork of [Michael Nestrud's viz-man](https://github.com/mnestrud/viz-m
 - **Kind to OLEDs.** Holds the screensaver off only while music plays and
   drifts the picture against burn-in.
 
-| | |
-|---|---|
-| ![Album view](docs/screenshots/album.jpg) | ![MilkDrop with the track card](docs/screenshots/visuals-track.jpg) |
-| ![Search](docs/screenshots/search.jpg) | ![Queue](docs/screenshots/queue.jpg) |
-| ![Idle poster](docs/screenshots/idle.jpg) | ![Settings](docs/screenshots/settings.jpg) |
+<img src="docs/images/views.jpg" alt="Four views: Album, Browse, the queue, and the idle poster with nothing playing" width="100%">
 
 ## Requirements
 
@@ -64,6 +64,11 @@ began as a fork of [Michael Nestrud's viz-man](https://github.com/mnestrud/viz-m
 - For the visuals, speakers Music Assistant streams to itself (Sonos,
   Chromecast, AirPlay, Squeezelite, ...). A speaker playing on its own, such as
   Spotify straight from the Spotify app, carries nothing to draw.
+
+> **Status:** Afterglow runs every day on a rooted 2021 LG C1 (webOS 6). The Homebrew Channel listing and installs on
+> other TVs and webOS versions haven't been tried yet. Long sessions on the C1 have shown native memory growing in an
+> aged web runtime, which is under investigation (see [Performance](docs/performance.md)). Reports either way are very
+> welcome.
 
 ## Install
 
@@ -106,9 +111,9 @@ best match). LRCLIB sees the request coming from your network. Turn
 stop it; it is on by default and synced with your other TVs.
 
 The TV stores its Music Assistant token in the app's own storage, never your
-password. There is no analytics or telemetry.
+password. There is no analytics or telemetry. The browser demo requests nothing but its own files.
 
-## Building
+## Development
 
 ```sh
 npm install
@@ -117,8 +122,10 @@ npm run package   # dist/io.github.haydengriffin.afterglow_<version>_all.ipk
                   # and dist/io.github.haydengriffin.afterglow.manifest.json
 ```
 
-`npm run dev` serves the app in a desktop browser; `?mock=1` runs it on demo
-data without Music Assistant. See [Development](docs/development.md) and the
+`npm run dev` serves the app in a desktop browser; `?mock=1` runs it on demo data without Music Assistant, which is
+what the [browser demo](https://haydengriffin.github.io/afterglow/) is (built by
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml)). The README images are rendered from the demo by
+[`scripts/showcase.mjs`](scripts/showcase.mjs) with Playwright. See [Development](docs/development.md) and the
 [changelog](CHANGELOG.md).
 
 ## Credits
