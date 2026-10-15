@@ -22,6 +22,9 @@ export const MIN_BUFFER_MS = 2000;
 export const DELAY_STEP_MS = 10;
 export const DELAY_MAX_MS = 5000;
 export const DELAY_SAVE_MS = 600;
+// A failed connect is tried again, waiting longer each time (as relay.js).
+const RETRY_MIN_MS = 1000;
+const RETRY_MAX_MS = 30000;
 
 // Music Assistant's address without its web port: Sendspin has its own.
 export function sendspinUrl(host) {
@@ -54,17 +57,51 @@ export function createSpeaker({ host, Player, delays }) {
   let state = "off"; // off | connecting | ready | playing | error
   let error = "";
   let generation = 0;
+  let retryTimer = 0;
+  let retryMs = RETRY_MIN_MS;
 
-  function stop() {
-    generation++;
-    if (!player) return;
+  function release(reason) {
     try {
-      player.disconnect("user_request");
+      player.disconnect(reason);
     } catch (e) {
       // gone already
     }
     player = null;
+  }
+
+  function stop() {
+    generation++;
+    clearTimeout(retryTimer);
+    retryTimer = 0;
+    retryMs = RETRY_MIN_MS;
+    if (!player) return;
+    release("user_request");
     state = wanted ? "connecting" : "off";
+  }
+
+  function scheduleRetry(run) {
+    const wait = retryMs * (0.75 + Math.random() * 0.5);
+    retryMs = Math.min(retryMs * 2, RETRY_MAX_MS);
+    retryTimer = setTimeout(() => {
+      retryTimer = 0;
+      if (generation !== run) return;
+      release("retry");
+      start();
+    }, wait);
+  }
+
+  // A change to the delay still waiting to be saved goes to its own player now.
+  function flushDelay() {
+    if (!saveTimer) return;
+    clearTimeout(saveTimer);
+    saveTimer = 0;
+    if (wanted) saveDelay(wanted.id, delay);
+  }
+
+  function saveDelay(id, ms) {
+    delays.set(id, ms).catch((e) => {
+      error = "delay not saved: " + ((e && e.message) || e);
+    });
   }
 
   function loadDelay() {
@@ -105,10 +142,14 @@ export function createSpeaker({ host, Player, delays }) {
     Promise.resolve()
       .then(() => generation === run && current.unlock && current.unlock())
       .then(() => generation === run && current.connect())
+      .then(() => {
+        if (generation === run) retryMs = RETRY_MIN_MS;
+      })
       .catch((e) => {
         if (generation !== run) return;
         state = "error";
         error = (e && e.message) || String(e);
+        scheduleRetry(run);
       });
   }
 
@@ -166,14 +207,14 @@ export function createSpeaker({ host, Player, delays }) {
       clearTimeout(saveTimer);
       saveTimer = setTimeout(() => {
         saveTimer = 0;
-        delays.set(id, delay).catch((e) => {
-          error = "delay not saved: " + ((e && e.message) || e);
-        });
+        saveDelay(id, delay);
       }, DELAY_SAVE_MS);
     },
     // name "" switches it off
     set(name, id) {
       stop();
+      flushDelay();
+      delay = null; // the new player's own is read on start
       wanted = name ? { name, id: id || playerIdFor(name) } : null;
       state = wanted ? "connecting" : "off";
     },

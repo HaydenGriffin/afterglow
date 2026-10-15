@@ -24,6 +24,11 @@ function fakePlayer() {
   return { Player, made };
 }
 
+// Lets queued promise callbacks run (works with mocked timers too).
+async function flush() {
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+}
+
 test("Sendspin is Music Assistant's host on its own port", () => {
   assert.equal(sendspinUrl("192.168.0.4"), "http://192.168.0.4:8927");
   assert.equal(sendspinUrl("192.168.0.4:8095"), "http://192.168.0.4:8927");
@@ -76,15 +81,56 @@ test("hidden (suspended) disconnects, shown again connects afresh; off disconnec
   assert.equal(speaker.state, "off");
 });
 
-test("a failed connect shows as an error", async () => {
-  const { Player } = fakePlayer();
+test("a failed connect shows as an error, then is retried with a growing wait until it connects", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { Player, made } = fakePlayer();
+  let refusals = 2;
+  Player.prototype.connect = function () {
+    this.calls.push("connect");
+    return refusals-- > 0 ? Promise.reject(new Error("refused")) : Promise.resolve();
+  };
+  const speaker = createSpeaker({ host: "ma", Player });
+  speaker.set("TV");
+  speaker.start();
+  await flush();
+  assert.equal(speaker.state, "error");
+  assert.equal(speaker.error, "refused");
+  t.mock.timers.tick(1300);
+  await flush();
+  assert.equal(made.length, 2, "retried after about a second");
+  assert.equal(made[0].calls.pop(), "disconnect:retry", "the failed player is let go");
+  t.mock.timers.tick(1400);
+  await flush();
+  assert.equal(made.length, 2, "the next wait is longer");
+  t.mock.timers.tick(1200);
+  await flush();
+  assert.equal(made.length, 3);
+  assert.equal(speaker.state, "connecting");
+  assert.equal(speaker.error, "");
+  t.mock.timers.tick(120000);
+  await flush();
+  assert.equal(made.length, 3, "connected: no more retries");
+});
+
+test("stopping or switching the speaker cancels a pending retry", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { Player, made } = fakePlayer();
   Player.prototype.connect = () => Promise.reject(new Error("refused"));
   const speaker = createSpeaker({ host: "ma", Player });
   speaker.set("TV");
   speaker.start();
-  await new Promise((r) => setTimeout(r, 0));
-  assert.equal(speaker.state, "error");
-  assert.equal(speaker.error, "refused");
+  await flush();
+  speaker.stop(); // hidden
+  t.mock.timers.tick(60000);
+  await flush();
+  assert.equal(made.length, 1);
+  speaker.start();
+  await flush();
+  speaker.set(""); // switched off
+  t.mock.timers.tick(60000);
+  await flush();
+  assert.equal(made.length, 2);
+  assert.equal(speaker.state, "off");
 });
 
 test("hide/show before unlock completes connects only the replacement player once", async () => {
@@ -174,4 +220,25 @@ test("Play on this TV off and on again comes back as the same player (14 Oct: it
   assert.equal(toggledSpeaker(true, tv), null);
   assert.deepEqual(toggledSpeaker(false, tv), tv);
   assert.deepEqual(toggledSpeaker(false, null), { name: "viz-man TV", id: "webos-viz-man-tv" });
+});
+
+test("Audio delay belongs to its speaker: switching neither shows nor saves the old one's on the new one", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { Player } = fakePlayer();
+  const saved = [];
+  const values = { "webos-a": 300, "webos-b": 40 };
+  const delays = { get: (id) => Promise.resolve(values[id]), set: (id, ms) => (saved.push([id, ms]), Promise.resolve()) };
+  const speaker = createSpeaker({ host: "ma", Player, delays });
+  speaker.set("A", "webos-a");
+  speaker.start();
+  await flush();
+  speaker.nudgeDelay(1); // a save for A is waiting
+  speaker.set("B", "webos-b");
+  assert.equal(speaker.delayMs, null, "nothing shown until B's own is read");
+  assert.deepEqual(saved, [["webos-a", 310]], "A's change is saved to A straight away");
+  speaker.start();
+  await flush();
+  assert.equal(speaker.delayMs, 40);
+  t.mock.timers.tick(5000);
+  assert.deepEqual(saved, [["webos-a", 310]], "nothing of A's lands on B");
 });
