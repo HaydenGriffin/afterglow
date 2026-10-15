@@ -1,13 +1,16 @@
 // The Search row in Browse: a real text input, so the TV's on-screen keyboard
 // and the Magic Remote's voice input attach to it. keys.js leaves keys alone
-// while it has focus, so Enter and Back are handled here: Enter searches and
-// puts the keyboard away, Back just puts it away. Text that stops changing
+// while it has focus, so Enter, Back and the arrows are handled here: Enter
+// searches and puts the keyboard away, Back just puts it away, and Up or Down
+// (which reach the page only while the TV keyboard is closed, e.g. after voice
+// input) search, leave the field and move on into the list. Text that stops changing
 // for a moment (voice input often sends no Enter) searches by itself, and so
 // does the keyboard closing.
 const PAUSE_MS = 1000;
+const ARROWS = { 38: "up", 40: "down" };
 const LENS = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><path d="M10.5 4a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zM15.5 15.5L21 21"/></svg>';
 
-export function createSearchField({ onFocus, onSubmit, onLeave }) {
+export function createSearchField({ onFocus, onSubmit, onLeave, onArrow }) {
   const row = document.createElement("div"), icon = document.createElement("span"), input = document.createElement("input");
   row.className = "browse-search"; row.tabIndex = -1;
   icon.className = "browse-search-icon"; icon.innerHTML = LENS;
@@ -24,6 +27,7 @@ export function createSearchField({ onFocus, onSubmit, onLeave }) {
   input.addEventListener("keydown", event => {
     if (event.keyCode === 13 || event.key === "Enter") { event.preventDefault(); leave(true); }
     else if (event.keyCode === 461 || event.keyCode === 27 || event.key === "GoBack") { event.preventDefault(); leave(false); }
+    else if (ARROWS[event.keyCode]) { event.preventDefault(); leave(true); onArrow(ARROWS[event.keyCode]); }
   });
   input.addEventListener("input", () => { clearTimeout(pause); pause = setTimeout(submit, PAUSE_MS); });
   input.addEventListener("focus", onFocus);
