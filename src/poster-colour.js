@@ -3,6 +3,8 @@
 // ink or paper text on each field, whichever reads at 4.5:1 or better.
 export const INK = [18, 20, 23];
 export const PAPER = [239, 235, 227];
+export const PAPER_NIGHT = [196, 192, 185]; // DESIGN.md paper-night, 22:00 to 06:00
+const NIGHT_FIELD = 0.72;
 const NEUTRAL = { fieldA: [62, 66, 72], fieldB: [38, 41, 46], ground: INK };
 const ROLES = ["primary", "accent", "background_light", "background_dark"];
 
@@ -14,14 +16,14 @@ function valid(c) { return Array.isArray(c) && c.length >= 3 && c.slice(0, 3).ev
 function scale(c, k) { return c.slice(0, 3).map(v => Math.round(Math.max(0, Math.min(255, v * k)))); }
 
 // Ink or paper, whichever is clearer; a field neither reads on is darkened until paper does.
-export function onField(field) {
+export function onField(field, paper = PAPER) {
   let f = field.slice(0, 3);
   for (let i = 0; i < 12; i++) {
-    const best = contrast(f, INK) >= contrast(f, PAPER) ? INK : PAPER;
+    const best = contrast(f, INK) >= contrast(f, paper) ? INK : paper;
     if (contrast(f, best) >= 4.5) return { field: f, text: best };
     f = scale(f, 0.85);
   }
-  return { field: f, text: PAPER };
+  return { field: f, text: paper };
 }
 
 export function posterColours(palette) {
@@ -36,6 +38,15 @@ export function posterColours(palette) {
 function finish(a, b, ground) {
   const A = onField(a), B = onField(b);
   return { fieldA: A.field, onA: A.text, fieldB: B.field, onB: B.text, ground: ground.slice(0, 3) };
+}
+
+// The poster's colours for the hour: at night the fields step down and their
+// text is the night paper (or ink), checked again at 4.5:1.
+export function posterTheme(palette, night) {
+  const c = posterColours(palette);
+  if (!night) return c;
+  const A = onField(scale(c.fieldA, NIGHT_FIELD), PAPER_NIGHT), B = onField(scale(c.fieldB, NIGHT_FIELD), PAPER_NIGHT);
+  return { fieldA: A.field, onA: A.text, fieldB: B.field, onB: B.text, ground: c.ground };
 }
 
 export const css = c => "rgb(" + c.join(",") + ")";

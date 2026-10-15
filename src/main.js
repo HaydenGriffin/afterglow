@@ -19,7 +19,7 @@ import { drawSync, timingLabel } from "./sync-figure.js";
 import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, SCALE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
 import { createMock } from "./mock.js";
 import { createRelaunchHandler } from "./relaunch.js";
-import { lockFor, lockKeys, withLock } from "./preset-lock.js";
+import { createPresetLocks, lockKeys } from "./preset-lock.js";
 import { timeLabel } from "./playback.js";
 import { createScan, recoverScan } from "./scan.js";
 import { SendspinPlayer } from "@sendspin/sendspin-js";
@@ -119,13 +119,22 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   }
   function showTrackCard(track, timed) {
     clearTimeout(trackTimer);
-    if (!track || trackMode === "off") {
-      trackCard.className = "";
-      return;
-    }
+    if (!track || trackMode === "off") return setTrackCardShown(false);
     fillTrackCard(track);
-    trackCard.className = "shown";
-    if (timed) trackTimer = setTimeout(() => (trackCard.className = ""), TRACK_CARD_MS);
+    setTrackCardShown(true);
+    if (timed) trackTimer = setTimeout(() => setTrackCardShown(false), TRACK_CARD_MS);
+  }
+  function setTrackCardShown(shown) {
+    trackCard.classList.toggle("shown", shown);
+    stackLyricOverlay();
+  }
+  // The lyric overlay and the card share the lower left corner: while the
+  // card shows, the overlay sits on top of it, a gutter above.
+  function stackLyricOverlay() {
+    const overlay = document.querySelector(".lyric-overlay");
+    if (!overlay) return;
+    const cardShown = trackCard.classList.contains("shown") && trackCard.style.display !== "none";
+    overlay.style.bottom = cardShown ? "calc(6vh + " + trackCard.offsetHeight + "px + 1.4vh)" : "";
   }
   function applyTrackMode() {
     const track = live ? live.track : null;
@@ -234,6 +243,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     dimTrack = loadPref("dimTrack", 0);
     applyDim();
     milkdrop.reloadPrefs();
+    presetLocks.reload();
     if (playerView) playerView.reloadPrefs();
     if (live) {
       live.reloadTrim();
@@ -348,13 +358,14 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   function playingTrack() {
     return playerView ? playerView.snapshot().track : null;
   }
-  function applyPresetLock() {
-    const lock = lockFor(loadPref("presetLocks", {}), playingTrack());
-    milkdrop.hold(lock ? lock.name : null);
-  }
+  const presetLocks = createPresetLocks({
+    load: () => loadPref("presetLocks", {}),
+    save: (locks) => savePref("presetLocks", locks),
+    hold: (name) => milkdrop.hold(name),
+  });
   function lockRow(kind) {
     const key = () => lockKeys(playingTrack())[kind];
-    const locked = () => !!key() && loadPref("presetLocks", {})[key()];
+    const locked = () => presetLocks.locked(key());
     const what = () => (kind === "album" ? playingTrack().album : playingTrack().artist);
     return {
       label: () => (locked() ? "Unlock preset for this " : "Lock preset for this ") + kind,
@@ -362,8 +373,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       value: () => (locked() ? locked() : what()),
       change() {
         const name = locked() ? null : milkdrop.presetName;
-        savePref("presetLocks", withLock(loadPref("presetLocks", {}), key(), name));
-        applyPresetLock();
+        presetLocks.set(key(), name, playingTrack());
         toast(name ? "Preset locked for " + what() : "Preset unlocked for " + what(), true);
       },
     };
@@ -556,8 +566,14 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   playerView = createPlayerView({
     root: byId("player"), live: playback, host: settings.host,
     engine, onSettings: () => menu.open(), onNotice: text => toast(text, true),
-    onMode(mode) { trackCard.style.display = mode === "track" ? "" : "none"; applyDim(); }
+    onMode(mode) { trackCard.style.display = mode === "track" ? "" : "none"; stackLyricOverlay(); applyDim(); }
   });
+  // While controls, Browse, a panel or Settings is open, the track card and
+  // lyric overlay step aside (player.css .sheet-open).
+  const markSheets = () => document.body.classList.toggle("sheet-open", playerView.isOpen || menu.isOpen);
+  const sheetWatch = new MutationObserver(markSheets);
+  sheetWatch.observe(byId("player"), { attributes: true, attributeFilter: ["class"] });
+  sheetWatch.observe(byId("menu"), { attributes: true, attributeFilter: ["style"] });
 
   const bedtimeCover = document.createElement("div");
   bedtimeCover.id = "bedtime";
@@ -570,10 +586,10 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       engine.setResting(on);
     },
   });
-  setInterval(() => {
+  function everySecond() {
     bedtime.tick();
-    applyPresetLock();
-  }, BEDTIME_TICK_MS);
+    presetLocks.follow(playingTrack());
+  }
 
   const idle = createIdle({
     element: byId("idle"), live: playback, host: settings.host,
@@ -596,7 +612,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
         account: auth ? auth.user + " @ " + auth.host + " as " + auth.tokenName : "development override",
         player: live && live.following ? live.following.name + " / " + live.following.queueId + " (" + live.following.reason + ")" : "-",
         track: live && live.track ? live.track.artist + " / " + live.track.title : "-",
-        trackInfo: trackMode + (trackCard.className === "shown" ? ", card shown" : ""),
+        trackInfo: trackMode + (trackCard.classList.contains("shown") ? ", card shown" : ""),
         fps: engine.fps + " (cap " + engine.fpsCap + ")",
         canvas: canvas.width + "x" + canvas.height,
         window: window.innerWidth + "x" + window.innerHeight,
@@ -625,7 +641,11 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     drawing: engine.drawing,
     viewMode: playerView.mode,
     speaker: speaker ? speaker.stats : null,
+    speakerState: speaker ? speaker.state + (speaker.error ? " (" + speaker.error + ")" : "") : null,
     idle: engine.idle,
+    resting: engine.resting,
+    running: engine.running,
+    live: live ? live.diagnostics() : null,
   });
   if (crashed) {
     debug.record("scan: " + crashed + " took the TV down; marked not validated");
@@ -651,13 +671,16 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   engine.onIdleChange(refreshMessage);
   // Kept current while shown; stopped while hidden or signed out.
   let messageTimer = 0;
+  let secondTimer = 0; // bedtime and preset locks
   function startScreenTimers() {
     if (!messageTimer) messageTimer = setInterval(refreshMessage, MESSAGE_REFRESH_MS);
+    if (!secondTimer) secondTimer = setInterval(everySecond, BEDTIME_TICK_MS);
     drift.start();
   }
   function stopScreenTimers() {
     clearInterval(messageTimer);
-    messageTimer = 0;
+    clearInterval(secondTimer);
+    messageTimer = secondTimer = 0;
     drift.stop();
   }
 

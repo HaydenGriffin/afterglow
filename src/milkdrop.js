@@ -207,7 +207,8 @@ export function createMilkdropMode(onFail, onNotice) {
   function showIndexed(blend) {
     watching = true;
     show(names[index], presets[names[index]], blend);
-    savePref("preset", names[index]);
+    // A held preset is the lock's choice, not the person's: their default stays.
+    if (names[index] !== held) savePref("preset", names[index]);
     onNotice(names[index]);
   }
 

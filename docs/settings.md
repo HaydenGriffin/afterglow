@@ -11,14 +11,22 @@ it leaves the app. The controls hide after nine seconds without a key. Pointer
 clicks and the remote's play/pause keys also work; in a browser Space toggles
 playback.
 
-- **Browse:** recently played, favourite playlists, albums, songs and artists,
-  radio stations, all playlists and albums. An item offers Play now, Play next,
-  Add to the queue, Start radio from this and, for albums and playlists, Show
-  songs.
-- **Queue:** the next 12 songs of the queue being shown; a song offers Play now,
-  Play next, Move up, Move down and Remove from the queue. **Playing on** picks
-  the player Afterglow follows (see below). Shuffle, repeat, crossfade, keep
-  playing when the queue ends, volume and the sleep timer are here too.
+- **Browse:** Search, then recently played, favourite playlists, albums, songs
+  and artists, radio stations, all playlists and albums. Search opens the TV
+  keyboard (type or say an artist, album or song) and lists the artists,
+  albums, songs and playlists found. An item offers Play now, Play next, Add to
+  the queue, Start radio from this (not for radio stations) and, for albums,
+  playlists and artists, Show songs.
+- **Queue:** the next 12 songs of the queue commands act on; a song offers Play
+  now, Play next, Move up, Move down and Remove from the queue. **Playing on**
+  picks the player Afterglow follows (see below); picking a silent speaker
+  while music plays elsewhere moves the music to it. **Play on this TV** (shown
+  while Play on this TV is on and the music is elsewhere) moves the music to
+  the TV. **Speakers together** ticks the speakers that play the same music as
+  the chosen one; speakers that cannot join, and the group's leader, are listed
+  but cannot be changed. Shuffle, repeat, crossfade, keep playing when the
+  queue ends, volume (a group's volume for a group) and the sleep timer are
+  here too.
 - **Details:** what the song is and how it is streamed (source, format,
   quality), with Start radio from this song and Add to favourites.
 - **Display:** the view (Visuals only, Visuals + track, Album, Lyrics), MilkDrop
@@ -28,6 +36,16 @@ playback.
 
 Failed actions are shown; nothing is assumed to have worked while Music
 Assistant is unreachable.
+
+### Idle poster
+
+When nothing has played for 8 seconds (30 seconds after a pause), the screen
+sets what was played recently as a poster: the paused song first (OK resumes
+it), then recently played items (OK plays one), and Browse last. Left/right
+move along the strip; every other key keeps its usual meaning. After three
+minutes without a key it steps down to a dim register, and the first key only
+wakes it. While no song is shown the poster's fields are neutral, not the last
+song's colours.
 
 ### Playing on
 
@@ -42,7 +60,8 @@ on its own, a TV input) is passed over.
 
 ## Remote
 
-With the playback controls and the menu closed:
+With the playback controls and the menu closed, in Visuals only and Visuals +
+track:
 
 | Key | Action |
 |---|---|
@@ -54,16 +73,26 @@ With the playback controls and the menu closed:
 | Red / Green | Picture and lyrics timing −25 ms / +25 ms |
 | Back | Close the menu; pause a running scan; otherwise leave the app |
 
-In a browser, F and L stand in for Yellow and Blue, R and G for Red and Green;
-arrows, Enter and Escape work as on the remote. Some views (Album, Lyrics) and
-the settings menu may handle keys of their own; the on-screen focus shows what
-a key will act on.
+In Album and Lyrics the keys work the song instead:
+
+| Key | Action |
+|---|---|
+| ← / → | Seek back / ahead 10 s; with untimed lyrics, previous / next page |
+| ↑ / ↓ | Next / previous preset when MilkDrop runs behind; otherwise a hint (untimed lyrics: previous / next page) |
+| Yellow | Add the song to the favourites in Music Assistant |
+| Blue | Cycle the preset list, only when MilkDrop runs behind |
+
+While bedtime has blacked out the picture, the first key only wakes it. In a
+browser, F and L stand in for Yellow and Blue, R and G for Red and Green;
+arrows, Enter and Escape work as on the remote. The settings menu and the
+idle poster handle keys of their own; the on-screen focus shows what a key
+will act on.
 
 ## Menu
 
 **Settings** in the top strip opens the menu. Up/down pick a row, left/right
 change its value (OK also steps forward); Back closes it and returns to the
-playback controls. It closes by itself after 12 seconds without a key. Rows
+playback controls. It closes by itself after 45 seconds without a key. Rows
 that do not apply (no speaker on, MilkDrop off) are hidden.
 
 | Row | Values | Default | Notes |
@@ -72,6 +101,7 @@ that do not apply (no speaker on, MilkDrop off) are hidden.
 | Play on this TV | Off / player name · state | Off | Plays the music on the TV too, as a Music Assistant player through Sendspin. Switching it on again comes back as the same player |
 | TV output compensation | None / Sound sent n ms early | from Music Assistant | Shown while Play on this TV is on. Compensates the TV's own output latency so its sound lands with the other speakers, in 10 ms steps; saved as the player's Sendspin delay in Music Assistant |
 | Picture and lyrics timing | With the music / n ms after / before the music | With the music | Shifts MilkDrop and timed lyrics together, in 25 ms steps. Also Red/Green |
+| Bedtime | Off / 15 min / 30 min / 60 min / End of track, with the time left | Off | Pauses the speaker commands act on when the time is up (End of track only for a song with a length). A minute after it is set, or after the last key, the picture goes black while the music plays on; the volume fades over the last 30 s and is put back after the pause. Turns itself off |
 | **Display** | | | |
 | Dim visualizer | 0% … 90% | 0% | Darkens the picture; black stays black |
 | Track info | When a song starts / Always / Off | When a song starts | The artist, title, album and label card, lower left |
@@ -82,6 +112,7 @@ that do not apply (no speaker on, MilkDrop off) are hidden.
 | **Visuals & presets** | | | |
 | Preset | position and name | last used | Left/right step through the list being browsed |
 | Favorite | Yes / No | — | Shared with Music Assistant's MilkDrop favourites and with other TVs on the account |
+| Lock preset for this album / artist | the album or artist; once locked, the preset's name | — | OK keeps the current preset whenever this album (or artist) plays; the row then reads Unlock. An album lock wins over an artist lock. A locked preset is not rotated away from, and does not replace the preset you chose. Kept with this TV's settings on the account |
 | Validated | Yes (52 fps) / No (18 fps) / Yes (by you) / No (by you) / Not tested | by measurement | OK adds or removes this preset from the validated list by hand. An override that agrees with the measurement again is dropped |
 | Preset list | Runs well here / All presets / Favourite presets, with a count | Runs well here | Which presets ↑/↓, shuffle and the timer draw from. A favourites list with nothing in it shows all |
 | Preset order | Shuffled / In order | Shuffled | How ↑/↓ move |

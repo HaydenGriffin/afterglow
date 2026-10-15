@@ -1,7 +1,8 @@
 {
   "name": "afterglow",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "private": true,
+  "type": "module",
   "description": "An unofficial Music Assistant TV companion",
   "license": "MIT",
   "scripts": {

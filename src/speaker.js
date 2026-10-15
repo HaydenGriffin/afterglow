@@ -89,6 +89,14 @@ export function createSpeaker({ host, Player, delays }) {
     retryTimer = setTimeout(() => {
       retryTimer = 0;
       if (generation !== run) return;
+      // sendspin-js retries a failed open itself: a player that got through
+      // meanwhile is kept, as replacing it ends the stream just started on it.
+      if (player && player.isConnected) {
+        retryMs = RETRY_MIN_MS;
+        error = "";
+        if (state === "error") state = "ready";
+        return;
+      }
       release("retry");
       start();
     }, wait);

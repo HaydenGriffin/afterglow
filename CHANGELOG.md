@@ -1,3 +1,27 @@
+# 1.4.4 — Review fixes and a waveform stall guard (15 October 2026)
+
+- The picture comes back when Music Assistant stops sending the waveform
+  without ending the stream: after 10 s with no frame while the queue still
+  plays, the relay reconnects. On the C1 on 15 October, 1.4.3 drew 4 s and then
+  nothing for 13 minutes while the audio played on.
+- The TV speaker's retry no longer replaces a player that has connected and
+  is playing.
+- `vizmanDiagnostics()` reports relay, clock, follow and frame-age state.
+- One highlight only: a disabled row no longer leaves the previous row lit;
+  sub-lists open on their first usable row.
+- Bedtime reads and fades the speaker it pauses (the command target), with
+  group volume; it finishes while Afterglow is on screen.
+- The no-track poster drops the last song's colours; night fields use the
+  night paper; the idle poster's second field resets too.
+- The one-second bedtime/preset-lock timer stops with the screen; a locked
+  preset is no longer saved as the default.
+- Lyrics view fits two-line titles above the artist; the lyric overlay sits
+  above the track card; both hide while a panel is open; the poster and
+  overlay glide on the burn-in drift.
+- Down or Up leaves the Search field for the results.
+- docs/settings.md covers 1.4.3's rows and keys; `"type": "module"` silences
+  Node's test warnings.
+
 # 1.4.3 — Review fixes, play from idle, search and bedtime (15 October 2026)
 
 Fixes

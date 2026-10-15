@@ -62,7 +62,7 @@ class FakeElement {
   click() { if (!this.disabled) this.dispatch("click"); }
   focus() {
     const doc = this.ownerDocument;
-    if (doc.activeElement === this) return;
+    if (doc.activeElement === this || this.disabled) return; // as in a browser, a disabled control takes no focus
     const previous = doc.activeElement; doc.activeElement = this;
     if (previous && previous !== doc.body) previous.dispatch("blur");
     this.dispatch("focus");

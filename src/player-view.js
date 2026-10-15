@@ -1,9 +1,10 @@
 import { loadPref, savePref } from "./settings.js";
 import { createPlayback, lyricIndex, timeLabel, trackInfo, VIEW_LABELS, VIEW_MODES, volumeOf } from "./playback.js";
-import { css, onField, posterColours } from "./poster-colour.js";
+import { css, posterTheme } from "./poster-colour.js";
 import { createBrowse } from "./browse-view.js";
 import { badgeOf, describeStream } from "./stream-details.js";
 import { createKaraoke } from "./karaoke.js";
+import { FIRST_ENABLED, focusRow } from "./focus.js";
 
 // Drawn UI runs at 4 Hz, independently of the visualizer. Text only changes
 // when its value changes; artwork is requested once per URL at 512 pixels.
@@ -36,7 +37,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       '<p class="poster-target"></p><p class="poster-state"></p>' +
       '<h1 class="poster-title"></h1>' +
       '<div class="poster-lyrics" aria-label="Lyrics"></div>' +
-      '<div class="poster-field field-a"><p class="poster-artist"></p><p class="poster-album"></p></div>' +
+      '<div class="poster-field field-a"><p class="poster-song"></p><p class="poster-artist"></p><p class="poster-album"></p></div>' +
       '<div class="poster-field field-b"><h2>Next</h2><ol class="poster-next"></ol></div>' +
       '<div class="poster-progress"><span class="elapsed">0:00</span><div class="progress-track" role="progressbar" aria-label="Track progress"><div></div></div><span class="duration">0:00</span></div>' +
     '</section><div class="lyric-overlay"></div>' +
@@ -89,12 +90,8 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     return Array.from((row === "nav" ? nav : toolbar).children);
   }
   function focusButton() {
-    root.querySelectorAll("button.selected").forEach(b => { b.classList.remove("selected"); b.tabIndex = -1; });
-    const list = buttons(); focus = Math.max(0, Math.min(focus, list.length - 1));
-    const target = list[focus];
-    if (!target) return;
-    target.classList.add("selected"); target.tabIndex = 0; target.focus({ preventScroll: true });
-    if (panel !== "controls") target.scrollIntoView({ block: "nearest" });
+    const list = buttons(); focus = focusRow(root, list, focus);
+    if (list[focus] && panel !== "controls") list[focus].scrollIntoView({ block: "nearest" });
   }
   function close() {
     if (panel === "browse") browse.close();
@@ -108,7 +105,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     root.classList.add("controls-open"); root.classList.remove("panel-open"); root.removeAttribute("data-panel"); touch(); render(); focusButton();
   }
   function openPanel(which) {
-    panel = which; focus = 0; optionKey = ""; queueKey = ""; detailsKey = ""; queuePick = null; picking = grouping = false;
+    panel = which; focus = FIRST_ENABLED; optionKey = ""; queueKey = ""; detailsKey = ""; queuePick = null; picking = grouping = false;
     root.classList.remove("controls-open"); root.classList.add("panel-open");
     root.setAttribute("data-panel", which);
     model.wantQueue(which === "queue"); model.tick();
@@ -140,17 +137,18 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   }
   function setMode(next) { karaoke.show(null); mode = next; savePref("viewMode", mode); lyricsKey = ""; plainPage = 0; applyMode(); render(); }
 
-  // The track's palette sets the fields; after 22:00 the whole poster steps down.
-  function applyColours() {
+  // The track's palette sets the fields (neutral with no track drawn, so the
+  // empty poster does not keep the last song's colours); after 22:00 the
+  // whole poster steps down.
+  function applyColours(hasTrack) {
     const late = new Date().getHours(); const isNight = late >= 22 || late < 6;
-    if (live.palette === palette && isNight === night) return;
-    palette = live.palette; night = isNight;
-    const c = posterColours(palette);
-    const dim = f => isNight ? onField(f.map(v => Math.round(v * 0.72))) : null;
-    const a = dim(c.fieldA) || { field: c.fieldA, text: c.onA }, b = dim(c.fieldB) || { field: c.fieldB, text: c.onB };
+    const next = hasTrack ? live.palette : null;
+    if (next === palette && isNight === night) return;
+    palette = next; night = isNight;
+    const c = posterTheme(palette, isNight);
     const style = document.documentElement.style;
-    style.setProperty("--field-a", css(a.field)); style.setProperty("--on-a", css(a.text));
-    style.setProperty("--field-b", css(b.field)); style.setProperty("--on-b", css(b.text));
+    style.setProperty("--field-a", css(c.fieldA)); style.setProperty("--on-a", css(c.onA));
+    style.setProperty("--field-b", css(c.fieldB)); style.setProperty("--on-b", css(c.onB));
     style.setProperty("--ground", css(c.ground));
     root.classList.toggle("night", isNight);
   }
@@ -219,7 +217,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     const choose = id => {
       const plan = id && live.transferPlan ? live.transferPlan(id) : null;
       if (plan && !disabled) moveTo(id); else setPreferred(id);
-      picking = false; focus = 0;
+      picking = false; focus = FIRST_ENABLED;
     };
     addRow("Automatic", "Whatever is playing", () => choose(""), false).classList.toggle("chosen", !live.preferred);
     speakers.forEach(sp => {
@@ -254,7 +252,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       const track = trackInfo(queuePick, host);
       text(el(".player-panel h2"), track.title);
       text(el(".player-panel .panel-note"), [track.artist, "in the queue"].filter(Boolean).join(" · "));
-      const id = queuePick.queue_item_id, done = () => { queuePick = null; focus = 0; };
+      const id = queuePick.queue_item_id, done = () => { queuePick = null; focus = FIRST_ENABLED; };
       addRow("Play now", "", () => { done(); command("play_index", id); }, disabled);
       addRow("Play next", "", () => { done(); command("move_item", { id, shift: 0 }); }, disabled);
       addRow("Move up", "", () => { done(); command("move_item", { id, shift: -1 }); }, disabled);
@@ -264,14 +262,14 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     }
     text(el(".player-panel h2"), "Queue");
     text(el(".player-panel .panel-note"), !t ? "No speakers found in Music Assistant." : s.itemsState === "loading" ? "Loading…" : s.itemsState === "error" ? "Couldn’t load the queue. Reopen to retry." : q.is_dynamic ? "Radio: songs keep coming" : "");
-    if (speakers.length) addRow("Playing on", t ? t.name : "Automatic", () => { picking = true; focus = 0; }, false);
+    if (speakers.length) addRow("Playing on", t ? t.name : "Automatic", () => { picking = true; focus = FIRST_ENABLED; }, false);
     if (moveHere) addRow("Play on this TV", "Moves the music here", () => moveTo(own, true), disabled);
     const members = options.filter(o => o.member).length;
-    if (options.some(o => o.allowed)) addRow("Speakers together", members > 1 ? members + " speakers" : "Just this one", () => { grouping = true; focus = 0; }, disabled);
+    if (options.some(o => o.allowed)) addRow("Speakers together", members > 1 ? members + " speakers" : "Just this one", () => { grouping = true; focus = FIRST_ENABLED; }, disabled);
     heading(s.items.length ? "Up next" : s.itemsState === "loading" ? "" : "Nothing queued after this song");
     s.items.forEach(item => {
       const track = trackInfo(item, host);
-      addRow(track.title, track.artist || timeLabel(track.duration), () => { queuePick = item; focus = 0; }, item.available === false);
+      addRow(track.title, track.artist || timeLabel(track.duration), () => { queuePick = item; focus = FIRST_ENABLED; }, item.available === false);
     });
     heading("Playback");
     addRow("Shuffle", q.smart_shuffle_active ? "Smart" : q.shuffle_enabled ? "On" : "Off", () => command("shuffle"), disabled || q.smart_shuffle_active || q.is_dynamic, true);
@@ -325,7 +323,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   }
   function render() {
     const s = model.snapshot(), track = s.track;
-    applyColours();
+    applyColours(!!track);
     const nextTrackKey = s.queue ? s.queue.queue_id + ":" + (track ? track.id : "") : "";
     if (nextTrackKey !== trackKey) {
       trackKey = nextTrackKey; lyricsKey = ""; plainPage = 0;
@@ -333,7 +331,10 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     }
     const title = track ? track.title : "Ready when you are";
     text(el(".poster-title"), title);
-    el(".poster-title").setAttribute("data-length", title.length > 50 ? "xlong" : title.length > 26 ? "long" : title.length > 12 ? "medium" : "short");
+    const length = title.length > 50 ? "xlong" : title.length > 26 ? "long" : title.length > 12 ? "medium" : "short";
+    el(".poster-title").setAttribute("data-length", length);
+    // In Lyrics mode the title moves into field A, where the artist flows after it.
+    text(el(".poster-song"), title); el(".poster-song").setAttribute("data-length", length);
     text(el(".poster-artist"), track ? track.artist : "Play music in Music Assistant");
     text(el(".poster-album"), track ? track.album : "");
     text(el(".poster-target"), s.queue && s.queue.display_name || "Music Assistant");
@@ -395,7 +396,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       if (!panel) return false;
       touch();
       if (panel === "browse") { browse.handleKey(name); return true; }
-      if (name === "back" && panel === "queue" && (queuePick || picking || grouping)) { queuePick = null; picking = grouping = false; focus = 0; queueKey = ""; render(); return true; }
+      if (name === "back" && panel === "queue" && (queuePick || picking || grouping)) { queuePick = null; picking = grouping = false; focus = FIRST_ENABLED; queueKey = ""; render(); return true; }
       if (name === "back") { if (panel === "controls") close(); else openControls(); return true; }
       const list = buttons();
       if (name === "ok") { if (list[focus] && !list[focus].disabled) list[focus].click(); }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { contrast, posterColours, INK, PAPER } from "../src/poster-colour.js";
+import { contrast, posterColours, posterTheme, INK, PAPER, PAPER_NIGHT } from "../src/poster-colour.js";
 
 const palettes = {
   none: null,
@@ -30,4 +30,21 @@ test("the most colourful artwork role leads", () => {
   const c = posterColours(palettes.cobalt);
   assert.deepEqual(c.fieldA, [40, 70, 200]);
   assert.notDeepEqual(c.fieldB, c.fieldA);
+});
+
+test("by day the theme is the poster's colours", () => {
+  assert.deepEqual(posterTheme(palettes.cobalt, false), posterColours(palettes.cobalt));
+});
+
+test("at night the fields step down and their text is night paper or ink, still at 4.5:1", () => {
+  assert.deepEqual(PAPER_NIGHT, [196, 192, 185], "DESIGN.md paper-night");
+  for (const [name, palette] of Object.entries(palettes)) {
+    const day = posterColours(palette), c = posterTheme(palette, true);
+    assert.ok(contrast(c.fieldA, c.onA) >= 4.5, name + " field A");
+    assert.ok(contrast(c.fieldB, c.onB) >= 4.5, name + " field B");
+    assert.ok([INK, PAPER_NIGHT].includes(c.onA) && [INK, PAPER_NIGHT].includes(c.onB), name + " text is ink or night paper, never day paper");
+    assert.ok(c.fieldA.every((v, i) => v <= day.fieldA[i]) && c.fieldB.every((v, i) => v <= day.fieldB[i]), name + " fields are no brighter than by day");
+    assert.deepEqual(c.ground, day.ground);
+  }
+  assert.deepEqual(posterTheme(null, true).onA, PAPER_NIGHT, "the neutral fields carry night paper");
 });
