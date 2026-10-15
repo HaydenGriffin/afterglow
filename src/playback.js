@@ -106,6 +106,7 @@ const WAITING_MAX = 8;
 export function createPlayback({ live, host, now = Date.now, lyricsSearch = searchLyrics, lyricsOffset = () => 0 }) {
   let key = "", itemsKey = "", generation = 0, stopped = false;
   let lyrics = { status: "idle", lines: [], plain: "" };
+  let lyricsRetries = 0;
   let items = [], itemsState = "idle", queueGeneration = 0;
   let nextQueueRead = 0, queueWanted = false, lyricsWanted = false;
   let busy = false, error = "";
@@ -160,7 +161,12 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
       cache.set(uri, value);
       if (cache.size > 3) cache.delete(cache.keys().next().value);
       lyrics = value;
-    } catch (e) { if (gen === generation && !stopped) lyrics = { status: "error", lines: [], plain: "" }; }
+    } catch (e) {
+      if (gen === generation && !stopped) lyrics = {
+        status: "error", lines: [], plain: "",
+        retryAt: lyricsRetries === 0 ? now() + 30000 : 0,
+      };
+    }
   }
   async function readItems() {
     const target = snapshot().target;
@@ -264,11 +270,16 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
       if (stopped) return;
       const s = snapshot();
       const nextKey = s.queue ? s.queue.queue_id + ":" + (s.track ? s.track.id : "") : "";
-      if (nextKey !== key) { key = nextKey; generation++; lyrics = { status: "idle", lines: [], plain: "" }; error = ""; }
+      if (nextKey !== key) { key = nextKey; generation++; lyricsRetries = 0; lyrics = { status: "idle", lines: [], plain: "" }; error = ""; }
       // The queue panel lists what commands act on, which may not be what is drawn.
       const t = s.target, nextItems = t ? t.queueId + ":" + (t.track ? t.track.id : "") : "";
       if (nextItems !== itemsKey) { itemsKey = nextItems; queueGeneration++; items = []; itemsState = "idle"; nextQueueRead = 0; }
-      if (lyricsWanted && s.connected && s.track && lyrics.status === "idle") readLyrics(s.track, generation);
+      if (lyricsWanted && s.connected && s.track) {
+        if (lyrics.status === "error" && lyrics.retryAt && now() >= lyrics.retryAt) {
+          lyricsRetries++;
+          readLyrics(s.track, generation);
+        } else if (lyrics.status === "idle") readLyrics(s.track, generation);
+      }
       if (queueWanted && now() >= nextQueueRead) readItems();
     },
     wantLyrics(on) { lyricsWanted = on; },

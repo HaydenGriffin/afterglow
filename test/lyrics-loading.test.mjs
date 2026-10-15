@@ -44,3 +44,14 @@ test('lyrics timing adjusts the words without moving playback or seek targets',a
   await model.command('seek_by',10);assert.equal(sought,30);
   offset=-500;assert.equal(model.snapshot().lyricPosition,20.425);
 });
+test('temporary failures get one delayed automatic retry, without hammering the provider',async()=>{
+  let time=1000,calls=0;
+  const live={playback:{queue:{queue_id:'tv',state:'playing',current_item:track('one')},connected:true,position:20},call:async()=>{calls++;throw Error('unavailable');}};
+  const model=createPlayback({live,host:'ma',lyricsSearch:null,now:()=>time});
+  model.wantLyrics(true);model.tick();await settle();
+  assert.equal(model.snapshot().lyrics.retryAt,31000);
+  time=30999;model.tick();await settle();assert.equal(calls,1);
+  time=31000;model.tick();await settle();assert.equal(calls,2);
+  assert.equal(model.snapshot().lyrics.retryAt,0);
+  time=100000;model.tick();await settle();assert.equal(calls,2);
+});
