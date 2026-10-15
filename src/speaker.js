@@ -25,6 +25,9 @@ export const DELAY_SAVE_MS = 600;
 // A failed connect is tried again, waiting longer each time (as relay.js).
 const RETRY_MIN_MS = 1000;
 const RETRY_MAX_MS = 30000;
+// sendspin-js reconnects a dropped socket itself; after this many tries (about
+// 75 s) it gives up and says so, and a fresh player is started from here.
+const SENDSPIN_RECONNECTS = 8;
 
 // Music Assistant's address without its web port: Sendspin has its own.
 export function sendspinUrl(host) {
@@ -85,6 +88,7 @@ export function createSpeaker({ host, Player, delays }) {
   }
 
   function scheduleRetry(run) {
+    if (retryTimer) return; // one retry waiting at a time
     const wait = retryMs * (0.75 + Math.random() * 0.5);
     retryMs = Math.min(retryMs * 2, RETRY_MAX_MS);
     retryTimer = setTimeout(() => {
@@ -147,6 +151,23 @@ export function createSpeaker({ host, Player, delays }) {
         if (generation !== run) return;
         const playing = !!(s && s.isPlaying);
         state = playing ? "playing" : "ready";
+      },
+      // Watches the connection for as long as this player lives, including
+      // after a retry stood down for a reconnect sendspin-js made itself.
+      reconnect: {
+        maxAttempts: SENDSPIN_RECONNECTS,
+        onReconnected() {
+          if (generation !== run) return;
+          retryMs = RETRY_MIN_MS;
+          error = "";
+          if (state === "error") state = "ready";
+        },
+        onExhausted() {
+          if (generation !== run) return;
+          state = "error";
+          error = "Sendspin connection lost";
+          scheduleRetry(run);
+        },
       },
     });
     const current = player;

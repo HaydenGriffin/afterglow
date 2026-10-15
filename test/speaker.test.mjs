@@ -137,6 +137,57 @@ test("a player that Sendspin reconnected by itself is not torn down by the retry
   assert.equal(speaker.error, "");
 });
 
+test("after standing down for Sendspin's own reconnect, a later drop it gives up on is retried again", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { Player, made } = fakePlayer();
+  Player.prototype.connect = function () {
+    this.calls.push("connect");
+    return made.indexOf(this) === 0 ? Promise.reject(new Error("refused")) : Promise.resolve();
+  };
+  const speaker = createSpeaker({ host: "ma", Player });
+  speaker.set("TV");
+  speaker.start();
+  await flush();
+  made[0].isConnected = true; // its own reconnect got through: the retry stands down
+  made[0].config.reconnect.onReconnected();
+  t.mock.timers.tick(5000);
+  await flush();
+  assert.equal(made.length, 1);
+  assert.equal(speaker.error, "");
+  // Much later the server goes away and Sendspin's own retries run out.
+  made[0].isConnected = false;
+  made[0].config.reconnect.onExhausted();
+  assert.equal(speaker.state, "error");
+  t.mock.timers.tick(1300);
+  await flush();
+  assert.equal(made.length, 2, "a fresh player is started");
+  assert.equal(made[0].calls.pop(), "disconnect:retry");
+});
+
+test("a dropped player is watched with Sendspin's reconnect hooks, and old players' hooks are ignored", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { Player, made } = fakePlayer();
+  const speaker = createSpeaker({ host: "ma", Player });
+  speaker.set("TV");
+  speaker.start();
+  await flush();
+  const hooks = made[0].config.reconnect;
+  assert.ok(hooks.maxAttempts > 0 && hooks.maxAttempts < Infinity, "Sendspin gives up in the end, so the drop is seen");
+  speaker.stop();
+  speaker.start();
+  await flush();
+  hooks.onExhausted(); // the first player, already let go
+  t.mock.timers.tick(60000);
+  await flush();
+  assert.equal(made.length, 2);
+  assert.notEqual(speaker.state, "error");
+  made[1].config.reconnect.onExhausted();
+  made[1].config.reconnect.onExhausted(); // twice: still one retry
+  t.mock.timers.tick(1300);
+  await flush();
+  assert.equal(made.length, 3);
+});
+
 test("stopping or switching the speaker cancels a pending retry", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const { Player, made } = fakePlayer();
