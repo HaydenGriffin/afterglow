@@ -3,7 +3,7 @@
 // OLED at black is off) while the music plays on; the volume fades out over
 // the last 30 s when the player has one. A key only wakes the picture for a
 // while; bedtime runs until it ends or is set to Off.
-import { timeLabel } from "./playback.js";
+import { timeLabel, volumeOf } from "./playback.js";
 
 export const BEDTIME_CHOICES = [0, 15, 30, 60, "track"]; // minutes, or the end of the track
 const DARK_AFTER_MS = 60000;
@@ -61,15 +61,18 @@ export function createBedtime() {
 
 // Drives the state machine from the playback model (player-view's snapshot and
 // command), once a second. setDark(on) blacks the picture out or brings it back.
+// It watches the target (what commands act on), which may not be the queue
+// drawn on the poster, and its volume as the volume command sets it (a
+// group's volume for a group).
 export function createBedtimeController({ bedtime, playback, setDark, now = Date.now }) {
   let dark = false;
   let original = null; // the volume before the fade
   let sent = null;
 
   function trackNow() {
-    const s = playback.snapshot();
-    if (!s.track) return null;
-    return { id: s.track.id, leftMs: s.track.duration ? Math.max(0, (s.track.duration - s.position) * 1000) : null };
+    const t = playback.snapshot().target;
+    if (!t || !t.track) return null;
+    return { id: t.track.id, leftMs: t.track.duration ? Math.max(0, (t.track.duration - t.position) * 1000) : null };
   }
   function showDark(on) {
     if (on === dark) return;
@@ -83,9 +86,10 @@ export function createBedtimeController({ bedtime, playback, setDark, now = Date
     return level;
   }
   function fade(factor) {
-    const player = playback.snapshot().player;
-    if (!player || player.volume_level == null) return;
-    if (original === null) original = player.volume_level;
+    const t = playback.snapshot().target;
+    const volume = volumeOf(t && t.player);
+    if (volume == null) return;
+    if (original === null) original = volume;
     const level = Math.round(original * factor);
     if (level === sent) return;
     sent = level;

@@ -19,7 +19,7 @@ import { drawSync, timingLabel } from "./sync-figure.js";
 import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, SCALE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
 import { createMock } from "./mock.js";
 import { createRelaunchHandler } from "./relaunch.js";
-import { lockFor, lockKeys, withLock } from "./preset-lock.js";
+import { createPresetLocks, lockKeys } from "./preset-lock.js";
 import { timeLabel } from "./playback.js";
 import { createScan, recoverScan } from "./scan.js";
 import { SendspinPlayer } from "@sendspin/sendspin-js";
@@ -243,6 +243,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     dimTrack = loadPref("dimTrack", 0);
     applyDim();
     milkdrop.reloadPrefs();
+    presetLocks.reload();
     if (playerView) playerView.reloadPrefs();
     if (live) {
       live.reloadTrim();
@@ -357,13 +358,14 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   function playingTrack() {
     return playerView ? playerView.snapshot().track : null;
   }
-  function applyPresetLock() {
-    const lock = lockFor(loadPref("presetLocks", {}), playingTrack());
-    milkdrop.hold(lock ? lock.name : null);
-  }
+  const presetLocks = createPresetLocks({
+    load: () => loadPref("presetLocks", {}),
+    save: (locks) => savePref("presetLocks", locks),
+    hold: (name) => milkdrop.hold(name),
+  });
   function lockRow(kind) {
     const key = () => lockKeys(playingTrack())[kind];
-    const locked = () => !!key() && loadPref("presetLocks", {})[key()];
+    const locked = () => presetLocks.locked(key());
     const what = () => (kind === "album" ? playingTrack().album : playingTrack().artist);
     return {
       label: () => (locked() ? "Unlock preset for this " : "Lock preset for this ") + kind,
@@ -371,8 +373,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       value: () => (locked() ? locked() : what()),
       change() {
         const name = locked() ? null : milkdrop.presetName;
-        savePref("presetLocks", withLock(loadPref("presetLocks", {}), key(), name));
-        applyPresetLock();
+        presetLocks.set(key(), name, playingTrack());
         toast(name ? "Preset locked for " + what() : "Preset unlocked for " + what(), true);
       },
     };
@@ -585,10 +586,10 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       engine.setResting(on);
     },
   });
-  setInterval(() => {
+  function everySecond() {
     bedtime.tick();
-    applyPresetLock();
-  }, BEDTIME_TICK_MS);
+    presetLocks.follow(playingTrack());
+  }
 
   const idle = createIdle({
     element: byId("idle"), live: playback, host: settings.host,
@@ -666,13 +667,16 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   engine.onIdleChange(refreshMessage);
   // Kept current while shown; stopped while hidden or signed out.
   let messageTimer = 0;
+  let secondTimer = 0; // bedtime and preset locks
   function startScreenTimers() {
     if (!messageTimer) messageTimer = setInterval(refreshMessage, MESSAGE_REFRESH_MS);
+    if (!secondTimer) secondTimer = setInterval(everySecond, BEDTIME_TICK_MS);
     drift.start();
   }
   function stopScreenTimers() {
     clearInterval(messageTimer);
-    messageTimer = 0;
+    clearInterval(secondTimer);
+    messageTimer = secondTimer = 0;
     drift.stop();
   }
 
