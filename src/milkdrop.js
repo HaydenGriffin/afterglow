@@ -111,6 +111,9 @@ export function createMilkdropMode(onFail, onNotice) {
   let colorStrength = loadPref("colorStrength", DEFAULT_COLOR_STRENGTH);
   let palette = null;
   let external = null; // a preset shown by showExternal, for its colors
+  let output = null; // the canvas the picture is copied to
+  let released = false; // the page is going: nothing more is drawn
+  let restoredListener = null;
 
   function loadFavorites() {
     // The plain list from before the timestamps is folded in whenever present,
@@ -311,10 +314,17 @@ export function createMilkdropMode(onFail, onNotice) {
         // waveform is handed to render() instead.
         visualizer = createPlainVisualizer(api, canvas, options);
         // The GL context lives on Butterchurn's own canvas; ours only gets
-        // the 2D blit.
-        (visualizer.internalCanvas || canvas).addEventListener("webglcontextlost", (event) => {
-          event.preventDefault();
+        // the 2D blit. Butterchurn cannot rebuild its GL objects on a
+        // restored context, so a restoration is passed on for the page to
+        // start afresh.
+        const glCanvas = visualizer.internalCanvas || canvas;
+        glCanvas.addEventListener("webglcontextlost", (event) => {
+          if (released) return;
+          event.preventDefault(); // asks for the context back
           fail("graphics context lost");
+        });
+        glCanvas.addEventListener("webglcontextrestored", () => {
+          if (!released && restoredListener) restoredListener();
         });
         showIndexed(0);
       })
@@ -329,6 +339,7 @@ export function createMilkdropMode(onFail, onNotice) {
       savePref("pictureScale", value);
     },
     create({ canvas }) {
+      output = canvas;
       if (visualizer) {
         visualizer.setRendererSize(canvas.width, canvas.height);
         onNotice(current);
@@ -337,6 +348,7 @@ export function createMilkdropMode(onFail, onNotice) {
         draw(f) {
           // Started on the first frame of audio, not on entering the mode, so
           // an idle screen never counts as a start that failed.
+          if (released) return;
           if (!loading) start(canvas);
           if (!visualizer || failed) return;
           try {
@@ -376,6 +388,27 @@ export function createMilkdropMode(onFail, onNotice) {
     // this far did not take the TV down.
     settle() {
       if (loading && !failed) savePref("milkdropPending", false);
+    },
+    // Before the page goes (closed, or reloaded): give the GL context back at
+    // once rather than leave it to the garbage collector. The C1's web
+    // runtime grew only after many reloads, suspected of keeping old
+    // contexts. Call with the engine stopped; nothing is drawn afterwards.
+    release() {
+      if (released) return;
+      released = true;
+      if (visualizer) {
+        const gl = visualizer.gl;
+        const lose = gl && gl.getExtension && gl.getExtension("WEBGL_lose_context");
+        if (lose) lose.loseContext();
+        const inner = visualizer.internalCanvas;
+        if (inner) inner.width = inner.height = 0;
+        visualizer = null;
+      }
+      if (output) output.width = output.height = 0;
+    },
+    // fn(): a lost GL context came back; MilkDrop needs a fresh page to use it.
+    onRestored(fn) {
+      restoredListener = fn;
     },
     // Re-read the lists after preferences arrived from elsewhere.
     reloadPrefs() {

@@ -467,7 +467,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       value: () => "off: " + milkdropOff + " (OK to retry)",
       change() {
         clearMilkdropBlocks();
-        location.reload();
+        reloadPage();
       },
     },
     { section: "Performance" },
@@ -673,6 +673,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   // A hidden app is suspended by webOS and its sockets may die unnoticed, so
   // drop everything when hidden and start afresh when shown again.
   function resume() {
+    if (reloadWhenShown) return reloadPage();
     if (engine.running || leaving) return;
     if (live) live.start();
     if (speaker) speaker.start();
@@ -695,12 +696,34 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   }
   document.addEventListener("visibilitychange", onVisibility);
   document.addEventListener("webkitvisibilitychange", onVisibility);
+  // The GL context is given back before the page goes, not left behind in
+  // the web runtime (see milkdrop.js release).
+  function releaseGraphics() {
+    engine.stop();
+    milkdrop.release();
+  }
+  function reloadPage() {
+    releaseGraphics();
+    location.reload();
+  }
+  // A lost GL context that comes back needs a fresh page; a hidden app gets
+  // it when shown again.
+  let reloadWhenShown = false;
+  milkdrop.onRestored(() => {
+    if (document.hidden) reloadWhenShown = true;
+    else reloadPage();
+  });
   window.addEventListener("pagehide", () => {
     playerView.stop();
     scan.stop();
     milkdrop.settle();
+    releaseGraphics();
   });
-  document.addEventListener("webOSRelaunch", createRelaunchHandler({ reload: () => location.reload(), resume }));
+  // Back from the page cache with its context released: start afresh.
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) location.reload();
+  });
+  document.addEventListener("webOSRelaunch", createRelaunchHandler({ reload: reloadPage, resume }));
 
   refreshMessage();
   if (!document.hidden) resume();
