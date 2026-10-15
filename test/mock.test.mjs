@@ -14,3 +14,25 @@ test("the built-in signal is a looped window: continuous, repeatable, and never 
   assert.equal(atEnd.length, 1024);
   assert.ok(Array.from(atEnd).some((v) => v !== 128));
 });
+
+test("the preview player moves its music, groups speakers and answers from an idle pick", async () => {
+  const { createMockPlayback } = await import("../src/mock-playback.js");
+  const mock = createMockPlayback();
+  assert.equal(mock.target.queueId, "demo-living");
+  assert.deepEqual(mock.groupOptions().map((o) => [o.id, o.member, o.allowed]), [
+    ["demo-bedroom", false, false], ["demo-kitchen", false, true], ["demo-living", true, false], ["demo-tv", false, true],
+  ]);
+  await mock.call("players/cmd/set_members", { target_player: "demo-living", player_ids_to_add: ["demo-kitchen"] });
+  assert.equal(mock.target.player.group_volume, 28);
+  await mock.call("players/cmd/group_volume", { player_id: "demo-living", volume_level: 40 });
+  assert.equal(mock.groupOptions().filter((o) => o.member).length, 2);
+  assert.ok(mock.transferPlan("demo-tv"));
+  await mock.call("player_queues/transfer", { source_queue_id: "demo-living", target_queue_id: "demo-tv", auto_play: true });
+  mock.setPreferred("demo-tv");
+  assert.equal(mock.playback.queue.queue_id, "demo-tv");
+  assert.equal(mock.target.name, "This TV · Preview");
+  mock.setPreferred("demo-bedroom");
+  assert.equal(mock.target.queueId, "demo-bedroom", "an idle pick takes commands");
+  await mock.call("player_queues/play_media", { queue_id: "demo-bedroom", media: "library://album/1", option: "replace" });
+  assert.equal(mock.playback.queue.queue_id, "demo-bedroom", "and playing there starts the music there");
+});

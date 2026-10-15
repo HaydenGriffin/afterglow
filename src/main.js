@@ -187,6 +187,8 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       speaker.set(chosen.name, chosen.id);
     }
   }
+  // Commands from a cold start fall back to this TV's own speaker (follow.js target).
+  if (live && speaker) live.setOwnPlayer(speaker.id);
   const source = settings.mock ? createMock() : live;
   const engine = createEngine({ canvas, analysis, source });
   engine.setFpsCap(loadPref("fpsCap", 30));
@@ -379,6 +381,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
         if (next) savePref("speakerLast", next);
         savePref("speaker", next);
         speaker.set(next ? next.name : "", next ? next.id : "");
+        if (live) live.setOwnPlayer(speaker.id);
         if (engine.running) speaker.start();
       },
     },

@@ -25,6 +25,26 @@
   key(OK); await wait(600);
   assert(title() === song, 'Play now plays the chosen song');
 
+  // An open panel keeps the pointer's scroll: unchanged ticks neither refocus nor scroll.
+  await section(2);
+  const list = document.querySelector('.panel-items');
+  list.scrollTop = list.scrollHeight; const kept = list.scrollTop; await wait(800);
+  assert(list.scrollTop === kept, 'An open panel must not scroll back on its own');
+
+  // Speakers together ticks the group; one that cannot join is shown, not hidden.
+  const row = label => rows().find(b => b.firstChild.textContent === label);
+  row('Speakers together').click(); await wait();
+  assert(document.querySelector('.player-panel h2').textContent === 'Speakers together', 'Speakers together opens from the queue');
+  assert(row('Bedroom · Preview').disabled, 'A speaker that cannot join is listed as unavailable');
+  assert(!row('Kitchen · Preview').classList.contains('chosen'), 'Kitchen starts on its own');
+  row('Kitchen · Preview').click(); await wait(600);
+  assert(row('Kitchen · Preview').classList.contains('chosen'), 'Kitchen joins the group');
+  key(BACK); await wait();
+
+  // Play on this TV moves the music here.
+  row('Play on this TV').click(); await wait(600);
+  assert(document.querySelector('.poster-target').textContent === 'This TV · Preview', 'The music moves to this TV');
+
   // Display: Album stops GPU drawing; Visuals only hides captions and draws again.
   await closeAll(); key(OK); await wait();
   document.querySelector('[aria-label="Display"]').click(); await wait();
@@ -52,5 +72,5 @@
   assert(/FLAC|OGG/.test(document.querySelector('.details-facts').textContent), 'Details show the stream format');
   await closeAll();
   assert(document.documentElement.scrollWidth <= innerWidth, 'Screen must not overflow horizontally');
-  return { passed: 10, viewport: [innerWidth, innerHeight] };
+  return { passed: 16, viewport: [innerWidth, innerHeight] };
 })()
