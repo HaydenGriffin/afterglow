@@ -53,10 +53,13 @@
 .progress-track div { height: 100%; background: var(--paper); }
 #player.controls-open .poster-progress, #player.controls-open .poster-field, #player.controls-open .poster::before { visibility: hidden; }
 
-/* Lyrics take the title's place; the title moves into the artist field. */
-.poster-lyrics { display: none; }
-#player[data-mode="lyrics"] .poster-title { top: 64.6vh; left: 36.82vw; right: auto; width: 34vw; height: 8.4vh; justify-content: flex-start; font-size: 4vh; line-height: 1; z-index: 1; color: var(--on-a); }
-#player[data-mode="lyrics"] .poster-artist { margin-top: 6.4vh !important; font-size: 3vh; max-height: 3.5vh; white-space: nowrap; text-overflow: ellipsis; }
+/* Lyrics take the title's place; the title moves into the artist field, two
+   lines at most, and the artist follows it. */
+.poster-lyrics, .poster-song { display: none; }
+#player[data-mode="lyrics"] .poster-title { display: none; }
+#player[data-mode="lyrics"] .poster-song { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 4vh; line-height: 1.05; font-weight: 820; font-stretch: 80%; letter-spacing: -.02em; overflow-wrap: break-word; }
+#player[data-mode="lyrics"] .poster-song[data-length="xlong"] { font-size: 3.2vh; }
+#player[data-mode="lyrics"] .poster-artist { margin-top: 1.2vh !important; font-size: 3vh; max-height: 3.5vh; white-space: nowrap; text-overflow: ellipsis; }
 #player[data-mode="lyrics"] .poster-album { display: none; }
 #player[data-mode="lyrics"] .poster-lyrics { display: flex; flex-direction: column; justify-content: flex-end; position: absolute; left: 35.42vw; right: 5vw; top: 13vh; height: 46vh; padding-bottom: 1vh; box-sizing: border-box; }
 .lyric-before { font-size: 3vh; line-height: 1.2; color: var(--paper-2); min-height: 3.6vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

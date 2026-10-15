@@ -36,7 +36,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       '<p class="poster-target"></p><p class="poster-state"></p>' +
       '<h1 class="poster-title"></h1>' +
       '<div class="poster-lyrics" aria-label="Lyrics"></div>' +
-      '<div class="poster-field field-a"><p class="poster-artist"></p><p class="poster-album"></p></div>' +
+      '<div class="poster-field field-a"><p class="poster-song"></p><p class="poster-artist"></p><p class="poster-album"></p></div>' +
       '<div class="poster-field field-b"><h2>Next</h2><ol class="poster-next"></ol></div>' +
       '<div class="poster-progress"><span class="elapsed">0:00</span><div class="progress-track" role="progressbar" aria-label="Track progress"><div></div></div><span class="duration">0:00</span></div>' +
     '</section><div class="lyric-overlay"></div>' +
@@ -333,7 +333,10 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     }
     const title = track ? track.title : "Ready when you are";
     text(el(".poster-title"), title);
-    el(".poster-title").setAttribute("data-length", title.length > 50 ? "xlong" : title.length > 26 ? "long" : title.length > 12 ? "medium" : "short");
+    const length = title.length > 50 ? "xlong" : title.length > 26 ? "long" : title.length > 12 ? "medium" : "short";
+    el(".poster-title").setAttribute("data-length", length);
+    // In Lyrics mode the title moves into field A, where the artist flows after it.
+    text(el(".poster-song"), title); el(".poster-song").setAttribute("data-length", length);
     text(el(".poster-artist"), track ? track.artist : "Play music in Music Assistant");
     text(el(".poster-album"), track ? track.album : "");
     text(el(".poster-target"), s.queue && s.queue.display_name || "Music Assistant");
