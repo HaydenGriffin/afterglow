@@ -641,7 +641,11 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     drawing: engine.drawing,
     viewMode: playerView.mode,
     speaker: speaker ? speaker.stats : null,
+    speakerState: speaker ? speaker.state + (speaker.error ? " (" + speaker.error + ")" : "") : null,
     idle: engine.idle,
+    resting: engine.resting,
+    running: engine.running,
+    live: live ? live.diagnostics() : null,
   });
   if (crashed) {
     debug.record("scan: " + crashed + " took the TV down; marked not validated");
