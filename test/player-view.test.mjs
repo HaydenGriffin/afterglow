@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { useFakeDocument } from "./fake-dom-tree.mjs";
 import { createPlayerView } from "../src/player-view.js";
+import { loadPref, savePref } from "../src/settings.js";
 
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 const song = { queue_item_id: "i1", duration: 200, media_item: { media_type: "track", uri: "library://track/1", name: "Song", artists: [{ name: "Artist" }], album: { name: "Album" } } };
@@ -46,4 +47,29 @@ test("media keys send their Music Assistant commands to the target queue", async
     ["rewind", "player_queues/previous", "tv"],
   ]);
   assert.equal(h.view.handleKey("left"), false, "arrows are left to the main screen with no panel open");
+});
+
+test("Display has an Online lyrics row, On by default; Off is saved and asks nothing of lrclib.net", async (t) => {
+  const asked = [];
+  const previous = globalThis.fetch;
+  globalThis.fetch = async (url) => { asked.push(url); return { ok: true, json: async () => [] }; };
+  t.after(() => { globalThis.fetch = previous; savePref("onlineLyrics", true); savePref("viewMode", "track"); });
+  savePref("onlineLyrics", true);
+  const h = harness(t);
+  h.view.setMode("lyrics");
+  h.root.querySelector(".transport").children.find((b) => b.getAttribute("aria-label") === "Display").click();
+  const online = h.row("Online lyrics");
+  assert.ok(online, "the row is in the Lyrics group");
+  assert.equal(online.children[1].textContent, "On");
+  online.click();
+  assert.equal(loadPref("onlineLyrics", true), false);
+  assert.equal(h.row("Online lyrics").children[1].textContent, "Off");
+  asked.length = 0; // a view started with the setting Off
+  const fresh = harness(t);
+  fresh.view.setMode("lyrics");
+  fresh.root.querySelector(".transport").children.find((b) => b.getAttribute("aria-label") === "Display").click();
+  await settle();
+  await settle();
+  assert.equal(fresh.view.snapshot().lyrics.status, "missing");
+  assert.deepEqual(asked, [], "no request to lrclib.net");
 });

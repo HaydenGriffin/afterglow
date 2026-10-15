@@ -48,3 +48,25 @@ test("when Music Assistant has no lyrics, the search fills them in", async () =>
   assert.deepEqual(asked, [{ title: "That's It", artist: "Yung Lean", album: "", duration: 162 }]);
   assert.equal(model.snapshot().lyrics.status, "timed");
 });
+
+test("Online lyrics Off: no request leaves for lrclib.net", async (t) => {
+  const asked = [];
+  const previous = globalThis.fetch;
+  globalThis.fetch = async (url) => { asked.push(url); return { ok: true, json: async () => [] }; };
+  t.after(() => { globalThis.fetch = previous; });
+  const queue = { queue_id: "q", state: "playing", current_item: { queue_item_id: "i", duration: 162, media_item: { media_type: "track", uri: "spotify://track/1", name: "That's It", artists: [{ name: "Yung Lean" }] } } };
+  const live = { playback: { queue, player: {}, connected: true, position: 20 }, call: async () => [null, null] };
+  let online = false;
+  const model = createPlayback({ live, host: "ma", onlineLyrics: () => online });
+  model.wantLyrics(true);
+  model.tick();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(asked, []);
+  assert.equal(model.snapshot().lyrics.status, "missing");
+  online = true;
+  model.retryLyrics();
+  model.tick();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(asked.length, 1, "On again: the search runs");
+  assert.match(asked[0], /^https:\/\/lrclib\.net\/api\/search\?/);
+});
