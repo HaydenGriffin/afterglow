@@ -1,5 +1,5 @@
 import { loadPref, savePref } from "./settings.js";
-import { createPlayback, lyricIndex, timeLabel, trackInfo, VIEW_LABELS, VIEW_MODES } from "./playback.js";
+import { createPlayback, lyricIndex, timeLabel, trackInfo, VIEW_LABELS, VIEW_MODES, volumeOf } from "./playback.js";
 import { css, onField, posterColours } from "./poster-colour.js";
 import { createBrowse } from "./browse-view.js";
 import { badgeOf, describeStream } from "./stream-details.js";
@@ -17,7 +17,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   let overlay = loadPref("lyricsOverlay", false);
   let panel = "", row = "transport", focus = 1, timer = 0, hideAt = 0, trackKey = "", artUrl = "", lyricsKey = "", queueKey = "", optionKey = "";
   let sleepIndex = 2, plainPage = 0, palette = null, night = null;
-  let queuePick = null, picking = false, providers = null, detailsKey = "";
+  let queuePick = null, picking = false, grouping = false, providers = null, detailsKey = "";
   const paths = {
     previous: '<path d="M5 5v14M19 5L8 12l11 7z"/>',
     next: '<path d="M19 5v14M5 5l11 7-11 7z"/>',
@@ -58,8 +58,8 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     ["previous", "Previous", () => command("previous")],
     ["pause", "Pause", () => command("play_pause")],
     ["next", "Next", () => command("next")],
-    ["back", "Back 10 s", () => command("seek", model.snapshot().position - 10)],
-    ["forward", "Ahead 10 s", () => command("seek", model.snapshot().position + 10)],
+    ["back", "Back 10 s", () => command("seek_by", -10)],
+    ["forward", "Ahead 10 s", () => command("seek_by", 10)],
     ["favorite", "Favourite", () => command("favorite")],
     ["details", "Details", () => openPanel("details")],
     ["view", "Display", () => openPanel("display")]
@@ -76,7 +76,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   const browse = createBrowse({
     element: el(".player-browse"), live, host,
     play: (media, option) => command("play_media", { media, option }),
-    target: () => { const q = model.snapshot().queue; return q && q.display_name || "the current player"; },
+    target: () => { const t = model.snapshot().target; return t ? t.name : "no speaker yet"; },
     onNotice, onLeave: toNow => toNow ? close() : openControls()
   });
   function touch() { hideAt = Date.now() + 9000; }
@@ -94,17 +94,17 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   }
   function close() {
     if (panel === "browse") browse.close();
-    panel = ""; queuePick = null; picking = false; model.wantQueue(false);
+    panel = ""; queuePick = null; picking = grouping = false; model.wantQueue(false);
     root.classList.remove("controls-open", "panel-open"); root.removeAttribute("data-panel");
     if (root.contains(document.activeElement)) document.activeElement.blur();
   }
   function openControls() {
     if (panel === "browse") browse.close();
-    panel = "controls"; row = "transport"; focus = 1; queuePick = null; picking = false; model.wantQueue(false);
+    panel = "controls"; row = "transport"; focus = 1; queuePick = null; picking = grouping = false; model.wantQueue(false);
     root.classList.add("controls-open"); root.classList.remove("panel-open"); root.removeAttribute("data-panel"); touch(); render(); focusButton();
   }
   function openPanel(which) {
-    panel = which; focus = 0; optionKey = ""; queueKey = ""; detailsKey = ""; queuePick = null; picking = false;
+    panel = which; focus = 0; optionKey = ""; queueKey = ""; detailsKey = ""; queuePick = null; picking = grouping = false;
     root.classList.remove("controls-open"); root.classList.add("panel-open");
     root.setAttribute("data-panel", which);
     model.wantQueue(which === "queue"); model.tick();
@@ -163,7 +163,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   }
   function display(s) {
     const stateKey = JSON.stringify([panel, mode, background, overlay, s.lyrics.status, plainPage]);
-    if (stateKey === optionKey) return;
+    if (stateKey === optionKey) return false;
     optionKey = stateKey; el(".panel-items").textContent = "";
     text(el(".player-panel h2"), "Display");
     text(el(".player-panel .panel-note"), "Saved on this TV.");
@@ -173,6 +173,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     addRow("Lyrics over Visuals + track", overlay ? "On" : "Off", () => { overlay = !overlay; savePref("lyricsOverlay", overlay); applyMode(); }, false, true);
     if (s.lyrics.status === "plain") addRow("Lyrics page", plainPage + 1, dir => { plainPage = Math.max(0, plainPage + dir); lyricsKey = ""; }, false, true);
     if (s.lyrics.status === "error") addRow("Retry lyrics", "", () => model.retryLyrics());
+    return true;
   }
   async function readProviders() {
     if (providers) return;
@@ -183,7 +184,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   function details(s) {
     const item = s.queue && s.queue.current_item;
     const signature = JSON.stringify([item && item.queue_item_id, !!providers, s.connected, s.busy, s.queue && s.queue.display_name]);
-    if (signature === detailsKey) return;
+    if (signature === detailsKey) return false;
     detailsKey = signature; el(".panel-items").textContent = "";
     text(el(".player-panel h2"), s.track ? s.track.title : "Nothing playing");
     text(el(".player-panel .panel-note"), s.track ? [s.track.artist, s.queue.display_name].filter(Boolean).join(" · ") : "");
@@ -195,22 +196,55 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     const disabled = !s.connected || s.busy || !s.track;
     addRow("Start radio from this song", "Replaces the queue", () => command("radio"), disabled);
     addRow("Add to favourites", "", () => command("favorite"), disabled);
+    return true;
+  }
+  function setPreferred(id) { savePref("preferredPlayer", id); live.setPreferred(id); }
+  // Moves what the target plays to a speaker and makes that speaker the target.
+  function moveTo(id, autoPlay) {
+    const t = model.snapshot().target, value = { from: t.queueId, to: id };
+    if (autoPlay) value.autoPlay = true;
+    command("transfer", value).then(ok => { if (ok) onNotice("Moved the music"); });
+    setPreferred(id);
+  }
+  // Play on: choosing a speaker moves the music there when it has none of its own.
+  function playOn(speakers, disabled) {
+    text(el(".player-panel h2"), "Play on");
+    text(el(".player-panel .panel-note"), "Afterglow shows and controls this speaker’s music.");
+    const own = live.ownPlayer || "";
+    const choose = id => {
+      const plan = id && live.transferPlan ? live.transferPlan(id) : null;
+      if (plan && !disabled) moveTo(id); else setPreferred(id);
+      picking = false; focus = 0;
+    };
+    addRow("Automatic", "Whatever is playing", () => choose(""), false).classList.toggle("chosen", !live.preferred);
+    speakers.forEach(sp => {
+      const moves = !disabled && live.transferPlan && live.transferPlan(sp.id);
+      const kind = sp.id === own ? "This TV" : sp.group ? "Group" : "Speaker";
+      addRow(sp.name, moves ? kind + " · moves the music here" : kind, () => choose(sp.id), false).classList.toggle("chosen", live.preferred === sp.id);
+    });
+  }
+  // Speakers together: a tick for each speaker sounding the target's music.
+  function together(t, options, disabled) {
+    text(el(".player-panel h2"), "Speakers together");
+    text(el(".player-panel .panel-note"), "Ticked speakers play " + (t ? t.name : "this speaker") + "’s music.");
+    options.forEach(o => {
+      const detail = o.leader ? "Leads the group" : o.allowed ? "" : o.member ? "Always in the group" : "Can’t join";
+      addRow(o.name, detail, () => command("group", o.member ? { remove: o.id } : { add: o.id }), disabled || !o.allowed).classList.toggle("chosen", o.member);
+    });
   }
   function queue(s) {
-    const q = s.queue || {}, p = s.player || {};
+    const t = s.target, q = t && t.queue || {}, level = volumeOf(t && t.player);
     const speakers = live.speakers ? live.speakers() : [];
-    const signature = JSON.stringify([s.itemsState, s.items.map(i => [i.queue_item_id, i.name, i.available]), s.connected, s.busy, q.display_name, q.shuffle_enabled, q.smart_shuffle_active, q.repeat_mode, q.autoplay_enabled, q.crossfade_enabled, q.is_dynamic, p.volume_level, sleepIndex, queuePick && queuePick.queue_item_id, picking, live.preferred, speakers.length]);
-    if (signature === queueKey) return;
+    const options = live.groupOptions ? live.groupOptions() : [];
+    const own = live.ownPlayer || "";
+    const moveHere = !!own && !!t && t.queueId !== own && !!live.transferPlan && !!live.transferPlan(own, true);
+    const plans = picking && live.transferPlan ? speakers.map(sp => !!live.transferPlan(sp.id)) : [];
+    const signature = JSON.stringify([s.itemsState, s.items.map(i => [i.queue_item_id, i.name, i.available]), t && t.connected, t && t.queueId, t && t.name, q.shuffle_enabled, q.smart_shuffle_active, q.repeat_mode, q.autoplay_enabled, q.crossfade_enabled, q.is_dynamic, level, sleepIndex, queuePick && queuePick.queue_item_id, picking, grouping, live.preferred, speakers.map(sp => sp.id), plans, options, moveHere]);
+    if (signature === queueKey) return false;
     queueKey = signature; el(".panel-items").textContent = "";
-    const disabled = !s.connected || s.busy;
-    if (picking) {
-      text(el(".player-panel h2"), "Play on");
-      text(el(".player-panel .panel-note"), "Afterglow shows and controls this player’s music.");
-      const choose = id => { savePref("preferredPlayer", id); live.setPreferred(id); picking = false; focus = 0; };
-      addRow("Automatic", "Whatever is playing", () => choose(""), false).classList.toggle("chosen", !live.preferred);
-      speakers.forEach(sp => addRow(sp.name, sp.group ? "Group" : "Speaker", () => choose(sp.id), false).classList.toggle("chosen", live.preferred === sp.id));
-      return;
-    }
+    const disabled = !t || !t.connected;
+    if (picking) { playOn(speakers, disabled); return true; }
+    if (grouping) { together(t, options, disabled); return true; }
     if (queuePick) {
       const track = trackInfo(queuePick, host);
       text(el(".player-panel h2"), track.title);
@@ -221,11 +255,14 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       addRow("Move up", "", () => { done(); command("move_item", { id, shift: -1 }); }, disabled);
       addRow("Move down", "", () => { done(); command("move_item", { id, shift: 1 }); }, disabled);
       addRow("Remove from the queue", "", () => { done(); command("delete_item", id); }, disabled);
-      return;
+      return true;
     }
     text(el(".player-panel h2"), "Queue");
-    text(el(".player-panel .panel-note"), s.itemsState === "loading" ? "Loading…" : s.itemsState === "error" ? "Couldn’t load the queue. Reopen to retry." : q.is_dynamic ? "Radio: songs keep coming" : "");
-    if (speakers.length) addRow("Playing on", q.display_name || "Automatic", () => { picking = true; focus = 0; }, false);
+    text(el(".player-panel .panel-note"), !t ? "No speakers found in Music Assistant." : s.itemsState === "loading" ? "Loading…" : s.itemsState === "error" ? "Couldn’t load the queue. Reopen to retry." : q.is_dynamic ? "Radio: songs keep coming" : "");
+    if (speakers.length) addRow("Playing on", t ? t.name : "Automatic", () => { picking = true; focus = 0; }, false);
+    if (moveHere) addRow("Play on this TV", "Moves the music here", () => moveTo(own, true), disabled);
+    const members = options.filter(o => o.member).length;
+    if (options.some(o => o.allowed)) addRow("Speakers together", members > 1 ? members + " speakers" : "Just this one", () => { grouping = true; focus = 0; }, disabled);
     heading(s.items.length ? "Up next" : s.itemsState === "loading" ? "" : "Nothing queued after this song");
     s.items.forEach(item => {
       const track = trackInfo(item, host);
@@ -233,13 +270,14 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     });
     heading("Playback");
     addRow("Shuffle", q.smart_shuffle_active ? "Smart" : q.shuffle_enabled ? "On" : "Off", () => command("shuffle"), disabled || q.smart_shuffle_active || q.is_dynamic, true);
-    addRow("Repeat", { off: "Off", all: "All", one: "One" }[q.repeat_mode || "off"], dir => { const values = ["off", "all", "one"]; command("repeat", values[(Math.max(0, values.indexOf(q.repeat_mode)) + dir + 3) % 3]); }, disabled || q.is_dynamic, true);
+    addRow("Repeat", { off: "Off", all: "All", one: "One" }[q.repeat_mode || "off"], dir => command("repeat", dir), disabled || q.is_dynamic, true);
     addRow("Crossfade", q.crossfade_enabled ? "On" : "Off", () => command("crossfade"), disabled, true);
     addRow("Keep playing when the queue ends", q.autoplay_enabled ? "On" : "Off", () => command("autoplay"), disabled, true);
-    addRow("Volume", p.volume_level == null ? "Unavailable" : p.volume_level + "%", dir => command("volume", p.volume_level + dir * 5), disabled || p.volume_level == null, true);
+    addRow("Volume", level == null ? "Unavailable" : level + "%", dir => command("volume_by", dir * 5), disabled || level == null, true);
     const minutes = SLEEP_MINUTES[sleepIndex];
     addRow(minutes ? "Start a " + minutes + "-minute sleep timer" : "Clear the sleep timer", "Left and right change it", () => command("sleep", minutes), disabled,
       dir => { sleepIndex = (sleepIndex + dir + SLEEP_MINUTES.length) % SLEEP_MINUTES.length; });
+    return true;
   }
   function renderLyrics(s) {
     const index = lyricIndex(s.lyrics.lines, s.lyricPosition);
@@ -291,7 +329,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     text(el(".poster-target"), s.queue && s.queue.display_name || "Music Assistant");
     const paused = s.queue && s.queue.state === "paused";
     const badge = badgeOf(s.queue && s.queue.current_item);
-    text(el(".poster-state"), !s.connected ? "Connecting…" : s.busy ? "Working…" : [paused ? "Paused" : "", badge].filter(Boolean).join(" · "));
+    text(el(".poster-state"), !s.connected && !(s.target && s.target.connected) ? "Connecting…" : s.busy ? "Working…" : [paused ? "Paused" : "", badge].filter(Boolean).join(" · "));
     renderNext(s);
     const url = track && track.image || "";
     if (url !== artUrl) {
@@ -300,25 +338,27 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     }
     const elapsed = timeLabel(s.position), total = track && track.duration ? timeLabel(track.duration) : "Live";
     text(el(".elapsed"), elapsed); text(el(".duration"), total);
-    text(el(".control-track"), track ? track.title + (track.artist ? " · " + track.artist : "") : "No track playing");
-    text(el(".control-time"), (paused ? "Paused · " : "") + elapsed + " / " + total);
+    // The transport acts on the target, which a chosen idle speaker can make differ from the poster.
+    const t = s.target, tt = t && t.track, tPosition = t && t.drawn ? s.position : t ? t.position : 0;
+    const tPaused = t && t.queue && t.queue.state === "paused";
+    text(el(".control-track"), tt ? tt.title + (tt.artist ? " · " + tt.artist : "") + (t.drawn ? "" : " · " + t.name) : t ? "Nothing playing on " + t.name : "No speaker found");
+    text(el(".control-time"), (tPaused ? "Paused · " : "") + timeLabel(tPosition) + " / " + (tt && tt.duration ? timeLabel(tt.duration) : "Live"));
     const progress = track && track.duration ? Math.min(100, s.position / track.duration * 100) : 0;
     el(".progress-track div").style.width = progress + "%";
     el(".progress-track").setAttribute("aria-valuenow", String(Math.round(progress)));
-    const playing = s.queue && s.queue.state === "playing";
+    const playing = t && t.queue && t.queue.state === "playing";
     const play = toolbar.children[1];
     if (play.getAttribute("aria-label") !== (playing ? "Pause" : "Play")) {
       play.innerHTML = icon(playing ? "pause" : "play") + "<span>" + (playing ? "Pause" : "Play") + "</span>";
       play.setAttribute("aria-label", playing ? "Pause" : "Play");
     }
-    Array.from(toolbar.children).slice(0, 7).forEach((b, i) => b.disabled = !s.connected || s.busy || (i >= 3 && i <= 4 && (!track || !track.duration)) || (i >= 5 && !track));
+    Array.from(toolbar.children).slice(0, 7).forEach((b, i) => b.disabled = !t || !t.connected || (i >= 3 && i <= 4 && (!tt || !tt.duration)) || (i >= 5 && !track));
     Array.from(nav.children).forEach(b => b.classList.toggle("current", b.dataset.nav === (panel === "queue" || panel === "browse" ? panel : "now")));
     text(el(".player-error"), s.error);
     if (mode === "lyrics" || overlay) renderLyrics(s);
-    if (panel === "display") display(s);
-    if (panel === "queue") queue(s);
-    if (panel === "details") details(s);
-    if (panel && panel !== "browse") focusButton();
+    // Panels are only refocused when rebuilt, so a pointer can scroll a long queue.
+    const rebuilt = panel === "display" ? display(s) : panel === "queue" ? queue(s) : panel === "details" ? details(s) : false;
+    if (panel === "controls" || rebuilt) focusButton();
   }
   applyMode(); render();
   return {
@@ -334,7 +374,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       if (!panel) return false;
       touch();
       if (panel === "browse") { browse.handleKey(name); return true; }
-      if (name === "back" && panel === "queue" && (queuePick || picking)) { queuePick = null; picking = false; focus = 0; render(); return true; }
+      if (name === "back" && panel === "queue" && (queuePick || picking || grouping)) { queuePick = null; picking = grouping = false; focus = 0; queueKey = ""; render(); return true; }
       if (name === "back") { if (panel === "controls") close(); else openControls(); return true; }
       const list = buttons();
       if (name === "ok") { if (list[focus] && !list[focus].disabled) list[focus].click(); }
