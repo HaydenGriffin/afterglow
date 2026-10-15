@@ -16,6 +16,7 @@ import { createMenu } from "./menu.js";
 import { drawSync, timingLabel } from "./sync-figure.js";
 import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, SCALE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
 import { createMock } from "./mock.js";
+import { createRelaunchHandler } from "./relaunch.js";
 import { createScan, recoverScan } from "./scan.js";
 import { SendspinPlayer } from "@sendspin/sendspin-js";
 import { createSpeaker, playerIdFor, toggledSpeaker } from "./speaker.js";
@@ -699,14 +700,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     scan.stop();
     milkdrop.settle();
   });
-  document.addEventListener("webOSRelaunch", (relaunch) => {
-    // Relaunched with parameters (a different player, say): start over so
-    // they are read the same way as on a first launch.
-    if (Object.keys(normalizeParams(relaunch.detail)).length) return location.reload();
-    // Repeated app-open commands must not tear down an already-playing speaker.
-    // resume() is guarded; visibilitychange already suspended a hidden app.
-    resume();
-  });
+  document.addEventListener("webOSRelaunch", createRelaunchHandler({ reload: () => location.reload(), resume }));
 
   refreshMessage();
   if (!document.hidden) resume();
