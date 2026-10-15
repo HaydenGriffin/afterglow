@@ -438,3 +438,37 @@ test("a long list sent in parts is answered whole", async (t) => {
   sockets[0].receive({ message_id: id, result: [{ name: "d" }] });
   assert.deepEqual((await answer).map((x) => x.name), ["a", "b", "c", "d"], "every part, in order; each part restarts the wait");
 });
+
+test("commands have a target from a cold start, follow a chosen idle speaker, and keep the last queue after a suspend", (t) => {
+  const { follow, relay, sockets } = harness(t);
+  assert.equal(follow.target, null, "nothing known yet");
+  follow.start();
+  follow.setOwnPlayer("tv");
+  sockets[0].login();
+  sockets[0].queues({ tv: "idle", den: "idle" });
+  assert.deepEqual(relay.connects, []);
+  const target = follow.target;
+  assert.equal(target.queueId, "tv");
+  assert.equal(target.reason, "this-tv");
+  assert.equal(target.connected, true);
+  assert.equal(target.queue.queue_id, "tv");
+  assert.equal(target.player.player_id, "tv");
+  assert.equal(follow.playback, null, "nothing is drawn");
+
+  // Play on an idle speaker: commands go there at once, drawing once it plays.
+  follow.setPreferred("den");
+  assert.equal(follow.target.queueId, "den");
+  assert.equal(follow.target.reason, "chosen");
+  sockets[0].event("queue_updated", "den", { queue_id: "den", state: "playing" });
+  assert.deepEqual(relay.connects, ["den"], "followed when the target starts playing");
+
+  follow.setPreferred("");
+  assert.equal(follow.target.reason, "following");
+  follow.stop();
+  follow.start();
+  sockets[1].login();
+  sockets[1].queues({ tv: "idle", den: "idle" });
+  assert.deepEqual([follow.target.queueId, follow.target.reason], ["den", "last"], "the last followed queue outlives a suspend");
+  assert.deepEqual(follow.groupOptions().map((o) => o.id), ["den", "tv"]);
+  assert.equal(follow.transferPlan("tv"), null, "nothing playing to move");
+});

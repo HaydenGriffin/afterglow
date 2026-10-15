@@ -8,7 +8,7 @@
 
 import { authority } from "./relay.js";
 import { favoritesFromList, mergeFavorites } from "./settings.js";
-import { choose, isSkipped, speakersOf } from "./pick.js";
+import { choose, commandTarget, groupOptions, isSkipped, speakersOf, transferPlan } from "./pick.js";
 
 const RECONCILE_MS = 10000; // snapshot of players and queues while waiting
 const RECONCILE_STREAMING_MS = 30000; // and while streaming (events carry the rest)
@@ -67,6 +67,8 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
   let queueReceivedAt = 0;
   let queueElapsed = 0;
   let wanted = preferred || ""; // the picked speaker, "" for automatic
+  let own = ""; // this TV's own speaker, "" when it does not play here
+  let last = ""; // the queue last given to the relay, kept across stop()
 
   function setState(next) {
     if (next !== state) {
@@ -188,7 +190,7 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
   }
 
   function switchTo(pick) {
-    current = pick.queueId;
+    current = last = pick.queueId;
     streaming = false;
     trackId = null;
     if (queues[current]) sawQueue(queues[current]);
@@ -486,8 +488,40 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
     ws.onerror = () => {};
   }
 
+  // The queue commands act on (pick.js commandTarget).
+  function targetPick() {
+    if (pinned) return { queueId: pinned, playerId: pinned, reason: "pinned" };
+    return commandTarget({ players, queues, preferred: wanted, current, last, own });
+  }
+
   return {
     call,
+    // What playback and browse commands act on, with its queue and player
+    // (the leader's, for a group): {queueId, playerId, name, reason, queue,
+    // player, connected}, or null before anything is known.
+    get target() {
+      const pick = targetPick();
+      if (!pick) return null;
+      return { queueId: pick.queueId, playerId: pick.playerId, name: nameOf(pick.playerId), reason: pick.reason,
+        queue: queues[pick.queueId] || null, player: players[pick.queueId] || null, connected: authed };
+    },
+    // This TV's own speaker (speaker.js), "" when it does not play here.
+    setOwnPlayer(playerId) {
+      own = playerId || "";
+    },
+    get ownPlayer() {
+      return own;
+    },
+    // The speakers that could join the target's group (pick.js groupOptions).
+    groupOptions() {
+      const pick = targetPick();
+      return pick ? groupOptions(players, pick.queueId) : [];
+    },
+    // Whether sending the target's music to a speaker is a transfer: {from, to} or null.
+    transferPlan(playerId, stopped) {
+      const pick = targetPick();
+      return pick ? transferPlan({ players, queues, from: pick.queueId, to: playerId, stopped }) : null;
+    },
     get playback() {
       const queue = queues[current];
       return queue ? { queue, player: players[current] || null, connected: authed,

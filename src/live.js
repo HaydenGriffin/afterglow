@@ -162,6 +162,22 @@ export function createLive(settings) {
     get following() {
       return follow.following;
     },
+    // What commands act on (follow.js target), or null.
+    get target() {
+      return follow.target;
+    },
+    setOwnPlayer(playerId) {
+      follow.setOwnPlayer(playerId);
+    },
+    get ownPlayer() {
+      return follow.ownPlayer;
+    },
+    groupOptions() {
+      return follow.groupOptions();
+    },
+    transferPlan(playerId, stopped) {
+      return follow.transferPlan(playerId, stopped);
+    },
     nudgeTrim(deltaMs) {
       trimMs = Math.max(-TRIM_LIMIT_MS, Math.min(TRIM_LIMIT_MS, trimMs + deltaMs));
       savePref("trim", trimMs);

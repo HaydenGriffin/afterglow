@@ -98,3 +98,67 @@ export function choose({ players, queues, current, streaming, preferred, skipped
   }
   return best ? { queueId: best.id, playerId: best.id, reason: "auto" } : null;
 }
+
+// The queue a command acts on, which is not always the one being drawn: a
+// speaker picked with "Play on" takes commands before it plays, and from a
+// cold start something must still answer Play. Returns {queueId, playerId,
+// reason} or null.
+//   chosen:    the picked speaker's audible queue, or its own when idle
+//   following: the queue drawn now or last (kept after its stream ends)
+//   last:      the queue followed before the app was suspended
+//   this-tv:   this TV's own speaker, when it plays here too
+//   first:     the first speaker by name, real speakers before groups
+export function commandTarget({ players, queues, preferred, current, last, own }) {
+  const queueOf = (playerId) => {
+    const p = playerId && players[playerId];
+    if (!p || !p.available || p.enabled === false) return null;
+    return audibleQueue(playerId, players, queues) || queues[playerId] || null;
+  };
+  const target = (playerId, reason) => {
+    const queue = queueOf(playerId);
+    return queue ? { queueId: queue.queue_id, playerId, reason } : null;
+  };
+  if (preferred && target(preferred, "chosen")) return target(preferred, "chosen");
+  if (current && queues[current]) return { queueId: current, playerId: current, reason: "following" };
+  if (last && target(last, "last")) return target(last, "last");
+  if (own && target(own, "this-tv")) return target(own, "this-tv");
+  const speakers = speakersOf(players);
+  const ordered = speakers.filter((s) => !s.group).concat(speakers.filter((s) => s.group));
+  for (const s of ordered) if (target(s.id, "first")) return target(s.id, "first");
+  return null;
+}
+
+// Whether picking a speaker should move the music there: only music that is
+// playing or paused (or stopped, when asked for), and only to a speaker that
+// is not already sounding it or something of its own. Returns {from, to} or null.
+export function transferPlan({ players, queues, from, to, stopped }) {
+  const source = queues[from];
+  if (!source || !source.current_item) return null;
+  if (!stopped && source.state !== "playing" && source.state !== "paused") return null;
+  const dest = players[to];
+  if (!dest || !dest.available || dest.enabled === false) return null;
+  const sounding = audibleQueue(to, players, queues);
+  if (sounding && (sounding.queue_id === from || sounding.state === "playing")) return null;
+  return { from, to };
+}
+
+// The speakers that could sound together with a leader, by name, with a tick
+// for those in its group. Speakers it cannot group with are listed but not
+// allowed, as are its leader and fixed members.
+export function groupOptions(players, leaderId) {
+  const leader = players[leaderId];
+  if (!leader) return [];
+  const members = leader.group_members || [];
+  const fixed = leader.static_group_members || [];
+  const can = leader.can_group_with || [];
+  const groupable = (leader.supported_features || []).indexOf("set_members") >= 0;
+  return speakersOf(players)
+    .filter((s) => !s.group)
+    .map((s) => {
+      const p = players[s.id];
+      const isLeader = s.id === leaderId;
+      const member = isLeader || members.indexOf(s.id) >= 0;
+      const compatible = member || can.indexOf(s.id) >= 0 || (!!p.provider && can.indexOf(p.provider) >= 0);
+      return { id: s.id, name: s.name, member, leader: isLeader, allowed: groupable && !isLeader && fixed.indexOf(s.id) < 0 && compatible };
+    });
+}
