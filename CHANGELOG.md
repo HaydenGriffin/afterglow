@@ -1,3 +1,11 @@
+# 1.4.2 — Sync figure fix (15 October 2026)
+
+- The sync figure placed the picture relative to the TV's audio compensation,
+  but pictures and lyrics are timed from the group clock. The TV's compensation
+  only offsets its own output latency, so it no longer moves the picture mark;
+  rows now read "TV output compensation: Sound sent 420 ms early" and
+  "Picture and lyrics timing: 75 ms after the music". Found in review on 14 October.
+
 # 1.4.1 — Launcher icon (14 October 2026)
 
 - Replace viz-man's equaliser icon with the poster world's mark: a sun setting

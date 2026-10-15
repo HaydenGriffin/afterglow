@@ -344,19 +344,20 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
         if (engine.running) speaker.start();
       },
     },
-    { visible: () => !!live, figure: (box) => drawSync(box, speaker && speaker.on ? speaker.delayMs : null, live.trimMs) },
+    { visible: () => !!live, figure: (box) => drawSync(box, live.trimMs) },
     {
-      // When this TV's sound lands against the other speakers: right plays it
-      // earlier, left later. Saved as the player's delay in Music Assistant.
-      label: "TV sound timing",
+      // Compensates this TV's own output latency so its sound lands with the
+      // other speakers: right sends it earlier, left later. Saved as the
+      // player's delay in Music Assistant; not an offset on the sync figure.
+      label: "TV output compensation",
       visible: () => !!speaker && speaker.on,
-      value: () => timingLabel(speaker.delayMs, "ahead of the other speakers", "behind the other speakers", "In step with the other speakers"),
+      value: () => (speaker.delayMs === null ? "…" : speaker.delayMs ? "Sound sent " + Math.abs(speaker.delayMs) + " ms " + (speaker.delayMs > 0 ? "early" : "late") : "None"),
       change: (direction) => speaker.nudgeDelay(direction),
     },
     {
       label: "Picture and lyrics timing",
       visible: () => !!live,
-      value: () => timingLabel(live.trimMs, "after the TV’s sound", "before the TV’s sound", "With the TV’s sound"),
+      value: () => timingLabel(live.trimMs, "after the music", "before the music", "With the music"),
       change: (direction) => live.nudgeTrim(direction * TRIM_STEP_MS),
     },
     { section: "Display" },

@@ -1,6 +1,7 @@
-// Sound & sync drawn as one timeline: the other speakers in the middle, this
-// TV's sound moved earlier by its audio delay, and the picture (MilkDrop and
-// lyrics) moved later from the TV's sound by the trim. Earlier is left.
+// Sound & sync drawn as one timeline. Every speaker, this TV included, plays
+// the group's music in step: the TV's audio delay only compensates its own
+// output latency, so it is not an offset on this scale. The picture (MilkDrop
+// and lyrics) is timed from the group clock, later by the trim. Earlier is left.
 const SPAN_MS = 600;
 
 // A timing in words that name what it is measured against: "420 ms ahead of
@@ -11,21 +12,19 @@ export function timingLabel(ms, positive, negative, inStep) {
   return Math.abs(ms) + " ms " + (ms > 0 ? positive : negative);
 }
 
-export function syncMarks(audioMs, trimMs) {
+export function syncMarks(trimMs) {
   const at = ms => Math.max(2, Math.min(98, 50 + ms / (2 * SPAN_MS) * 100));
-  const sound = audioMs === null || audioMs === undefined ? null : -audioMs;
-  const picture = (sound === null ? 0 : sound) + (trimMs || 0);
-  const marks = [{ id: "speakers", label: "Other speakers", at: 50, side: "above" }];
-  if (sound !== null) marks.push({ id: "sound", label: "TV sound", at: at(sound), side: "below" });
-  marks.push({ id: "picture", label: "Picture & lyrics", at: at(picture), side: sound === null ? "below" : "above" });
-  return marks;
+  return [
+    { id: "music", label: "The music", at: 50, side: "below" },
+    { id: "picture", label: "Picture & lyrics", at: at(trimMs || 0), side: "above" },
+  ];
 }
 
-export function drawSync(box, audioMs, trimMs) {
+export function drawSync(box, trimMs) {
   box.className = "figure sync-figure";
   const scale = document.createElement("div");
   scale.className = "sync-scale";
-  syncMarks(audioMs, trimMs).forEach(m => {
+  syncMarks(trimMs).forEach(m => {
     const mark = document.createElement("span");
     mark.className = "sync-mark sync-" + m.id + " " + m.side;
     mark.style.left = m.at + "%";
