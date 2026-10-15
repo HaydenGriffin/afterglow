@@ -55,3 +55,16 @@ test('temporary failures get one delayed automatic retry, without hammering the 
   assert.equal(model.snapshot().lyrics.retryAt,0);
   time=100000;model.tick();await settle();assert.equal(calls,2);
 });
+test('a Music Assistant failure followed by an LRCLIB miss stays retryable', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let time = 1000, maCalls = 0;
+  const queue = { queue_id: 'tv', state: 'playing', current_item: track('one') };
+  const live = { playback: { queue, connected: true, position: 20 }, call: () => { maCalls++; return new Promise(() => {}); } };
+  const model = createPlayback({ live, host: 'ma', now: () => time, lyricsSearch: async () => null });
+  model.wantLyrics(true); model.tick();
+  t.mock.timers.tick(5000); await settle();
+  assert.equal(model.snapshot().lyrics.status, 'error', 'a timeout is not a clean miss');
+  assert.equal(model.snapshot().lyrics.retryAt, 31000);
+  time = 31000; model.tick(); await settle();
+  assert.equal(maCalls, 2, 'tried again after the cooldown');
+});

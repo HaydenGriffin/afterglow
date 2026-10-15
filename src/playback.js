@@ -154,6 +154,8 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
       if (!(result && (result[0] || result[1])) && lyricsSearch) {
         const found = await lyricsSearch({ title: track.title, artist: firstArtist(track.media), album: track.album, duration: track.duration });
         if (found) result = [found.plain, found.lrc];
+        // Only a clean answer from both is "missing"; a failed lookup is retried.
+        else if (primaryError) throw primaryError;
       } else if (primaryError) throw primaryError;
       const lines = parseLyrics(result && result[1]);
       const plain = String(result && result[0] || "").slice(0, 50000);
