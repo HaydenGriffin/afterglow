@@ -219,12 +219,13 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
   }
 
   // Frames stopped without the stream ending. A queue that still plays gets a
-  // fresh relay socket; either way the choice is made again.
+  // fresh relay socket (a pinned one too, unless its queue is known to have
+  // stopped or paused); either way the choice is made again.
   function frameStall() {
     streaming = false;
     expectFramesAt = clock();
     const queue = queues[current];
-    if (current && (pinned || (queue && queue.state === "playing"))) {
+    if (current && (queue ? queue.state === "playing" : !!pinned)) {
       stalls++;
       relay.connect(current);
     }
@@ -640,6 +641,10 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
     },
     speakers() {
       return speakersOf(players);
+    },
+    // Whether Music Assistant has a player by this id (available or not).
+    hasPlayer(playerId) {
+      return !!players[playerId];
     },
     // Save a snapshot of the preferences remotely; sent once things settle,
     // and never before the remote copy has been read and merged.

@@ -68,6 +68,7 @@ export function createBedtimeController({ bedtime, playback, setDark, now = Date
   let dark = false;
   let original = null; // the volume before the fade
   let sent = null;
+  let pausing = false; // a pause in flight
 
   function trackNow() {
     const t = playback.snapshot().target;
@@ -95,12 +96,20 @@ export function createBedtimeController({ bedtime, playback, setDark, now = Date
     sent = level;
     playback.command("volume", level);
   }
+  // Pause, then put the volume back. A pause Music Assistant did not take
+  // leaves the music playing: it stays silenced (when the player has a volume)
+  // and bedtime stays on, so the next tick tries again.
   function finish() {
-    const level = restoreVolume();
-    bedtime.set(0, now(), null);
-    showDark(false);
-    const paused = playback.command("pause");
-    if (level !== null) paused.then(() => playback.command("volume", level));
+    if (pausing) return;
+    pausing = true;
+    playback.command("pause").then((paused) => {
+      pausing = false;
+      if (!paused) return fade(0);
+      const level = restoreVolume();
+      bedtime.set(0, now(), null);
+      showDark(false);
+      if (level !== null) playback.command("volume", level);
+    });
   }
 
   return {

@@ -28,12 +28,28 @@ test("a token close to running out is renewed, and the fresh one handed over bef
       assert.deepEqual([host, token, tokenName], ["h", "old", "TV"]);
       onCreated("fresh");
       handed.push("revoked old");
-      return Promise.resolve("fresh");
+      return Promise.resolve({ token: "fresh", tokenId: "t9" });
     },
     onFresh: (token) => handed.push("fresh " + token),
   });
-  assert.equal(result, "fresh");
+  assert.deepEqual(result, { token: "fresh", tokenId: "t9" });
   assert.deepEqual(handed, ["fresh fresh", "revoked old"]);
+});
+
+test("with a known token id, the expiry checked is that token's, not a namesake's", async () => {
+  const soon = new Date(Date.now() + 5 * DAY).toISOString(), later = new Date(Date.now() + 90 * DAY).toISOString();
+  const list = [{ token_id: "mine", name: "TV", is_long_lived: true, expires_at: later }, { token_id: "other", name: "TV", is_long_lived: true, expires_at: soon }];
+  const passed = [];
+  const result = await renewIfDue({
+    auth: { host: "h", token: "old", tokenName: "TV", tokenId: "mine" },
+    listTokens: () => Promise.resolve(list),
+    renewToken: (args) => (passed.push(args.tokenId), Promise.resolve({ token: "fresh", tokenId: "new" })),
+    onFresh: () => {},
+  });
+  assert.equal(result, null, "the other TV's token running out is not ours to renew");
+  list[0].expires_at = soon;
+  await renewIfDue({ auth: { host: "h", token: "old", tokenName: "TV", tokenId: "mine" }, listTokens: () => Promise.resolve(list), renewToken: (args) => (passed.push(args.tokenId), Promise.resolve(null)), onFresh: () => {} });
+  assert.deepEqual(passed, ["mine"], "the id is handed to the renewal");
 });
 
 test("a refusal only forgets the stored sign-in when it is for the stored token", () => {

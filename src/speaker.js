@@ -25,6 +25,9 @@ export const DELAY_SAVE_MS = 600;
 // A failed connect is tried again, waiting longer each time (as relay.js).
 const RETRY_MIN_MS = 1000;
 const RETRY_MAX_MS = 30000;
+// sendspin-js reconnects a dropped socket itself; after this many tries (about
+// 75 s) it gives up and says so, and a fresh player is started from here.
+const SENDSPIN_RECONNECTS = 8;
 
 // Music Assistant's address without its web port: Sendspin has its own.
 export function sendspinUrl(host) {
@@ -43,15 +46,17 @@ export function playerIdFor(name) {
 // The "Play on this TV" row: off when on; on again as the player this TV was
 // last (its launch parameter or an earlier choice), so it keeps its id and its
 // place in Music Assistant's groups. Only a TV never set up gets a new player.
-// The new player keeps the id it had before the rebrand (as "viz-man TV"):
-// Music Assistant knows a player by its id, so a TV that lost its stored choice
-// (storage wiped by an update or reinstall) comes back as the same player
-// rather than a second one.
+// Music Assistant knows a player by its id. A TV whose stored choice is gone
+// (the new app id starts with empty storage) but whose player from before the
+// rebrand ("viz-man TV") Music Assistant still knows (isKnown(id)) comes back
+// under that id rather than as a second player.
 export const NEW_SPEAKER_NAME = "Afterglow TV";
-export const NEW_SPEAKER_ID = "webos-viz-man-tv";
-export function toggledSpeaker(current, last) {
+export const NEW_SPEAKER_ID = "webos-afterglow-tv";
+export const OLD_SPEAKER_ID = "webos-viz-man-tv";
+export function toggledSpeaker(current, last, isKnown) {
   if (current) return null;
-  return last || { name: NEW_SPEAKER_NAME, id: NEW_SPEAKER_ID };
+  if (last) return last;
+  return { name: NEW_SPEAKER_NAME, id: isKnown && isKnown(OLD_SPEAKER_ID) ? OLD_SPEAKER_ID : NEW_SPEAKER_ID };
 }
 
 export function createSpeaker({ host, Player, delays }) {
@@ -85,6 +90,7 @@ export function createSpeaker({ host, Player, delays }) {
   }
 
   function scheduleRetry(run) {
+    if (retryTimer) return; // one retry waiting at a time
     const wait = retryMs * (0.75 + Math.random() * 0.5);
     retryMs = Math.min(retryMs * 2, RETRY_MAX_MS);
     retryTimer = setTimeout(() => {
@@ -147,6 +153,23 @@ export function createSpeaker({ host, Player, delays }) {
         if (generation !== run) return;
         const playing = !!(s && s.isPlaying);
         state = playing ? "playing" : "ready";
+      },
+      // Watches the connection for as long as this player lives, including
+      // after a retry stood down for a reconnect sendspin-js made itself.
+      reconnect: {
+        maxAttempts: SENDSPIN_RECONNECTS,
+        onReconnected() {
+          if (generation !== run) return;
+          retryMs = RETRY_MIN_MS;
+          error = "";
+          if (state === "error") state = "ready";
+        },
+        onExhausted() {
+          if (generation !== run) return;
+          state = "error";
+          error = "Sendspin connection lost";
+          scheduleRetry(run);
+        },
       },
     });
     const current = player;

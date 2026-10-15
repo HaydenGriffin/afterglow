@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { keyName, remoteAction } from "../src/keys.js";
+import { installKeys, keyName, remoteAction } from "../src/keys.js";
 
 const visuals = { mode: "visuals", visualsShown: true, milkdropReady: true, milkdropOn: true, live: true, lyrics: "idle" };
 const at = (over) => Object.assign({}, visuals, over);
@@ -64,4 +64,40 @@ test("unknown keys do nothing", () => {
 test("media keys by code and by name: stop, fast-forward and rewind too", () => {
   for (const [code, name] of [[415, "play"], [19, "pause"], [413, "stop"], [417, "fastforward"], [412, "rewind"]]) assert.equal(keyName({ keyCode: code }), name);
   for (const [key, name] of [["MediaPlayPause", "playpause"], ["MediaTrackNext", "fastforward"], ["MediaTrackPrevious", "rewind"], ["MediaStop", "stop"]]) assert.equal(keyName({ key, keyCode: 0 }), name);
+});
+
+// installKeys on a fake window: the keydown listener it adds, and what it passes on.
+function keyboard(t) {
+  const previous = globalThis.window;
+  let listener = null;
+  globalThis.window = { addEventListener: (type, fn) => { if (type === "keydown") listener = fn; } };
+  t.after(() => { globalThis.window = previous; });
+  const handled = [];
+  installKeys((name) => handled.push(name));
+  const press = (keyCode, repeat, key) => {
+    const event = { keyCode, key, repeat: !!repeat, target: null, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+    listener(event);
+    return event;
+  };
+  return { handled, press };
+}
+
+test("holding a media key acts once; holding an arrow keeps moving", (t) => {
+  const { handled, press } = keyboard(t);
+  press(417); // fast-forward down
+  for (let i = 0; i < 5; i++) assert.equal(press(417, true).defaultPrevented, true, "repeats are swallowed, not passed to the page");
+  press(412);
+  press(412, true);
+  press(415);
+  press(415, true);
+  press(19, true);
+  press(413, true);
+  press(179, true);
+  press(0, true, "MediaTrackNext");
+  assert.deepEqual(handled, ["fastforward", "rewind", "play"]);
+  press(40);
+  press(40, true);
+  press(40, true);
+  press(39, true);
+  assert.deepEqual(handled.slice(3), ["down", "down", "down", "right"]);
 });

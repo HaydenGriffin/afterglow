@@ -99,11 +99,13 @@ export function volumeOf(player) {
 
 const TOGGLES = { shuffle: "shuffle_enabled", autoplay: "autoplay_enabled", crossfade: "crossfade_enabled" };
 const LATEST = { volume: true, seek: true }; // presses that only need their last value
+const ONCE = { next: true, previous: true }; // at most one waiting per direction
 const ASSUME_MS = 4000; // how long a value just sent outranks the queue's own
 const WAITING_MAX = 8;
 
 // lyricsSearch: the fallback when Music Assistant has no lyrics (lrclib.js); null for none.
-export function createPlayback({ live, host, now = Date.now, lyricsSearch = searchLyrics, lyricsOffset = () => 0 }) {
+// onlineLyrics: the "Online lyrics" setting; while it is false the fallback is not asked.
+export function createPlayback({ live, host, now = Date.now, lyricsSearch = searchLyrics, onlineLyrics = () => true, lyricsOffset = () => 0 }) {
   let key = "", itemsKey = "", generation = 0, stopped = false;
   let lyrics = { status: "idle", lines: [], plain: "" };
   let lyricsRetries = 0;
@@ -150,9 +152,12 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
       } catch (e) { primaryError = e; }
       finally { clearTimeout(timeout); }
       if (gen !== generation || stopped) return;
-      if (!(result && (result[0] || result[1])) && lyricsSearch) {
-        const found = await lyricsSearch({ title: track.title, artist: firstArtist(track.media), album: track.album, duration: track.duration });
+      const search = onlineLyrics() ? lyricsSearch : null;
+      if (!(result && (result[0] || result[1])) && search) {
+        const found = await search({ title: track.title, artist: firstArtist(track.media), album: track.album, duration: track.duration });
         if (found) result = [found.plain, found.lrc];
+        // Only a clean answer from both is "missing"; a failed lookup is retried.
+        else if (primaryError) throw primaryError;
       } else if (primaryError) throw primaryError;
       const lines = parseLyrics(result && result[1]);
       const plain = String(result && result[0] || "").slice(0, 50000);
@@ -291,15 +296,17 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
       lyrics = { status: "idle", lines: [], plain: "" };
     },
     // Presses made while a command is in flight wait their turn instead of
-    // being lost; repeated volume and seek presses collapse into one.
+    // being lost; repeated volume and seek presses collapse into one, and
+    // skips into one waiting skip per direction.
     // Resolves true once Music Assistant accepted the command.
     command(action, value) {
       return new Promise(resolve => {
         const family = action.replace(/_by$/, "");
         const relative = family !== action;
-        const pending = LATEST[family] && waiting.filter(job => job.family === family)[0];
+        const pending = (LATEST[family] || ONCE[family]) && waiting.filter(job => job.family === family)[0];
         if (pending) {
-          if (relative) pending.value += value; else { pending.value = value; pending.relative = false; }
+          // Volume and seek take the latest value; a waiting skip stands for this one too.
+          if (LATEST[family]) { if (relative) pending.value += value; else { pending.value = value; pending.relative = false; } }
           pending.done.push(resolve);
           return;
         }

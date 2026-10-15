@@ -137,6 +137,57 @@ test("a player that Sendspin reconnected by itself is not torn down by the retry
   assert.equal(speaker.error, "");
 });
 
+test("after standing down for Sendspin's own reconnect, a later drop it gives up on is retried again", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { Player, made } = fakePlayer();
+  Player.prototype.connect = function () {
+    this.calls.push("connect");
+    return made.indexOf(this) === 0 ? Promise.reject(new Error("refused")) : Promise.resolve();
+  };
+  const speaker = createSpeaker({ host: "ma", Player });
+  speaker.set("TV");
+  speaker.start();
+  await flush();
+  made[0].isConnected = true; // its own reconnect got through: the retry stands down
+  made[0].config.reconnect.onReconnected();
+  t.mock.timers.tick(5000);
+  await flush();
+  assert.equal(made.length, 1);
+  assert.equal(speaker.error, "");
+  // Much later the server goes away and Sendspin's own retries run out.
+  made[0].isConnected = false;
+  made[0].config.reconnect.onExhausted();
+  assert.equal(speaker.state, "error");
+  t.mock.timers.tick(1300);
+  await flush();
+  assert.equal(made.length, 2, "a fresh player is started");
+  assert.equal(made[0].calls.pop(), "disconnect:retry");
+});
+
+test("a dropped player is watched with Sendspin's reconnect hooks, and old players' hooks are ignored", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { Player, made } = fakePlayer();
+  const speaker = createSpeaker({ host: "ma", Player });
+  speaker.set("TV");
+  speaker.start();
+  await flush();
+  const hooks = made[0].config.reconnect;
+  assert.ok(hooks.maxAttempts > 0 && hooks.maxAttempts < Infinity, "Sendspin gives up in the end, so the drop is seen");
+  speaker.stop();
+  speaker.start();
+  await flush();
+  hooks.onExhausted(); // the first player, already let go
+  t.mock.timers.tick(60000);
+  await flush();
+  assert.equal(made.length, 2);
+  assert.notEqual(speaker.state, "error");
+  made[1].config.reconnect.onExhausted();
+  made[1].config.reconnect.onExhausted(); // twice: still one retry
+  t.mock.timers.tick(1300);
+  await flush();
+  assert.equal(made.length, 3);
+});
+
 test("stopping or switching the speaker cancels a pending retry", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const { Player, made } = fakePlayer();
@@ -211,7 +262,8 @@ function fakeDelays(start) {
   return { saved, get: () => Promise.resolve(start), set: (id, ms) => (saved.push([id, ms]), Promise.resolve()) };
 }
 
-test("Audio delay: read from Music Assistant on start, nudged in 10 ms steps, saved once the presses stop", async () => {
+test("Audio delay: read from Music Assistant on start, nudged in 10 ms steps, saved once the presses stop", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   const { Player } = fakePlayer();
   const delays = fakeDelays(310);
   const speaker = createSpeaker({ host: "ma", Player, delays });
@@ -219,14 +271,15 @@ test("Audio delay: read from Music Assistant on start, nudged in 10 ms steps, sa
   assert.equal(speaker.delayMs, null);
   speaker.nudgeDelay(1); // not read yet: nothing to step from
   speaker.start();
-  await new Promise((r) => setTimeout(r, 0));
+  await flush();
   assert.equal(speaker.delayMs, 310);
   speaker.nudgeDelay(1);
   speaker.nudgeDelay(1);
   speaker.nudgeDelay(-1);
   assert.equal(speaker.delayMs, 320);
-  assert.deepEqual(delays.saved, []);
-  await new Promise((r) => setTimeout(r, 700));
+  t.mock.timers.tick(599);
+  assert.deepEqual(delays.saved, [], "still pressing");
+  t.mock.timers.tick(1);
   assert.deepEqual(delays.saved, [["webos-living-room-lg-c1", 320]]);
 });
 
@@ -246,8 +299,15 @@ test("Play on this TV off and on again comes back as the same player (14 Oct: it
   assert.deepEqual(toggledSpeaker(false, tv), tv);
 });
 
-test("a TV never set up becomes 'Afterglow TV', under the id earlier versions gave it so it is not registered twice", () => {
-  assert.deepEqual(toggledSpeaker(false, null), { name: "Afterglow TV", id: "webos-viz-man-tv" });
+test("a TV never set up becomes 'Afterglow TV' under an Afterglow id", () => {
+  assert.deepEqual(toggledSpeaker(false, null), { name: "Afterglow TV", id: "webos-afterglow-tv" });
+  assert.deepEqual(toggledSpeaker(false, null, (id) => id === "webos-somewhere-else"), { name: "Afterglow TV", id: "webos-afterglow-tv" });
+});
+
+test("a TV that was a speaker before keeps its id: a stored one, or the old id Music Assistant still knows", () => {
+  const old = { name: "Afterglow TV", id: "webos-viz-man-tv" };
+  assert.deepEqual(toggledSpeaker(false, old), old, "stored under the old id: kept");
+  assert.deepEqual(toggledSpeaker(false, null, (id) => id === "webos-viz-man-tv"), old, "storage gone (new app id) but Music Assistant has the old player: not registered twice");
 });
 
 test("Audio delay belongs to its speaker: switching neither shows nor saves the old one's on the new one", async (t) => {

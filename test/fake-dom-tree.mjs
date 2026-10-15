@@ -1,6 +1,7 @@
 // A minimal document for testing views without a browser: elements, classes,
-// text, events, focus and simple selectors ("tag", ".class", "tag.class", and
-// comma lists). Views under test build their DOM with createElement only.
+// text, events, focus and simple selectors ("tag", ".class", "tag.class",
+// descendants "a b", and comma lists). innerHTML takes the plain markup views
+// write (tags, quoted attributes, text); it is not an HTML parser.
 
 class FakeElement {
   constructor(doc, tag) {
@@ -49,6 +50,21 @@ class FakeElement {
   contains(node) { for (let n = node; n; n = n.parentNode) if (n === this) return true; return false; }
   get textContent() { return this.ownText + this.children.map(c => c.textContent).join(""); }
   set textContent(value) { this.children.slice().forEach(c => this.removeChild(c)); this.ownText = String(value); }
+  set innerHTML(markup) {
+    this.textContent = "";
+    const doc = this.ownerDocument, open = [this];
+    const token = /<(\/?)([a-z0-9]+)((?:\s+[\w:-]+="[^"]*")*)\s*(\/?)>|([^<]+)/gi;
+    let m;
+    while ((m = token.exec(markup))) {
+      const parent = open[open.length - 1];
+      if (m[5]) { const t = new FakeElement(doc, "#text"); t.ownText = m[5]; parent.appendChild(t); continue; }
+      if (m[1]) { if (open.length > 1) open.pop(); continue; }
+      const node = new FakeElement(doc, m[2]);
+      m[3].replace(/([\w:-]+)="([^"]*)"/g, (_, name, value) => { if (name === "class") node.className = value; else node.setAttribute(name, value); });
+      parent.appendChild(node);
+      if (!m[4] && !/^(img|br|input)$/i.test(m[2])) open.push(node);
+    }
+  }
   setAttribute(name, value) { this.attributes[name] = String(value); }
   getAttribute(name) { return name in this.attributes ? this.attributes[name] : null; }
   removeAttribute(name) { delete this.attributes[name]; }
@@ -69,12 +85,24 @@ class FakeElement {
   }
   blur() { const doc = this.ownerDocument; if (doc.activeElement === this) { doc.activeElement = doc.body; this.dispatch("blur"); } }
   scrollIntoView() {}
+  // One compound selector: "tag", ".class" or "tag.class".
+  matchesOne(part) {
+    const m = /^\s*([a-z0-9]*)((?:\.[\w-]+)*)\s*$/i.exec(part);
+    if (!m || !(m[1] || m[2])) throw Error("fake-dom: unsupported selector " + part);
+    if (m[1] && m[1].toUpperCase() !== this.tagName) return false;
+    return m[2].split(".").filter(Boolean).every(c => this.classList.contains(c));
+  }
   matches(selector) {
-    return selector.split(",").some(part => {
-      const m = /^\s*([a-z0-9]*)((?:\.[\w-]+)*)\s*$/i.exec(part);
-      if (!m) throw Error("fake-dom: unsupported selector " + selector);
-      if (m[1] && m[1].toUpperCase() !== this.tagName) return false;
-      return m[2].split(".").filter(Boolean).every(c => this.classList.contains(c));
+    return selector.split(",").some(group => {
+      const parts = group.trim().split(/\s+/);
+      if (!this.matchesOne(parts.pop())) return false;
+      let node = this.parentNode;
+      for (let i = parts.length - 1; i >= 0; i--) {
+        while (node && !node.matchesOne(parts[i])) node = node.parentNode;
+        if (!node) return false;
+        node = node.parentNode;
+      }
+      return true;
     });
   }
   querySelectorAll(selector) {
@@ -89,6 +117,8 @@ export function createFakeDocument() {
   const doc = { created: 0, listeners: {} };
   doc.createElement = tag => { doc.created++; return new FakeElement(doc, tag); };
   doc.body = new FakeElement(doc, "body");
+  doc.documentElement = new FakeElement(doc, "html");
+  doc.documentElement.style.setProperty = (name, value) => { doc.documentElement.style[name] = value; };
   doc.activeElement = doc.body;
   doc.addEventListener = (type, fn) => { (doc.listeners[type] = doc.listeners[type] || []).push(fn); };
   doc.dispatch = (type, init) => (doc.listeners[type] || []).forEach(fn => fn(Object.assign({ type }, init)));

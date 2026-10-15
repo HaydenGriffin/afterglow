@@ -76,6 +76,15 @@ export function connectApi(host, WebSocketImpl) {
   });
 }
 
+// The token list carries no token text: a token just made is told by being
+// the newest long-lived one in its name. Its id is kept, so renewal and
+// sign-out touch that token alone even when another TV shows the same name.
+function newestNamed(tokens, name) {
+  const named = (tokens || []).filter((t) => t.name === name && t.is_long_lived);
+  named.sort((a, b) => (String(a.created_at || "") < String(b.created_at || "") ? 1 : -1));
+  return named[0] || null;
+}
+
 // Signs in with a username and password and comes back with a long-lived
 // token in this device's name. The session token the login hands out is
 // revoked again, so the account shows one token per TV.
@@ -86,13 +95,17 @@ export async function signIn({ host, username, password, deviceName, WebSocketIm
     if (!login || !login.success) throw new Error((login && login.error) || "Sign-in failed");
     await api.call("auth", { token: login.access_token });
     const token = await api.call("auth/token/create", { name: deviceName });
+    let made = null;
     try {
       const tokens = await api.call("auth/tokens");
+      made = newestNamed(tokens, deviceName);
       for (const t of tokens || []) if (t.name === deviceName && !t.is_long_lived) await api.call("auth/token/revoke", { token_id: t.token_id });
     } catch (e) {
       // the session token expires on its own
     }
-    return { host, token, user: (login.user && login.user.username) || username, tokenName: deviceName };
+    const auth = { host, token, user: (login.user && login.user.username) || username, tokenName: deviceName };
+    if (made) auth.tokenId = made.token_id;
+    return auth;
   } finally {
     api.close();
   }
@@ -109,13 +122,14 @@ export async function listTokens({ host, token, WebSocketImpl }) {
   }
 }
 
-// Forgets this TV on the account: every token in its name is revoked.
-export async function signOut({ host, token, tokenName, WebSocketImpl }) {
+// Forgets this TV on the account: its own token when its id is known, else
+// (a sign-in from before ids were kept) every token in its name.
+export async function signOut({ host, token, tokenName, tokenId, WebSocketImpl }) {
   const api = await connectApi(host, WebSocketImpl);
   try {
     await api.call("auth", { token });
     const tokens = (await api.call("auth/tokens")) || [];
-    for (const t of tokens) if (t.name === tokenName) await api.call("auth/token/revoke", { token_id: t.token_id });
+    for (const t of tokens) if (tokenId ? t.token_id === tokenId : t.name === tokenName) await api.call("auth/token/revoke", { token_id: t.token_id });
   } finally {
     api.close();
   }
@@ -123,20 +137,23 @@ export async function signOut({ host, token, tokenName, WebSocketImpl }) {
 
 // A fresh long-lived token in the same name, with the old one revoked.
 // onCreated gets the fresh token before anything is revoked, so whatever runs
-// on the old one can move over first.
-export async function renewToken({ host, token, tokenName, onCreated, WebSocketImpl }) {
+// on the old one can move over first. Revoked: the old token by its id when
+// known, else the long-lived ones in this name made before the fresh one;
+// never the fresh one. Resolves with { token, tokenId } (the fresh token's).
+export async function renewToken({ host, token, tokenName, tokenId, onCreated, WebSocketImpl }) {
   const api = await connectApi(host, WebSocketImpl);
   try {
     await api.call("auth", { token });
     const fresh = await api.call("auth/token/create", { name: tokenName });
     if (onCreated) onCreated(fresh);
     await api.call("auth", { token: fresh });
-    // The list carries no token text, so every long-lived token in this name
-    // but the newest (the fresh one) is revoked.
     const tokens = (await api.call("auth/tokens")) || [];
-    const ours = tokens.filter((t) => t.name === tokenName && t.is_long_lived).sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-    for (const t of ours.slice(1)) await api.call("auth/token/revoke", { token_id: t.token_id });
-    return fresh;
+    const made = newestNamed(tokens, tokenName);
+    const madeAt = String((made && made.created_at) || "");
+    const old = tokens.filter((t) => made && t.token_id !== made.token_id &&
+      (tokenId ? t.token_id === tokenId : t.name === tokenName && t.is_long_lived && String(t.created_at || "") < madeAt));
+    for (const t of old) await api.call("auth/token/revoke", { token_id: t.token_id });
+    return { token: fresh, tokenId: made ? made.token_id : "" };
   } finally {
     api.close();
   }

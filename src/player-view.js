@@ -13,7 +13,8 @@ const SLEEP_MINUTES = [0, 15, 30, 45, 60, 90];
 
 export function createPlayerView({ root, live, host, engine, onSettings, onMode, onNotice }) {
   let lyricsOffsetMs = loadPref("lyricsOffsetMs", 0);
-  const model = createPlayback({ live, host, lyricsSearch: live.mock ? null : undefined, lyricsOffset: () => lyricsOffsetMs });
+  let onlineLyrics = loadPref("onlineLyrics", true); // Off: nothing is asked of lrclib.net
+  const model = createPlayback({ live, host, lyricsSearch: live.mock ? null : undefined, onlineLyrics: () => onlineLyrics, lyricsOffset: () => lyricsOffsetMs });
   let mode = loadPref("viewMode", "track");
   if (VIEW_MODES.indexOf(mode) < 0) mode = "track";
   let background = loadPref("playerBackground", false);
@@ -165,7 +166,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     return button;
   }
   function display(s) {
-    const stateKey = JSON.stringify([panel, mode, background, overlay, s.lyrics.status, plainPage, lyricsOffsetMs]);
+    const stateKey = JSON.stringify([panel, mode, background, overlay, s.lyrics.status, plainPage, lyricsOffsetMs, onlineLyrics]);
     if (stateKey === optionKey) return false;
     optionKey = stateKey; el(".panel-items").textContent = "";
     text(el(".player-panel h2"), "Display");
@@ -176,6 +177,10 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       addRow("Lyrics timing", lyricsOffsetMs ? (Math.abs(lyricsOffsetMs) / 1000).toFixed(1) + " s " + (lyricsOffsetMs > 0 ? "later" : "earlier") : "With the music",
         dir => { lyricsOffsetMs = Math.max(-10000, Math.min(10000, lyricsOffsetMs + dir * 100)); savePref("lyricsOffsetMs", lyricsOffsetMs); }, false, true);
       if (lyricsOffsetMs) addRow("Reset lyrics timing", "", () => { lyricsOffsetMs = 0; savePref("lyricsOffsetMs", 0); });
+      addRow("Online lyrics", onlineLyrics ? "On" : "Off", () => {
+        onlineLyrics = !onlineLyrics; savePref("onlineLyrics", onlineLyrics);
+        if (onlineLyrics && model.snapshot().lyrics.status === "missing") model.retryLyrics();
+      }, false, true);
       if (s.lyrics.status === "error" || s.lyrics.status === "missing") addRow("Retry lyrics", "", () => model.retryLyrics());
     }
     heading("Extras");
@@ -395,7 +400,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       plainPage = Math.max(0, Math.min(pages - 1, plainPage + by)); lyricsKey = ""; optionKey = ""; render();
       return { page: plainPage + 1, pages };
     },
-    reloadPrefs() { lyricsOffsetMs = loadPref("lyricsOffsetMs", 0); const next = loadPref("viewMode", "track"); if (VIEW_MODES.indexOf(next) >= 0) mode = next; background = loadPref("playerBackground", false); overlay = loadPref("lyricsOverlay", false); applyMode(); },
+    reloadPrefs() { lyricsOffsetMs = loadPref("lyricsOffsetMs", 0); onlineLyrics = loadPref("onlineLyrics", true); const next = loadPref("viewMode", "track"); if (VIEW_MODES.indexOf(next) >= 0) mode = next; background = loadPref("playerBackground", false); overlay = loadPref("lyricsOverlay", false); applyMode(); },
     start() { model.start(); if (!timer) timer = setInterval(() => { model.tick(); render(); if (panel === "controls" && Date.now() > hideAt) close(); }, 250); },
     stop() { clearInterval(timer); timer = 0; model.stop(); close(); },
     handleKey(name) {

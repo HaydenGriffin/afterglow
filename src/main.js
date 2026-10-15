@@ -62,7 +62,8 @@ function boot(event) {
     savePref("deviceId", settings.deviceId);
   }
   const isTv = /Web0S|webOS/i.test(navigator.userAgent);
-  const deviceName = "Afterglow on " + (info.modelName || (isTv ? "TV" : "browser")) + " (" + settings.deviceId.slice(-6) + ")";
+  // The whole device id, so two TVs of one model never share a token name.
+  const deviceName = "Afterglow on " + (info.modelName || (isTv ? "TV" : "browser")) + " (" + settings.deviceId + ")";
 
   // Credentials: a development override (query string, launch parameters or
   // the build config) wins; otherwise what the sign-in form stored.
@@ -310,7 +311,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     if (!auth) return toast("Signed in with a development token: nothing to log out of", true);
     menu.close();
     toast("Signing out…", true);
-    signOut({ host: auth.host, token: auth.token, tokenName: auth.tokenName })
+    signOut({ host: auth.host, token: auth.token, tokenName: auth.tokenName, tokenId: auth.tokenId })
       .then(() => forgetAndRelaunch("Signed out. This TV's token was removed from the account."))
       .catch((e) => forgetAndRelaunch("Signed out here; the token could not be removed from the account (" + e.message + "). Remove it in Music Assistant's settings."));
   }
@@ -334,7 +335,14 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
           live.setToken(fresh);
         },
       })
-        .then((fresh) => fresh && debug.record("token renewed"))
+        .then((renewed) => {
+          if (!renewed) return;
+          if (renewed.tokenId) {
+            auth.tokenId = renewed.tokenId; // the fresh token's, for the next renewal or sign-out
+            savePref("auth", Object.assign({}, auth));
+          }
+          debug.record("token renewed");
+        })
         .catch((e) => debug.record("token check: " + e.message));
     }, RENEW_CHECK_MS);
   }
@@ -388,7 +396,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       visible: () => !!speaker,
       value: () => (speaker.on ? speaker.name + " · " + speaker.state.charAt(0).toUpperCase() + speaker.state.slice(1) : "Off"),
       change() {
-        const next = toggledSpeaker(speaker.on, loadPref("speakerLast", null));
+        const next = toggledSpeaker(speaker.on, loadPref("speakerLast", null), (id) => !!live && live.hasPlayer(id));
         if (next) savePref("speakerLast", next);
         savePref("speaker", next);
         speaker.set(next ? next.name : "", next ? next.id : "");

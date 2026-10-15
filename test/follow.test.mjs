@@ -539,6 +539,29 @@ test("frames that stop mid-stream while the queue still plays get a fresh relay 
   assert.deepEqual(relay.connects, ["tv", "tv"], "frames keep coming: nothing more");
 });
 
+test("a pinned player that pauses keeps its relay; one that stalls while playing gets a fresh one", (t) => {
+  const { follow, relay, sockets } = harness(t, "tv");
+  follow.start();
+  sockets[0].login();
+  sockets[0].queues({ tv: "playing" });
+  follow.noteFrame();
+  sockets[0].event("queue_updated", "tv", { queue_id: "tv", state: "paused" });
+  t.mock.timers.tick(30000);
+  assert.deepEqual(relay.connects, ["tv"], "paused: no reconnect every 10 s");
+  sockets[0].event("queue_updated", "tv", { queue_id: "tv", state: "playing" });
+  follow.noteFrame();
+  t.mock.timers.tick(12000);
+  assert.deepEqual(relay.connects, ["tv", "tv"], "silent while playing: replaced");
+});
+
+test("a pinned player whose queue is unknown still gets a fresh relay on a stall", (t) => {
+  const { follow, relay } = harness(t, "tv");
+  follow.start();
+  follow.noteFrame();
+  t.mock.timers.tick(12000);
+  assert.deepEqual(relay.connects, ["tv", "tv"]);
+});
+
 test("frames that stop because the queue paused do not replace the relay", (t) => {
   const { follow, relay, sockets } = harness(t);
   follow.start();
@@ -549,4 +572,13 @@ test("frames that stop because the queue paused do not replace the relay", (t) =
   t.mock.timers.tick(30000);
   assert.deepEqual(relay.connects, ["tv"]);
   assert.equal(follow.frames.streaming, false, "no longer counted as streaming");
+});
+
+test("hasPlayer tells whether Music Assistant knows a player id, available or not", (t) => {
+  const { follow, sockets } = harness(t);
+  follow.start();
+  sockets[0].login();
+  sockets[0].players({ "webos-viz-man-tv": { available: false }, kitchen: {} });
+  assert.equal(follow.hasPlayer("webos-viz-man-tv"), true);
+  assert.equal(follow.hasPlayer("webos-afterglow-tv"), false);
 });
