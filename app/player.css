@@ -166,6 +166,7 @@
 .idle-title[data-length="long"] { font-size: 9.8vh; line-height: .92; }
 .idle-title[data-length="xlong"] { font-size: 7.4vh; line-height: .95; }
 .idle-field { position: absolute; top: 62vh; left: 35.42vw; width: 36.77vw; height: 23vh; box-sizing: border-box; padding: 2.6vh 1.4vw; overflow: hidden; background: var(--field-a); color: var(--on-a); }
+#idle.neutral { --field-a: rgb(62,66,72); --on-a: var(--paper); }
 .idle-detail { font-size: 4vh; line-height: 1.1; font-weight: 750; font-stretch: 88%; max-height: 8.8vh; overflow: hidden; }
 .idle-hint { margin-top: 1.4vh !important; font-size: 2.6vh; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .idle-strip { position: absolute; left: 35.42vw; right: 5vw; top: 87vh; display: flex; list-style: none; }

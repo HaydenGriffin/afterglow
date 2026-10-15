@@ -187,6 +187,10 @@ export function createMockPlayback() {
         }
       }
       if (command === "player_queues/delete_item") { const i = tracks.findIndex(t => t.queue_item_id === args.item_id_or_index); if (i > queue.current_index) { tracks.splice(i, 1); refresh(); } }
+      if (command === "player_queues/play" || command === "player_queues/pause") {
+        const next = command === "player_queues/play" ? "playing" : "paused";
+        if (queue.state !== next) { position = this.playback.position; at = Date.now(); queue.state = next; }
+      }
       if (command === "player_queues/play_pause") { position = this.playback.position; at = Date.now(); queue.state = queue.state === "playing" ? "paused" : "playing"; }
       if (command === "player_queues/play_index") select(tracks.findIndex(t => t.queue_item_id === args.index));
       if (command === "player_queues/next") select(queue.current_index + 1);

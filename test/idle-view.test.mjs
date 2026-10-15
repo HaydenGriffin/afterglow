@@ -88,6 +88,7 @@ test("Browse ends the strip; other keys keep their meaning", async t => {
   assert.equal(h.browses.length, 1);
   h.idle.handleKey("left"); h.idle.handleKey("left"); h.idle.handleKey("left");
   assert.equal(h.title(), "Album 1", "left stops at the first tile");
+  assert.ok(h.element.classList.contains("neutral"), "a recent item has no palette: neutral fields");
 });
 
 test("nothing played yet, and a failed read that OK retries, are said plainly", async t => {

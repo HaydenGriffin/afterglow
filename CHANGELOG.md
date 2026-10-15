@@ -1,3 +1,43 @@
+# 1.4.3 — Review fixes, play from idle, search and bedtime (15 October 2026)
+
+Fixes
+- Token renewal no longer signs the TV out: the fresh token is handed to every
+  open connection before the old one is revoked, and a refusal of a replaced
+  token logs in again instead of clearing the sign-in.
+- Browse, the idle poster and the controls act on a command target (the chosen
+  speaker, else the one followed, else the last one, else this TV), so Play now
+  works with nothing playing and "Play on" an idle speaker takes effect.
+- Back while an album's songs load keeps the category list; arrow keys in
+  Browse move the selection without rebuilding the list.
+- Settings passes Play/Pause and the colour keys through, stays open 45 s
+  after the last key, reopens on the last row and keeps its values current.
+- The TV speaker retries a failed connection with a growing wait; switching
+  speakers no longer carries one speaker's delay onto another.
+- Held volume and quick seek presses are combined instead of dropped; group
+  volume uses Music Assistant's group command for synced speakers.
+- An open panel no longer refocuses and scrolls itself every 250 ms.
+- A positive LRC `[offset:]` now brings lyrics sooner, as the format defines.
+- The WebGL context is released on page hide and before every reload; a
+  restored context reloads cleanly. Aimed at the C1 runtime memory growth;
+  not yet measured on the TV.
+- The provider list is re-read after a failure; message refresh and burn-in
+  drift stop while hidden or signed out. New speakers are named Afterglow TV.
+
+Features
+- Search in Browse, with the TV keyboard or voice; results grouped by kind.
+- Idle poster: the paused song (after 30 s) or recent music (after 8 s with
+  nothing playing), OK plays, dims after three quiet minutes.
+- Queue panel: Play on moves the music, "Play on this TV", and Speakers
+  together to join or leave the group.
+- Artists offer Show songs; Play next / Add confirm on their own row.
+- Album and Lyrics views: left/right seek 10 s (or turn untimed lyric pages),
+  Yellow favourites the song.
+- Word-by-word karaoke for enhanced LRC lyrics.
+- Bedtime (15/30/60 min or end of track): the picture goes black and the
+  renderer rests after a minute, the volume fades over the last 30 s, then
+  playback pauses.
+- Lock a preset to the playing album or artist.
+
 # 1.4.2 — Sync figure fix (15 October 2026)
 
 - The sync figure placed the picture relative to the TV's audio compensation,

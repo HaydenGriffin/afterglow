@@ -17,7 +17,9 @@
   await section(2);
   assert(document.querySelector('.player-panel h2').textContent === 'Queue', 'Queue opens from the top strip');
   const initial = title();
-  key(DOWN); key(DOWN); key(UP); await wait();
+  // Past Playing on / Play on this TV / Speakers together to the first song.
+  for (let i = 0; i < 5; i++) key(DOWN);
+  key(UP); key(UP); await wait();
   assert(title() === initial, 'Queue arrows must not start playback');
   const song = selected().firstChild.textContent;
   key(OK); await wait();

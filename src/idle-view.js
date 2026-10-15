@@ -108,6 +108,9 @@ export function createIdle({ element, live, host, play, resume, onBrowse, now = 
     focus = Math.max(0, Math.min(focus, tiles.length - 1));
     Array.from(strip.children).forEach((li, i) => li.firstChild.classList.toggle("selected", i === focus));
     const tile = tiles[focus], copy = idleCopy(tile, state, tiles.some(t => t.kind === "play"));
+    // Only the paused song has a palette from Music Assistant; any other tile is
+    // set on the neutral fields rather than wearing that song's colours.
+    element.classList.toggle("neutral", tile.kind !== "resume");
     text(where, queue && queue.display_name || "Music Assistant");
     text(status, queue && queue.state === "paused" ? "Paused" : "Nothing playing");
     text(title, copy.title); title.setAttribute("data-length", lengthOf(copy.title));
