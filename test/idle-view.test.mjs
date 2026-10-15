@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { useFakeDocument } from "./fake-dom-tree.mjs";
-import { createIdle, idleTiles, IDLE_AFTER_MS, REST_AFTER_MS } from "../src/idle-view.js";
+import { createIdle, idleTiles, IDLE_AFTER_MS, PAUSED_IDLE_AFTER_MS, REST_AFTER_MS } from "../src/idle-view.js";
 
 const settle = () => new Promise(resolve => setImmediate(resolve));
 const album = n => ({ item_id: String(n), provider: "library", media_type: "album", uri: "library://album/" + n, name: "Album " + n, artists: [{ name: "Demo" }] });
@@ -62,6 +62,8 @@ test("not while a panel or menu is open", t => {
 test("the paused song comes first and OK resumes it; right then OK plays a recent item", async t => {
   const h = harness(t, pausedQueue);
   h.advance(IDLE_AFTER_MS);
+  assert.equal(h.idle.showing, false, "a short pause is left alone");
+  h.advance(PAUSED_IDLE_AFTER_MS - IDLE_AFTER_MS);
   h.calls[0].resolve([album(1), album(2)]); await settle();
   assert.equal(h.title(), "Low tide");
   assert.equal(h.detail(), "Paused · Demo");

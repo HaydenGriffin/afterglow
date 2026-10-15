@@ -87,9 +87,9 @@
   assert(/FLAC|OGG/.test(document.querySelector('.details-facts').textContent), 'Details show the stream format');
   await closeAll();
 
-  // Idle: pause, and after a few seconds the recent music is set as a poster; OK resumes.
+  // Idle: pause, and after half a minute the recent music is set as a poster; OK resumes.
   const idle = document.getElementById('idle'), paused = title();
-  key(32); await wait(9500);
+  key(32); await wait(31500);
   assert(idle.classList.contains('shown'), 'Nothing playing shows the idle poster');
   assert(idle.querySelector('.idle-title').textContent === paused && idle.querySelector('.idle-hint').textContent === 'OK resumes', 'The paused song comes first');
   key(RIGHT); await wait();

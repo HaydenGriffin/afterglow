@@ -1,13 +1,15 @@
 import { imageUrl, thumbOf } from "./playback.js";
 import { detailOf } from "./browse-view.js";
 
-// The idle poster: when nothing has played for a few seconds, the screen sets
+// The idle poster: when nothing has played for a few seconds (half a minute
+// after a pause), the screen sets
 // what was played recently as a poster, the paused song first. Left and right
 // move along the strip, OK plays (or resumes, or opens Browse); every other
 // key keeps its usual meaning. On an OLED it stays calm: it drifts with the
 // rest of the picture and steps down to a dim register after a few minutes
 // without a key press; the first key then only wakes it.
 export const IDLE_AFTER_MS = 8000;
+export const PAUSED_IDLE_AFTER_MS = 30000; // a pause is often a short one
 export const REST_AFTER_MS = 180000;
 export const RECENT_LIMIT = 8;
 const RELOAD_MS = 60000;
@@ -123,7 +125,9 @@ export function createIdle({ element, live, host, play, resume, onBrowse, now = 
     update(allowed) {
       if (!nothingPlaying(live.playback)) quietSince = 0;
       else if (!quietSince) quietSince = now();
-      const want = !!allowed && !!quietSince && now() - quietSince >= IDLE_AFTER_MS;
+      const queue = live.playback && live.playback.queue;
+      const wait = queue && queue.state === "paused" ? PAUSED_IDLE_AFTER_MS : IDLE_AFTER_MS;
+      const want = !!allowed && !!quietSince && now() - quietSince >= wait;
       if (want && !showing) show();
       else if (!want && showing) hide();
       if (!showing) return;
