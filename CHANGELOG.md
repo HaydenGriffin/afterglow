@@ -17,9 +17,11 @@ Fixes
   volume uses Music Assistant's group command for synced speakers.
 - An open panel no longer refocuses and scrolls itself every 250 ms.
 - A positive LRC `[offset:]` now brings lyrics sooner, as the format defines.
-- The WebGL context is released on page hide and before every reload; a
-  restored context reloads cleanly. Aimed at the C1 runtime memory growth;
-  not yet measured on the TV.
+- The WebGL context is released on the browser's `pagehide` event and before
+  app-triggered reloads; a restored context reloads cleanly. Switching to
+  another TV app only suspends rendering until the page closes. C1 memory
+  measurements are in `docs/performance.md`; the long-session leak remains
+  unresolved.
 - The provider list is re-read after a failure; message refresh and burn-in
   drift stop while hidden or signed out. New speakers are named Afterglow TV.
 

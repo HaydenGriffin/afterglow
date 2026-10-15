@@ -11,7 +11,7 @@ state() { curl -s -m 10 "$TV/api/apps/install/status" | node -p 'const d=JSON.pa
 
 echo "uploading $(basename "$IPK")"
 curl -s -m 180 -X POST "$TV/api/apps/install/upload" -H 'Content-Type: application/octet-stream' \
-  -H "Content-Length: $(stat -c %s "$IPK")" --data-binary "@$IPK" | node -p 'const d=JSON.parse(require("fs").readFileSync(0,"utf8")); if(!d.ok) { console.error("upload refused: "+d.error); process.exit(1) } "accepted"'
+  -H "Content-Length: $(wc -c < "$IPK" | tr -d '[:space:]')" --data-binary "@$IPK" | node -p 'const d=JSON.parse(require("fs").readFileSync(0,"utf8")); if(!d.ok) { console.error("upload refused: "+d.error); process.exit(1) } "accepted"'
 for _ in $(seq 1 60); do
   read -r STATE JOB ERROR <<<"$(state)"
   case "$STATE" in awaiting-confirm) break;; error) echo "install failed: $ERROR" >&2; exit 1;; esac
