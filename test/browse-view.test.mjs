@@ -42,3 +42,17 @@ test("Back while an album's songs load keeps the list; the late answer is droppe
   h.calls[h.calls.length - 1].resolve([song(1), song(2)]); await settle();
   assert.deepEqual(h.names(), ["Coastline"], "songs that arrive after Back must not replace the list");
 });
+
+test("moving through a list only moves the selection; rows are not rebuilt", async t => {
+  const h = harness(t);
+  const art = { type: "thumb", path: "https://example.org/a.jpg", remotely_accessible: true };
+  await openWith(h, [1, 2, 3, 4].map(n => Object.assign(song(n), { metadata: { images: [art] } })));
+  const before = h.doc.created, firstImage = h.element.querySelector("img");
+  h.key("down"); h.key("down");
+  assert.equal(h.doc.created, before, "arrow keys must not create elements");
+  assert.equal(h.element.querySelector("img"), firstImage);
+  assert.equal(h.selected().textContent, "Song 3Song");
+  h.key("up");
+  assert.equal(h.selected().textContent, "Song 2Song");
+  assert.equal(h.element.querySelectorAll(".selected").length, 1);
+});
