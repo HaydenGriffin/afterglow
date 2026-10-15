@@ -54,6 +54,14 @@ function tracksFor(uri) {
   return LIBRARY.track.slice(0, 3);
 }
 
+// Search by name across the demo library. "fail" fails, to show the error state.
+function search(args) {
+  const q = String(args.search_query || "").toLowerCase();
+  if (q === "fail") throw new Error("Demo search failed");
+  const found = kind => LIBRARY[kind].filter(i => i.name.toLowerCase().indexOf(q) >= 0 || (i.artists || []).some(a => a.name.toLowerCase().indexOf(q) >= 0)).slice(0, args.limit || 25);
+  return { artists: found("artist"), albums: found("album"), tracks: found("track"), playlists: found("playlist"), radio: [] };
+}
+
 let sequence = 0;
 function queueItem(media) {
   const quality = media.item_id % 3 === 0 ? ["flac", 96000, 24, "hi_res"] : media.item_id % 3 === 1 ? ["flac", 44100, 16, "lossless"] : ["ogg", 44100, 16, "lossy"];
@@ -84,6 +92,7 @@ export function createMockPlayback() {
       const library = /^music\/(\w+)s\/library_items$/.exec(command);
       if (library) return page((LIBRARY[library[1]] || []).filter(i => !args.favorite || i.favorite), args);
       if (command === "music/recently_played_items") return LIBRARY.album.slice(0, 2).concat(LIBRARY.playlist.slice(0, 1)).map(i => Object.assign({ image: i.metadata.images[0] }, i)).slice(0, args.limit || 10);
+      if (command === "music/search") return search(args);
       if (command === "music/albums/album_tracks") return tracksFor("library://album/" + args.item_id);
       if (command === "music/playlists/playlist_tracks") return tracksFor("library://playlist/" + args.item_id);
       if (command === "music/artists/artist_tracks") return tracksFor("library://artist/" + args.item_id);

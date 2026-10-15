@@ -112,6 +112,7 @@ test("lists are read once while Browse is open and afresh after it closes", asyn
   h.calls[1].resolve([album]); await settle();
   h.key("up");
   assert.equal(h.calls.length, 2, "the first list comes from the cache");
+  assert.equal(h.element.querySelectorAll(".selected").length, 1, "one row is selected across categories");
   assert.deepEqual(h.names(), ["Song 1"]);
   h.browse.close(); h.browse.open();
   assert.equal(h.calls.length, 3, "closing drops the cache");
@@ -151,4 +152,103 @@ test("an action that fails says so on its row and stays put", async t => {
   h.key("ok"); await settle();
   assert.equal(h.selected().querySelector("strong").textContent, "Play next");
   assert.equal(h.selected().querySelectorAll("span").pop().textContent, "Couldn’t do that. OK tries again");
+});
+
+// Search: the first category, a real text field for the TV keyboard.
+const artist = { item_id: "3", provider: "library", media_type: "artist", uri: "library://artist/3", name: "Demo Ensemble" };
+function startSearch(h) {
+  h.browse.open();
+  h.calls[0].resolve([album]);
+  h.key("up"); h.key("right");
+  const input = h.element.querySelector("input");
+  assert.ok(h.selected().contains(input), "Right from Search selects the field");
+  assert.notEqual(h.doc.activeElement, input, "selecting the field must not open the keyboard");
+  h.key("ok");
+  assert.equal(h.doc.activeElement, input, "OK puts the keyboard on the field");
+  return input;
+}
+const type = (input, value, keyCode) => { input.value = value; input.dispatch("input"); if (keyCode) input.dispatch("keydown", { keyCode, key: keyCode === 13 ? "Enter" : "" }); };
+const headings = h => h.element.querySelectorAll(".browse-group").map(g => g.textContent);
+
+test("Search sits above the categories; Enter searches and results come grouped", async t => {
+  const h = harness(t);
+  assert.equal(h.element.querySelector(".browse-cats").querySelector("button").textContent, "Search");
+  const input = startSearch(h);
+  const before = h.calls.length;
+  type(input, "  demo  ", 13);
+  assert.notEqual(h.doc.activeElement, input, "Enter puts the keyboard away");
+  assert.equal(h.calls.length, before + 1);
+  assert.equal(h.calls[before].command, "music/search");
+  assert.equal(h.calls[before].args.search_query, "demo");
+  assert.deepEqual(h.names(), ["Searching…"]);
+  h.calls[before].resolve({ artists: [artist], tracks: [song(1), song(2)], albums: [] });
+  await settle();
+  assert.deepEqual(headings(h), ["Artists", "Songs"]);
+  assert.deepEqual(h.names(), ["Demo Ensemble", "Song 1", "Song 2"]);
+  h.key("down");
+  assert.equal(h.selected().querySelector("strong").textContent, "Demo Ensemble");
+  h.key("ok");
+  assert.equal(h.names()[0], "Play now");
+  h.key("back");
+  assert.deepEqual(h.names(), ["Demo Ensemble", "Song 1", "Song 2"], "Back from actions returns to the results");
+  assert.equal(input.value, "  demo  ");
+});
+
+test("only the latest search's answer is shown", async t => {
+  const h = harness(t);
+  const input = startSearch(h);
+  const first = h.calls.length;
+  type(input, "dem", 13);
+  h.key("ok"); type(input, "demo", 13);
+  h.calls[first + 1].resolve({ tracks: [song(2)] }); await settle();
+  h.calls[first].resolve({ tracks: [song(1)] }); await settle();
+  assert.deepEqual(h.names(), ["Song 2"]);
+});
+
+test("search says when nothing is found, and a failed search can be retried", async t => {
+  const h = harness(t);
+  const input = startSearch(h);
+  const at = h.calls.length;
+  type(input, "zz", 13);
+  h.calls[at].resolve({ artists: [], tracks: [] }); await settle();
+  assert.deepEqual(h.names(), ["Nothing found for “zz”"]);
+  h.key("ok"); type(input, "yy", 13);
+  h.calls[at + 1].reject(Error("offline")); await settle();
+  assert.deepEqual(h.names(), ["Search didn’t work"]);
+  h.key("down"); h.key("ok");
+  assert.equal(h.calls[at + 2].args.search_query, "yy");
+});
+
+test("Back leaves the field, then the list, without a dead end", t => {
+  const h = harness(t);
+  const input = startSearch(h);
+  const event = input.dispatch("keydown", { keyCode: 461 });
+  assert.ok(event.defaultPrevented);
+  assert.notEqual(h.doc.activeElement, input);
+  assert.ok(h.selected().contains(input), "the field stays selected");
+  h.key("back");
+  assert.equal(h.selected().textContent, "Search");
+  h.key("back");
+  assert.deepEqual(h.leaves, [false]);
+});
+
+test("voice or keyboard text searches after a pause; the TV keyboard closing searches too", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const h = harness(t);
+  const input = startSearch(h);
+  const at = h.calls.length;
+  type(input, "low tide");
+  t.mock.timers.tick(500);
+  assert.equal(h.calls.length, at);
+  t.mock.timers.tick(600);
+  assert.equal(h.calls[at].args.search_query, "low tide");
+  assert.equal(h.doc.activeElement, input, "results arriving while typing keep the keyboard");
+  h.calls[at].resolve({ tracks: [song(5)] }); await settle();
+  assert.equal(h.doc.activeElement, input);
+  type(input, "home");
+  h.doc.dispatch("keyboardStateChange", { detail: { visibility: false } });
+  assert.notEqual(h.doc.activeElement, input);
+  assert.equal(h.calls[at + 1].args.search_query, "home");
+  t.mock.timers.tick(2000);
+  assert.equal(h.calls.length, at + 2, "the pending pause does not search twice");
 });
