@@ -2,6 +2,7 @@ import "./polyfills.js";
 import { createPlayerView } from "./player-view.js";
 import { createMockPlayback } from "./mock-playback.js";
 import { createAnalysis } from "./analysis.js";
+import { renewIfDue, shouldForget } from "./auth.js";
 import { createDebug } from "./debug.js";
 import { startDevlink } from "./devlink.js";
 import { startDrift } from "./drift.js";
@@ -30,7 +31,6 @@ const TRACK_MODES = ["start", "always", "off"];
 const DIM_CHOICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]; // percent
 const DIM_STEP = 10;
 const RENEW_CHECK_MS = 8000; // after launch
-const RENEW_WITHIN_DAYS = 30;
 
 let booted = false;
 
@@ -274,7 +274,9 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   // Signing out: the TV's token is revoked on the account and forgotten here;
   // the sign-in form comes back. Also what happens when the token is refused.
   let leaving = false;
-  function forgetAndRelaunch(messageText) {
+  // rejectedToken: the refused token; the stored sign-in is kept if it holds
+  // a newer one.
+  function forgetAndRelaunch(messageText, rejectedToken) {
     if (leaving) return;
     leaving = true;
     menu.close();
@@ -283,7 +285,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     if (speaker) speaker.stop();
     if (live) live.stop();
     engine.stop();
-    clearPref("auth");
+    if (shouldForget(loadPref("auth", null), rejectedToken)) clearPref("auth");
     login.show({ host: auth ? auth.host : settings.host, user: auth ? auth.user : "", message: messageText });
   }
   function logOut() {
@@ -295,20 +297,26 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       .catch((e) => forgetAndRelaunch("Signed out here; the token could not be removed from the account (" + e.message + "). Remove it in Music Assistant's settings."));
   }
   if (live && auth) {
-    live.onRejected(() => forgetAndRelaunch("Music Assistant no longer accepts this TV's token. Sign in again."));
-    // Long-lived tokens do not renew themselves: replace ours before it runs out.
+    live.onRejected((token) => {
+      // Only the token in use counts: a renewed one has replaced the rest.
+      if (token !== settings.token) return debug.record("refusal of a replaced token ignored");
+      forgetAndRelaunch("Music Assistant no longer accepts this TV's token. Sign in again.", token);
+    });
+    // Long-lived tokens do not renew themselves: replace ours before it runs
+    // out, moving everything over to the fresh one before the old is revoked.
     setTimeout(() => {
-      listTokens({ host: auth.host, token: auth.token })
-        .then((tokens) => {
-          const ours = tokens.filter((t) => t.name === auth.tokenName && t.is_long_lived);
-          if (!ours.length) return;
-          const soonest = Math.min.apply(null, ours.map((t) => Date.parse(t.expires_at) || Infinity));
-          if (soonest - Date.now() > RENEW_WITHIN_DAYS * 86400000) return;
-          return renewToken({ host: auth.host, token: auth.token, tokenName: auth.tokenName }).then((fresh) => {
-            savePref("auth", Object.assign({}, auth, { token: fresh }));
-            debug.record("token renewed; takes effect on the next launch");
-          });
-        })
+      renewIfDue({
+        auth,
+        listTokens,
+        renewToken,
+        onFresh(fresh) {
+          auth.token = fresh;
+          settings.token = fresh; // the speaker's delay calls read it from here
+          savePref("auth", Object.assign({}, auth));
+          live.setToken(fresh);
+        },
+      })
+        .then((fresh) => fresh && debug.record("token renewed"))
         .catch((e) => debug.record("token check: " + e.message));
     }, RENEW_CHECK_MS);
   }

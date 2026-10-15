@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { connectApi, signIn, signOut } from "../src/ma.js";
+import { connectApi, renewToken, signIn, signOut } from "../src/ma.js";
 
 // A Music Assistant API socket that answers from a table of command -> result.
 function fakeServer(answers) {
@@ -78,4 +78,21 @@ test("signing out revokes every token in the TV's name and nothing else", async 
   await signOut({ host: "h", token: "longlived", tokenName: "viz-man on TV (abc)", WebSocketImpl: Fake });
   const revoked = sockets[0].sent.filter((m) => m.command === "auth/token/revoke").map((m) => m.args.token_id);
   assert.deepEqual(revoked, ["t1", "t2"]);
+});
+
+test("renewing hands the fresh token over before the old one is revoked", async () => {
+  const order = [];
+  const { Fake, sockets } = fakeServer({
+    auth: { authenticated: true },
+    "auth/token/create": "fresh",
+    "auth/tokens": [
+      { token_id: "t1", name: "TV", is_long_lived: true, created_at: "2026-01-01" },
+      { token_id: "t2", name: "TV", is_long_lived: true, created_at: "2026-10-15" },
+    ],
+    "auth/token/revoke": (args) => (order.push("revoke " + args.token_id), null),
+  });
+  const fresh = await renewToken({ host: "h", token: "old", tokenName: "TV", WebSocketImpl: Fake, onCreated: (token) => order.push("created " + token) });
+  assert.equal(fresh, "fresh");
+  assert.deepEqual(order, ["created fresh", "revoke t1"]);
+  assert.equal(sockets[0].closed, true);
 });

@@ -20,11 +20,12 @@ export function createLive(settings) {
   let colorListener = null;
   let remoteListener = null;
   let rejectedListener = null;
+  let token = settings.token;
   const REJECTED = "Signed out: Music Assistant no longer accepts this TV's token.";
 
   function rejected() {
     problem = REJECTED;
-    if (rejectedListener) rejectedListener();
+    if (rejectedListener) rejectedListener(token);
   }
 
   const relay = createRelay({
@@ -135,12 +136,18 @@ export function createLive(settings) {
     onRemotePrefs(fn) {
       remoteListener = fn;
     },
-    // The token was refused by the API or the relay.
+    // The token was refused by the API or the relay; fn gets the token.
     onRejected(fn) {
       rejectedListener = fn;
     },
     savePrefs(snapshot) {
       follow.savePrefs(snapshot);
+    },
+    // A renewed token, for both sockets from their next login on.
+    setToken(next) {
+      token = next;
+      follow.setToken(next);
+      relay.setToken(next);
     },
     reloadTrim() {
       trimMs = loadPref("trim", 0);

@@ -165,6 +165,7 @@ export function createRelay({ host, token, handlers, WebSocketImpl, now }) {
   function open() {
     stopTimers();
     const gen = ++generation;
+    const sent = token;
     clock.reset();
     setState("connecting");
     const ws = new Socket("ws://" + authority(host) + "/milkdrop_visualizer?player=" + encodeURIComponent(player));
@@ -176,7 +177,7 @@ export function createRelay({ host, token, handlers, WebSocketImpl, now }) {
       if (gen === generation && state !== "open") drop("no answer from the server");
     }, HANDSHAKE_MS);
     ws.onopen = () => {
-      if (gen === generation) ws.send(JSON.stringify({ type: "auth", token }));
+      if (gen === generation) ws.send(JSON.stringify({ type: "auth", token: sent }));
     };
     ws.onmessage = (event) => {
       if (gen !== generation) return;
@@ -191,7 +192,8 @@ export function createRelay({ host, token, handlers, WebSocketImpl, now }) {
       socket = null;
       stopTimers();
       emit("end");
-      if (event.code === AUTH_REJECTED) return setState("rejected", event.reason || "token rejected");
+      // A refusal of a token renewed since is no sign-out: try the fresh one.
+      if (event.code === AUTH_REJECTED && sent === token) return setState("rejected", event.reason || "token rejected");
       reconnects++;
       setState("connecting", "closed " + event.code);
       scheduleRetry();
@@ -229,6 +231,10 @@ export function createRelay({ host, token, handlers, WebSocketImpl, now }) {
     close() {
       leave();
       setState("closed");
+    },
+    // A renewed token: every login from here on uses it.
+    setToken(next) {
+      token = next;
     },
     get state() {
       return state;
