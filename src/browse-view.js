@@ -34,9 +34,13 @@ export function detailOf(item) {
 }
 
 export function createBrowse({ element, live, host, play, target, onNotice, onLeave }) {
-  element.innerHTML = '<header><h2>Browse</h2><p class="panel-note"></p></header>' +
-    '<div class="browse-body"><ol class="browse-cats"></ol><div class="browse-main"><h3 class="browse-title"></h3><ol class="browse-list"></ol></div></div>';
-  const el = s => element.querySelector(s);
+  const make = (tag, cls, parent, value) => { const node = document.createElement(tag); if (cls) node.className = cls; if (value) node.textContent = value; parent.appendChild(node); return node; };
+  element.textContent = "";
+  const header = make("header", "", element), body = make("div", "browse-body", element);
+  make("h2", "", header, "Browse");
+  const note = make("p", "panel-note", header), catList = make("ol", "browse-cats", body), main = make("div", "browse-main", body);
+  const title = make("h3", "browse-title", main), list = make("ol", "browse-list", main);
+  const el = s => ({ ".panel-note": note, ".browse-cats": catList, ".browse-title": title, ".browse-list": list })[s];
   let column = "cats", cat = 0, index = 0, action = 0, generation = 0;
   let items = [], state = "idle", stack = null, chosen = null; // stack: { title, items, index } while showing an album's songs
   const lists = new Map();
@@ -119,7 +123,7 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
   }
   function back() {
     if (column === "actions") { column = "list"; chosen = null; }
-    else if (column === "list" && stack) { items = stack.parent.items; index = stack.parent.index; stack = null; state = "ready"; }
+    else if (column === "list" && stack) { generation++; items = stack.parent.items; index = stack.parent.index; stack = null; state = "ready"; }
     else if (column === "list") column = "cats";
     else return onLeave(false);
     render();
