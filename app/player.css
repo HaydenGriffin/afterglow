@@ -88,7 +88,8 @@
 .transport svg { width: 3.6vh; height: 3.6vh; display: block; }
 
 /* One state vocabulary: focus inverts to paper on ink, chosen ticks, disabled steps back. */
-#player button.selected, #player button:focus { background: var(--paper); color: var(--ink); outline: none; }
+#player button.selected { background: var(--paper); color: var(--ink); outline: none; }
+#player button:focus { outline: none; } /* the browser's focus never shows on its own: .selected is the one highlight */
 #player button:disabled { opacity: .45; cursor: default; }
 #player button.selected:disabled { background: var(--rule); color: var(--paper); }
 

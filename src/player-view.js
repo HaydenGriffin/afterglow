@@ -4,6 +4,7 @@ import { css, posterTheme } from "./poster-colour.js";
 import { createBrowse } from "./browse-view.js";
 import { badgeOf, describeStream } from "./stream-details.js";
 import { createKaraoke } from "./karaoke.js";
+import { FIRST_ENABLED, focusRow } from "./focus.js";
 
 // Drawn UI runs at 4 Hz, independently of the visualizer. Text only changes
 // when its value changes; artwork is requested once per URL at 512 pixels.
@@ -89,12 +90,8 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     return Array.from((row === "nav" ? nav : toolbar).children);
   }
   function focusButton() {
-    root.querySelectorAll("button.selected").forEach(b => { b.classList.remove("selected"); b.tabIndex = -1; });
-    const list = buttons(); focus = Math.max(0, Math.min(focus, list.length - 1));
-    const target = list[focus];
-    if (!target) return;
-    target.classList.add("selected"); target.tabIndex = 0; target.focus({ preventScroll: true });
-    if (panel !== "controls") target.scrollIntoView({ block: "nearest" });
+    const list = buttons(); focus = focusRow(root, list, focus);
+    if (list[focus] && panel !== "controls") list[focus].scrollIntoView({ block: "nearest" });
   }
   function close() {
     if (panel === "browse") browse.close();
@@ -108,7 +105,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     root.classList.add("controls-open"); root.classList.remove("panel-open"); root.removeAttribute("data-panel"); touch(); render(); focusButton();
   }
   function openPanel(which) {
-    panel = which; focus = 0; optionKey = ""; queueKey = ""; detailsKey = ""; queuePick = null; picking = grouping = false;
+    panel = which; focus = FIRST_ENABLED; optionKey = ""; queueKey = ""; detailsKey = ""; queuePick = null; picking = grouping = false;
     root.classList.remove("controls-open"); root.classList.add("panel-open");
     root.setAttribute("data-panel", which);
     model.wantQueue(which === "queue"); model.tick();
@@ -220,7 +217,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     const choose = id => {
       const plan = id && live.transferPlan ? live.transferPlan(id) : null;
       if (plan && !disabled) moveTo(id); else setPreferred(id);
-      picking = false; focus = 0;
+      picking = false; focus = FIRST_ENABLED;
     };
     addRow("Automatic", "Whatever is playing", () => choose(""), false).classList.toggle("chosen", !live.preferred);
     speakers.forEach(sp => {
@@ -255,7 +252,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       const track = trackInfo(queuePick, host);
       text(el(".player-panel h2"), track.title);
       text(el(".player-panel .panel-note"), [track.artist, "in the queue"].filter(Boolean).join(" · "));
-      const id = queuePick.queue_item_id, done = () => { queuePick = null; focus = 0; };
+      const id = queuePick.queue_item_id, done = () => { queuePick = null; focus = FIRST_ENABLED; };
       addRow("Play now", "", () => { done(); command("play_index", id); }, disabled);
       addRow("Play next", "", () => { done(); command("move_item", { id, shift: 0 }); }, disabled);
       addRow("Move up", "", () => { done(); command("move_item", { id, shift: -1 }); }, disabled);
@@ -265,14 +262,14 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     }
     text(el(".player-panel h2"), "Queue");
     text(el(".player-panel .panel-note"), !t ? "No speakers found in Music Assistant." : s.itemsState === "loading" ? "Loading…" : s.itemsState === "error" ? "Couldn’t load the queue. Reopen to retry." : q.is_dynamic ? "Radio: songs keep coming" : "");
-    if (speakers.length) addRow("Playing on", t ? t.name : "Automatic", () => { picking = true; focus = 0; }, false);
+    if (speakers.length) addRow("Playing on", t ? t.name : "Automatic", () => { picking = true; focus = FIRST_ENABLED; }, false);
     if (moveHere) addRow("Play on this TV", "Moves the music here", () => moveTo(own, true), disabled);
     const members = options.filter(o => o.member).length;
-    if (options.some(o => o.allowed)) addRow("Speakers together", members > 1 ? members + " speakers" : "Just this one", () => { grouping = true; focus = 0; }, disabled);
+    if (options.some(o => o.allowed)) addRow("Speakers together", members > 1 ? members + " speakers" : "Just this one", () => { grouping = true; focus = FIRST_ENABLED; }, disabled);
     heading(s.items.length ? "Up next" : s.itemsState === "loading" ? "" : "Nothing queued after this song");
     s.items.forEach(item => {
       const track = trackInfo(item, host);
-      addRow(track.title, track.artist || timeLabel(track.duration), () => { queuePick = item; focus = 0; }, item.available === false);
+      addRow(track.title, track.artist || timeLabel(track.duration), () => { queuePick = item; focus = FIRST_ENABLED; }, item.available === false);
     });
     heading("Playback");
     addRow("Shuffle", q.smart_shuffle_active ? "Smart" : q.shuffle_enabled ? "On" : "Off", () => command("shuffle"), disabled || q.smart_shuffle_active || q.is_dynamic, true);
@@ -396,7 +393,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       if (!panel) return false;
       touch();
       if (panel === "browse") { browse.handleKey(name); return true; }
-      if (name === "back" && panel === "queue" && (queuePick || picking || grouping)) { queuePick = null; picking = grouping = false; focus = 0; queueKey = ""; render(); return true; }
+      if (name === "back" && panel === "queue" && (queuePick || picking || grouping)) { queuePick = null; picking = grouping = false; focus = FIRST_ENABLED; queueKey = ""; render(); return true; }
       if (name === "back") { if (panel === "controls") close(); else openControls(); return true; }
       const list = buttons();
       if (name === "ok") { if (list[focus] && !list[focus].disabled) list[focus].click(); }
