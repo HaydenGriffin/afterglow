@@ -152,7 +152,17 @@ components:
 
 ## Overview
 
-**Creative North Star: "The Tonhalle Poster"**
+## Listening screen update — 15 October 2026
+
+Hayden chose complete artwork and lyrics over the cropped cover and large colour blocks. For Album and Lyrics views, this section supersedes the poster layout, field components, and track-change motion described below. The controls and panels keep the established Archivo, ink/paper palette, remote focus, and navigation.
+
+Artwork is contained inside a square at 6vw from the left and 16vh from the top, 30vw wide, with no cropping. The right column starts at 43vw. In Lyrics view, quiet song and artist text sits below the cover; the current line leads the right column, with smaller preceding and following lines. Album view uses that column for the song title and artist. A single plain “Up next” line and a thin progress rule finish the screen. All content has TV-safe breathing room. Large coloured information blocks and their reveal animation are removed. Visuals captions and lyric overlays use a dark ink ground with paper text.
+
+The lyrics timing adjustment affects words only; it does not move the audio, visualizer, progress, or seek target. A failed lookup and a confirmed missing recording remain distinct states, both with a retry action in Display settings.
+
+Pure black remains intentional for the underlying visualizer canvas and the OLED bedtime screen.
+
+**Original poster system (retained for the existing controls and reference)**
 
 Every song is set as a Swiss International Style concert poster (Müller-Brockmann, Tonhalle Zürich): one enormous condensed grotesk title locked to a strict 12-column grid, the cover bleeding off the left edge at full height, and two flat colour fields cut from that cover's own palette. The world refuses the category default of a blurred-artwork backdrop with a polite square cover beside centred text. Nothing glows, nothing blurs, nothing is gradated; the poster changes colour with every track because the artwork does, and there is no fixed house accent.
 

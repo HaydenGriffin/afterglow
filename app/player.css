@@ -1,6 +1,5 @@
-/* Afterglow: each track set as a concert poster. A 12-column grid with 5vw
-   margins; flat fields from the artwork palette (set by player-view.js);
-   no filters, blur or per-frame effects. Column n starts at 5 + (n-1)*7.604vw. */
+/* Afterglow: complete artwork and readable lyrics with TV-safe margins.
+   Archivo and the ink/paper palette continue through the remote-controlled panels. */
 @font-face { font-family: "Archivo"; font-weight: 400 900; font-stretch: 62% 125%; src: url(fonts/archivo-latin.woff2) format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: "Archivo"; font-weight: 400 900; font-stretch: 62% 125%; src: url(fonts/archivo-latin-ext.woff2) format("woff2");
@@ -21,57 +20,49 @@
 #player[data-mode="visuals"] .player-ground, #player[data-mode="track"] .player-ground,
 #player[data-mode="visuals"] .poster, #player[data-mode="track"] .poster { display: none; }
 
-/* The poster */
+/* The listening screen: complete cover, quiet metadata, room for the words. */
 .poster { position: absolute; left: 0; top: 0; right: 0; bottom: 0; transition: transform 4s linear; }
-.poster-art { position: absolute; left: 0; top: 0; bottom: 0; width: 34.16vw; background: var(--field-b); overflow: hidden; }
-.poster-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.poster-target, .poster-state { position: absolute; top: 6vh; font-size: 2.2vh; font-weight: 500; letter-spacing: .01em; color: var(--paper-2); }
-.poster-target { left: 35.42vw; right: 40vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.poster-state { right: 5vw; }
-.poster::before { content: ""; position: absolute; left: 35.42vw; right: 5vw; top: 10.5vh; border-top: var(--hair) solid var(--rule); }
-.poster-title { position: absolute; left: 35.42vw; right: 5vw; top: 13vh; height: 46vh; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: .24em; box-sizing: border-box;
-  font-size: 13.6vh; line-height: .9; font-weight: 820; font-stretch: 80%; letter-spacing: -.02em; overflow-wrap: break-word; }
-.poster-title[data-length="short"] { font-size: 18vh; line-height: .86; }
-.poster-title[data-length="long"] { font-size: 9.8vh; line-height: .92; }
-.poster-title[data-length="xlong"] { font-size: 7.4vh; line-height: .95; }
-.poster-field { position: absolute; top: 62vh; height: 23vh; box-sizing: border-box; padding: 2.6vh 1.4vw; overflow: hidden; }
-/* A new song: a ground-coloured cover slides off each field from the left; the type is never scaled. */
-.poster-field::before { content: ""; position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 1; background: var(--ground); transform: scaleX(0); transform-origin: right center; }
-.poster.fresh .poster-field::before { -webkit-animation: field-reveal .52s cubic-bezier(.16, 1, .3, 1); animation: field-reveal .52s cubic-bezier(.16, 1, .3, 1); }
-.poster.fresh .field-b::before { -webkit-animation-delay: .07s; animation-delay: .07s; -webkit-animation-fill-mode: backwards; animation-fill-mode: backwards; }
-@keyframes field-reveal { from { transform: scaleX(1); } to { transform: scaleX(0); } }
-.field-a { left: 35.42vw; width: 36.77vw; background: var(--field-a); color: var(--on-a); }
-.field-b { left: 73.44vw; right: 5vw; background: var(--field-b); color: var(--on-b); }
-.poster-artist { font-size: 5vh; line-height: 1.05; font-weight: 750; font-stretch: 88%; max-height: 10.5vh; overflow: hidden; }
-.poster-album { font-size: 2.6vh; line-height: 1.3; margin-top: 1.4vh !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.field-b h2 { font-size: 2.2vh; font-weight: 800; letter-spacing: .02em; padding-bottom: 1.2vh !important; border-bottom: var(--hair) solid currentColor; }
-.poster-next { list-style: none; }
-.poster-next li { padding-top: 1.4vh; font-size: 2.1vh; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.poster-next strong { display: block; font-size: 2.7vh; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
-.poster-progress { position: absolute; left: 35.42vw; right: 5vw; top: 89vh; display: flex; align-items: center; font-size: 2.3vh; font-weight: 500; font-variant-numeric: tabular-nums; }
+.poster-art { position: absolute; left: 6vw; top: 16vh; width: 30vw; height: 30vw; max-height: 56vh; overflow: hidden; }
+.poster-art img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.poster-target, .poster-state { position: absolute; top: 6vh; font-size: 2.2vh; font-weight: 500; color: var(--paper-2); }
+.poster-target { left: 6vw; right: 36vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.poster-state { right: 6vw; }
+.poster-title { position: absolute; left: 43vw; right: 6vw; top: 22vh; max-height: 30vh; overflow: hidden;
+  font-size: 7.6vh; line-height: 1.08; font-weight: 750; font-stretch: 95%; letter-spacing: -.02em; overflow-wrap: break-word; }
+.poster-title[data-length="short"] { font-size: 9vh; }
+.poster-title[data-length="long"] { font-size: 6.4vh; }
+.poster-title[data-length="xlong"] { font-size: 5.2vh; }
+.poster-meta { position: absolute; left: 43vw; right: 6vw; top: 57vh; }
+.poster-artist { font-size: 3.6vh; line-height: 1.25; font-weight: 500; max-height: 9vh; overflow: hidden; }
+.poster-album { font-size: 2.5vh; line-height: 1.3; color: var(--paper-2); margin-top: 1.2vh !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.poster-up-next { position: absolute; left: 43vw; right: 6vw; top: 82vh; display: flex; align-items: baseline; color: var(--paper-2); }
+.poster-up-next h2 { flex-shrink: 0; font-size: 2.2vh; font-weight: 500; margin-right: 1vw !important; }
+.poster-next { list-style: none; min-width: 0; }
+.poster-next li { font-size: 2.2vh; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.poster-next li:not(:first-child), .poster-next span { display: none; }
+.poster-next strong { font-weight: 500; }
+.poster-progress { position: absolute; left: 6vw; right: 6vw; top: 91vh; display: flex; align-items: center; font-size: 2.2vh; color: var(--paper-2); font-variant-numeric: tabular-nums; }
 .progress-track { flex: 1; height: var(--hair); margin: 0 1.25vw; background: var(--rule); }
 .progress-track div { height: 100%; background: var(--paper); }
-#player.controls-open .poster-progress, #player.controls-open .poster-field, #player.controls-open .poster::before { visibility: hidden; }
+#player.controls-open .poster-progress, #player.controls-open .poster-up-next { visibility: hidden; }
 
-/* Lyrics take the title's place; the title moves into the artist field, two
-   lines at most, and the artist follows it. */
 .poster-lyrics, .poster-song { display: none; }
 #player[data-mode="lyrics"] .poster-title { display: none; }
-#player[data-mode="lyrics"] .poster-song { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 4vh; line-height: 1.05; font-weight: 820; font-stretch: 80%; letter-spacing: -.02em; overflow-wrap: break-word; }
-#player[data-mode="lyrics"] .poster-song[data-length="xlong"] { font-size: 3.2vh; }
-#player[data-mode="lyrics"] .poster-artist { margin-top: 1.2vh !important; font-size: 3vh; max-height: 3.5vh; white-space: nowrap; text-overflow: ellipsis; }
+#player[data-mode="lyrics"] .poster-meta { left: 6vw; right: auto; top: 73vh; width: 30vw; }
+#player[data-mode="lyrics"] .poster-song { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 3.4vh; line-height: 1.15; font-weight: 700; letter-spacing: -.01em; overflow-wrap: break-word; }
+#player[data-mode="lyrics"] .poster-song[data-length="xlong"] { font-size: 2.8vh; }
+#player[data-mode="lyrics"] .poster-artist { margin-top: 1vh !important; font-size: 2.5vh; max-height: 6.2vh; color: var(--paper-2); }
 #player[data-mode="lyrics"] .poster-album { display: none; }
-#player[data-mode="lyrics"] .poster-lyrics { display: flex; flex-direction: column; justify-content: flex-end; position: absolute; left: 35.42vw; right: 5vw; top: 13vh; height: 46vh; padding-bottom: 1vh; box-sizing: border-box; }
-.lyric-before { font-size: 3vh; line-height: 1.2; color: var(--paper-2); min-height: 3.6vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lyric-now { margin: 2.2vh 0 !important; padding-bottom: .2em; font-size: 8.4vh; line-height: .98; font-weight: 800; font-stretch: 82%; letter-spacing: -.015em; max-height: 27vh; overflow: hidden; }
+#player[data-mode="lyrics"] .poster-lyrics { display: flex; flex-direction: column; justify-content: center; position: absolute; left: 43vw; right: 6vw; top: 18vh; height: 58vh; box-sizing: border-box; }
+.lyric-before, .lyric-after { font-size: 3.4vh; line-height: 1.3; font-weight: 500; color: var(--paper-2); min-height: 4.4vh; max-height: 8.9vh; overflow: hidden; }
+.lyric-now { margin: 3.6vh 0 !important; padding-bottom: .1em; font-size: 6.4vh; line-height: 1.12; font-weight: 700; letter-spacing: -.015em; max-height: 29vh; overflow: hidden; overflow-wrap: break-word; }
 /* Karaoke: words still to come in faded paper, sung words in paper. No transition. */
 .lyric-now.karaoke span { color: var(--paper-2); }
 .lyric-now.karaoke span.sung { color: var(--paper); }
-.lyric-after { font-size: 3.6vh; line-height: 1.2; font-weight: 500; color: var(--paper-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lyric-plain { font-size: 4.4vh; line-height: 1.25; font-weight: 600; white-space: pre-line; max-height: 40vh; overflow: hidden; }
-.lyric-note { margin-top: 2vh !important; font-size: 2.4vh; color: var(--paper-2); }
+.lyric-note { margin-top: 2vh !important; font-size: 2.8vh; line-height: 1.4; color: var(--paper-2); max-width: 36ch; }
 /* The lyric overlay shares the track card's corner; main.js lifts it above the card while the card shows. */
-.lyric-overlay { position: absolute; left: 5vw; bottom: 6vh; max-width: 60vw; padding: 1.4vh 1.4vw; font-size: 4vh; line-height: 1.15; font-weight: 700; background: var(--field-a); color: var(--on-a); transition: transform 4s linear; }
+.lyric-overlay { position: absolute; left: 5vw; bottom: 6vh; max-width: 60vw; padding: 1.4vh 1.4vw; font-size: 4vh; line-height: 1.15; font-weight: 700; background: rgba(18,20,23,.9); color: var(--paper); transition: transform 4s linear; }
 .lyric-overlay:empty, #player[data-mode="visuals"] .lyric-overlay, .controls-open .lyric-overlay, .panel-open .lyric-overlay, .sheet-open .lyric-overlay { display: none; }
 /* Controls, Browse, a panel or Settings open: the track card steps aside. */
 .sheet-open #track { visibility: hidden; }
@@ -162,8 +153,8 @@
 #idle.rest { opacity: .35; }
 #idle p, #idle h1, #idle ol { margin: 0; padding: 0; }
 #idle::before { content: ""; position: absolute; left: 35.42vw; right: 5vw; top: 10.5vh; border-top: var(--hair) solid var(--rule); }
-.idle-art { position: absolute; left: 0; top: 0; bottom: 0; width: 34.16vw; background: var(--field-b); overflow: hidden; }
-.idle-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.idle-art { position: absolute; left: 6vw; top: 16vh; width: 30vw; height: 30vw; max-height: 56vh; overflow: hidden; }
+.idle-art img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .idle-target, .idle-state { position: absolute; top: 6vh; font-size: 2.2vh; font-weight: 500; letter-spacing: .01em; color: var(--paper-2); }
 .idle-target { left: 35.42vw; right: 40vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .idle-state { right: 5vw; }
@@ -203,7 +194,9 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--rule); }
 @media (max-aspect-ratio: 4/3) {
-  .poster-art { width: 30vw; } .poster-title { font-size: 7vw; } .poster-title[data-length="long"] { font-size: 5vw; }
+  .poster-art, .idle-art { width: 30vw; height: 30vw; }
+  .poster-title { font-size: 6vw; } .poster-title[data-length="long"] { font-size: 5vw; }
+  .lyric-now { font-size: 5.4vw; }
   .player-panel { left: 20vw; } .transport button { width: 12vw; margin-right: .8vw; }
 }
 /* Bedtime: the picture goes to black (an OLED at black is off); the music plays on. */

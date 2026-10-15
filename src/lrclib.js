@@ -20,7 +20,7 @@ export function baseTitle(title) {
 // The hit to use from LRCLIB's search results, or null: same base title, the
 // artist named, the length within a few seconds when both are known; timed
 // lyrics before plain ones.
-export function pickLyrics(results, { title, artist, duration }) {
+export function pickLyrics(results, { title, artist, album, duration }) {
   const want = baseTitle(title);
   const who = String(artist || "").toLowerCase();
   const fits = (Array.isArray(results) ? results : []).filter((r) => {
@@ -29,22 +29,24 @@ export function pickLyrics(results, { title, artist, duration }) {
     if (who && String(r.artistName || "").toLowerCase().indexOf(who) < 0) return false;
     return !(duration > 0 && r.duration > 0) || Math.abs(r.duration - duration) <= DURATION_SLACK_S;
   });
-  const hit = fits.filter((r) => r.syncedLyrics)[0] || fits[0];
+  const rank = r => (r.syncedLyrics ? 100 : 0) +
+    (album && String(r.albumName || "").toLowerCase() === album.toLowerCase() ? 10 : 0) -
+    (duration > 0 && r.duration > 0 ? Math.abs(r.duration - duration) : DURATION_SLACK_S);
+  fits.sort((a, b) => rank(b) - rank(a));
+  const hit = fits[0];
   return hit ? { plain: hit.plainLyrics || "", lrc: hit.syncedLyrics || "" } : null;
 }
 
-// { plain, lrc } or null; never throws.
-export async function searchLyrics({ title, artist, duration }, fetchImpl = typeof fetch === "function" ? fetch : null) {
+// null means no matching recording. Transport errors stay retryable.
+export async function searchLyrics({ title, artist, album, duration }, fetchImpl = typeof fetch === "function" ? fetch : null) {
   if (!fetchImpl || !baseTitle(title)) return null;
   const query = "?track_name=" + encodeURIComponent(baseTitle(title)) + (artist ? "&artist_name=" + encodeURIComponent(artist) : "");
   const abort = typeof AbortController === "function" ? new AbortController() : null;
   const timer = setTimeout(() => abort && abort.abort(), TIMEOUT_MS);
   try {
     const response = await fetchImpl(SEARCH_URL + query, abort ? { signal: abort.signal } : {});
-    if (!response.ok) return null;
-    return pickLyrics(await response.json(), { title, artist, duration });
-  } catch (e) {
-    return null;
+    if (!response.ok) throw new Error("Lyrics service unavailable (" + response.status + ")");
+    return pickLyrics(await response.json(), { title, artist, album, duration });
   } finally {
     clearTimeout(timer);
   }

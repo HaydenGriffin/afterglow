@@ -2,7 +2,7 @@ import { loadPref, savePref } from "./settings.js";
 import { createPlayback, lyricIndex, timeLabel, trackInfo, VIEW_LABELS, VIEW_MODES, volumeOf } from "./playback.js";
 import { css, posterTheme } from "./poster-colour.js";
 import { createBrowse } from "./browse-view.js";
-import { badgeOf, describeStream } from "./stream-details.js";
+import { describeStream } from "./stream-details.js";
 import { createKaraoke } from "./karaoke.js";
 import { FIRST_ENABLED, focusRow } from "./focus.js";
 
@@ -12,7 +12,8 @@ const NAV = [["browse", "Browse"], ["now", "Now playing"], ["queue", "Queue"], [
 const SLEEP_MINUTES = [0, 15, 30, 45, 60, 90];
 
 export function createPlayerView({ root, live, host, engine, onSettings, onMode, onNotice }) {
-  const model = createPlayback({ live, host, lyricsSearch: live.mock ? null : undefined });
+  let lyricsOffsetMs = loadPref("lyricsOffsetMs", 0);
+  const model = createPlayback({ live, host, lyricsSearch: live.mock ? null : undefined, lyricsOffset: () => lyricsOffsetMs });
   let mode = loadPref("viewMode", "track");
   if (VIEW_MODES.indexOf(mode) < 0) mode = "track";
   let background = loadPref("playerBackground", false);
@@ -37,8 +38,8 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       '<p class="poster-target"></p><p class="poster-state"></p>' +
       '<h1 class="poster-title"></h1>' +
       '<div class="poster-lyrics" aria-label="Lyrics"></div>' +
-      '<div class="poster-field field-a"><p class="poster-song"></p><p class="poster-artist"></p><p class="poster-album"></p></div>' +
-      '<div class="poster-field field-b"><h2>Next</h2><ol class="poster-next"></ol></div>' +
+      '<div class="poster-meta"><p class="poster-song"></p><p class="poster-artist"></p><p class="poster-album"></p></div>' +
+      '<div class="poster-up-next"><h2>Up next</h2><ol class="poster-next"></ol></div>' +
       '<div class="poster-progress"><span class="elapsed">0:00</span><div class="progress-track" role="progressbar" aria-label="Track progress"><div></div></div><span class="duration">0:00</span></div>' +
     '</section><div class="lyric-overlay"></div>' +
     '<nav class="player-nav" aria-label="Afterglow"></nav>' +
@@ -164,17 +165,23 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     return button;
   }
   function display(s) {
-    const stateKey = JSON.stringify([panel, mode, background, overlay, s.lyrics.status, plainPage]);
+    const stateKey = JSON.stringify([panel, mode, background, overlay, s.lyrics.status, plainPage, lyricsOffsetMs]);
     if (stateKey === optionKey) return false;
     optionKey = stateKey; el(".panel-items").textContent = "";
     text(el(".player-panel h2"), "Display");
     text(el(".player-panel .panel-note"), "Saved on this TV.");
     VIEW_MODES.forEach(value => addRow(VIEW_LABELS[value], "", () => setMode(value)).classList.toggle("chosen", mode === value));
+    if (mode === "lyrics" || overlay) {
+      heading("Lyrics");
+      addRow("Lyrics timing", lyricsOffsetMs ? (Math.abs(lyricsOffsetMs) / 1000).toFixed(1) + " s " + (lyricsOffsetMs > 0 ? "later" : "earlier") : "With the music",
+        dir => { lyricsOffsetMs = Math.max(-10000, Math.min(10000, lyricsOffsetMs + dir * 100)); savePref("lyricsOffsetMs", lyricsOffsetMs); }, false, true);
+      if (lyricsOffsetMs) addRow("Reset lyrics timing", "", () => { lyricsOffsetMs = 0; savePref("lyricsOffsetMs", 0); });
+      if (s.lyrics.status === "error" || s.lyrics.status === "missing") addRow("Retry lyrics", "", () => model.retryLyrics());
+    }
     heading("Extras");
     addRow("MilkDrop behind artwork and lyrics", background ? "On" : "Off", () => { background = !background; savePref("playerBackground", background); applyMode(); }, false, true);
     addRow("Lyrics over Visuals + track", overlay ? "On" : "Off", () => { overlay = !overlay; savePref("lyricsOverlay", overlay); applyMode(); }, false, true);
     if (s.lyrics.status === "plain") addRow("Lyrics page", plainPage + 1, dir => { plainPage = Math.max(0, plainPage + dir); lyricsKey = ""; }, false, true);
-    if (s.lyrics.status === "error") addRow("Retry lyrics", "", () => model.retryLyrics());
     return true;
   }
   async function readProviders() {
@@ -327,20 +334,20 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     const nextTrackKey = s.queue ? s.queue.queue_id + ":" + (track ? track.id : "") : "";
     if (nextTrackKey !== trackKey) {
       trackKey = nextTrackKey; lyricsKey = ""; plainPage = 0;
-      const poster = el(".poster"); poster.classList.remove("fresh"); void poster.offsetWidth; poster.classList.add("fresh");
+
     }
     const title = track ? track.title : "Ready when you are";
     text(el(".poster-title"), title);
     const length = title.length > 50 ? "xlong" : title.length > 26 ? "long" : title.length > 12 ? "medium" : "short";
     el(".poster-title").setAttribute("data-length", length);
-    // In Lyrics mode the title moves into field A, where the artist flows after it.
+    // Lyrics keep the song and artist beneath the complete cover.
     text(el(".poster-song"), title); el(".poster-song").setAttribute("data-length", length);
     text(el(".poster-artist"), track ? track.artist : "Play music in Music Assistant");
     text(el(".poster-album"), track ? track.album : "");
     text(el(".poster-target"), s.queue && s.queue.display_name || "Music Assistant");
     const paused = s.queue && s.queue.state === "paused";
-    const badge = badgeOf(s.queue && s.queue.current_item);
-    text(el(".poster-state"), !s.connected && !(s.target && s.target.connected) ? "Connecting…" : s.busy ? "Working…" : [paused ? "Paused" : "", badge].filter(Boolean).join(" · "));
+
+    text(el(".poster-state"), !s.connected && !(s.target && s.target.connected) ? "Connecting…" : s.busy ? "Working…" : paused ? "Paused" : "");
     renderNext(s);
     const url = track && track.image || "";
     if (url !== artUrl) {
@@ -388,7 +395,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       plainPage = Math.max(0, Math.min(pages - 1, plainPage + by)); lyricsKey = ""; optionKey = ""; render();
       return { page: plainPage + 1, pages };
     },
-    reloadPrefs() { const next = loadPref("viewMode", "track"); if (VIEW_MODES.indexOf(next) >= 0) mode = next; background = loadPref("playerBackground", false); overlay = loadPref("lyricsOverlay", false); applyMode(); },
+    reloadPrefs() { lyricsOffsetMs = loadPref("lyricsOffsetMs", 0); const next = loadPref("viewMode", "track"); if (VIEW_MODES.indexOf(next) >= 0) mode = next; background = loadPref("playerBackground", false); overlay = loadPref("lyricsOverlay", false); applyMode(); },
     start() { model.start(); if (!timer) timer = setInterval(() => { model.tick(); render(); if (panel === "controls" && Date.now() > hideAt) close(); }, 250); },
     stop() { clearInterval(timer); timer = 0; model.stop(); close(); },
     handleKey(name) {

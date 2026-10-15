@@ -103,7 +103,7 @@ const ASSUME_MS = 4000; // how long a value just sent outranks the queue's own
 const WAITING_MAX = 8;
 
 // lyricsSearch: the fallback when Music Assistant has no lyrics (lrclib.js); null for none.
-export function createPlayback({ live, host, now = Date.now, lyricsSearch = searchLyrics }) {
+export function createPlayback({ live, host, now = Date.now, lyricsSearch = searchLyrics, lyricsOffset = () => 0 }) {
   let key = "", itemsKey = "", generation = 0, stopped = false;
   let lyrics = { status: "idle", lines: [], plain: "" };
   let items = [], itemsState = "idle", queueGeneration = 0;
@@ -129,7 +129,7 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
     const track = trackInfo(queue && queue.current_item, host);
     return { queue, track, player: current && current.player, connected: !!(current && current.connected),
       position: Math.min(track && track.duration || Infinity, Math.max(0, current && current.position || 0)),
-      lyricPosition: current && current.lyricPosition != null ? current.lyricPosition : current && current.position || 0,
+      lyricPosition: applyPresentationTrim(current && current.lyricPosition != null ? current.lyricPosition : current && current.position || 0, lyricsOffset()),
       next: trackInfo(queue && queue.next_item, host), target: targetOf(current), lyrics, items, itemsState, busy, error };
   }
   async function readLyrics(track, gen) {
@@ -138,11 +138,21 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
     if (cache.has(uri)) { lyrics = cache.get(uri); return; }
     lyrics = { status: "loading", lines: [], plain: "" };
     try {
-      let result = await live.call("metadata/get_track_lyrics", { track: track.media });
+      let result = null, primaryError = null, timeout;
+      try {
+        // A provider can keep retrying past the API's own timeout. Let the
+        // direct lookup recover without making the screen wait for all retries.
+        result = await Promise.race([
+          live.call("metadata/get_track_lyrics", { track: track.media }),
+          new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error("Lyrics lookup timed out")), 5000); }),
+        ]);
+      } catch (e) { primaryError = e; }
+      finally { clearTimeout(timeout); }
+      if (gen !== generation || stopped) return;
       if (!(result && (result[0] || result[1])) && lyricsSearch) {
-        const found = await lyricsSearch({ title: track.title, artist: firstArtist(track.media), duration: track.duration });
+        const found = await lyricsSearch({ title: track.title, artist: firstArtist(track.media), album: track.album, duration: track.duration });
         if (found) result = [found.plain, found.lrc];
-      }
+      } else if (primaryError) throw primaryError;
       const lines = parseLyrics(result && result[1]);
       const plain = String(result && result[0] || "").slice(0, 50000);
       const value = { status: lines.length ? "timed" : plain ? "plain" : "missing", lines, plain };
@@ -263,7 +273,12 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
     },
     wantLyrics(on) { lyricsWanted = on; },
     wantQueue(on) { queueWanted = on; if (on) nextQueueRead = 0; },
-    retryLyrics() { lyrics = { status: "idle", lines: [], plain: "" }; },
+    retryLyrics() {
+      const track = snapshot().track;
+      if (track) cache.delete(track.media.uri || track.id);
+      generation++;
+      lyrics = { status: "idle", lines: [], plain: "" };
+    },
     // Presses made while a command is in flight wait their turn instead of
     // being lost; repeated volume and seek presses collapse into one.
     // Resolves true once Music Assistant accepted the command.

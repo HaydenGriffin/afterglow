@@ -19,12 +19,22 @@ test("the hit matches title, artist and length, timed lyrics first", () => {
   assert.equal(pickLyrics([hit({ instrumental: true })], want), null);
 });
 
-test("search failures are quiet", async () => {
-  assert.equal(await searchLyrics({ title: "X", artist: "Y" }, async () => ({ ok: false })), null);
-  assert.equal(await searchLyrics({ title: "X", artist: "Y" }, async () => { throw Error("offline"); }), null);
+test("search failures remain distinguishable from a missing recording", async () => {
+  await assert.rejects(searchLyrics({ title: "X", artist: "Y" }, async () => ({ ok: false, status: 429 })), /429/);
+  await assert.rejects(searchLyrics({ title: "X", artist: "Y" }, async () => { throw Error("offline"); }), /offline/);
   let url = "";
   await searchLyrics({ title: "That's It (feat. Future)", artist: "Yung Lean" }, async (u) => { url = u; return { ok: true, json: async () => [] }; });
   assert.match(url, /track_name=that's%20it&artist_name=Yung%20Lean$/);
+});
+
+test("matching album and nearest duration select the appropriate timed recording", () => {
+  const want = { title: "That's It", artist: "Yung Lean", album: "Album", duration: 162 };
+  const other = hit({ albumName: "Compilation", syncedLyrics: "other" });
+  const near = hit({ albumName: "Album", duration: 164, syncedLyrics: "near" });
+  const exact = hit({ albumName: "Album", syncedLyrics: "exact" });
+  assert.equal(pickLyrics([other, near, exact], want).lrc, "exact");
+  assert.equal(pickLyrics([other, near], want).lrc, "near");
+  assert.equal(pickLyrics([near, exact], { ...want, album: "" }).lrc, "exact");
 });
 
 test("when Music Assistant has no lyrics, the search fills them in", async () => {
@@ -35,6 +45,6 @@ test("when Music Assistant has no lyrics, the search fills them in", async () =>
   model.wantLyrics(true);
   model.tick();
   await new Promise((r) => setTimeout(r, 0));
-  assert.deepEqual(asked, [{ title: "That's It", artist: "Yung Lean", duration: 162 }]);
+  assert.deepEqual(asked, [{ title: "That's It", artist: "Yung Lean", album: "", duration: 162 }]);
   assert.equal(model.snapshot().lyrics.status, "timed");
 });
