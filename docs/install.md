@@ -1,7 +1,7 @@
 # Setting up Afterglow
 
-A walkthrough from nothing to a tuned visualizer. Budget an hour the first
-time: most of it is the preset scan running on its own.
+A walkthrough from nothing to a TV player with tuned visuals. Budget an hour
+the first time: most of it is the preset scan running on its own.
 
 1. [Check what you need](#1-what-you-need)
 2. [Add the plugin to Music Assistant](#2-add-the-milkdrop-visualizer-plugin)
@@ -13,6 +13,7 @@ time: most of it is the preset scan running on its own.
 8. [Shape the show](#8-shape-the-show)
 9. [More TVs](#9-more-tvs)
 10. [Keeping it running](#10-keeping-it-running)
+11. [Lyrics and privacy](#11-lyrics-and-privacy)
 
 ---
 
@@ -106,7 +107,7 @@ token named after the TV** (`Afterglow on OLED48CXPUB (a1b2c3)`, say), stores
 that token, and forgets the password. The token appears in Music Assistant
 under Settings → Users → your user, alongside its tokens for your phone and
 browser; you can remove it there at any time, or with **Log out** in the TV's
-menu. It lasts a year and the app replaces it a month before it runs out.
+Settings. It lasts a year and the app replaces it a month before it runs out.
 
 The token lives in the app's own storage on the TV. webOS gives web apps no
 encrypted store, so anyone with shell access to the TV could read it; it is
@@ -123,36 +124,39 @@ If sign-in fails, the message says why:
 ## 5. Get a first picture
 
 Play something on a speaker. Within a few seconds the TV shows a MilkDrop
-preset moving with the music; the track's artist, title and album slide in at
-the lower left. Press **OK** for the menu, **Back** to close it.
+preset moving with the music; the track's artist, title and album appear at
+the lower left. Press **OK** for the playback controls, **Back** to close
+them. **Display** on the controls switches between Visuals only, Visuals +
+track, Album and Lyrics.
 
 If the screen stays on "Waiting for music":
 
 - Is the MilkDrop Visualizer plugin added (section 2)?
 - Is the speaker one Music Assistant streams to itself (section 1)? Pick it
-  in the **Player** row to see whether the app can draw it; "(unavailable)" or
+  under **Queue → Playing on** to see whether the app can draw it; "(unavailable)" or
   no change means Music Assistant has no audio for it.
-- Turn on **Debug readout** in the menu. `relay: open` and `buffer: … frames`
+- Turn on **Debug readout** in Settings. `relay: open` and `buffer: … frames`
   mean the waveform is arriving; `relay: rejected` means the token stopped
   working (the app signs out by itself in that case); `follow: waiting` means
   Music Assistant reports nothing playing.
 
 If MilkDrop itself cannot start, the screen says why: no WebGL2 (nothing to do
-on that TV), or it did not survive its last start (the menu's **MilkDrop** row
-lets you retry).
+on that TV), or it did not survive its last start (the **MilkDrop** row in
+Settings lets you retry).
 
 ## 6. Pick the speaker and fix the timing
 
-**Player.** "Auto" draws whatever is playing: the most recently started speaker
+**Playing on** (OK → Queue). "Automatic" draws whatever is playing: the most recently started speaker
 when several are, until it stops. For a TV in one room, pick that room's
-speaker instead; it is then drawn whenever it plays, and Auto fills in while it
-is silent. Speakers in a sync group all sound the same queue, so picking any
+speaker instead; it is then drawn whenever it plays, and Automatic fills in
+while it is silent. Speakers in a sync group all sound the same queue, so picking any
 member draws the group's music.
 
-**Sync trim.** Music Assistant's stream carries timestamps and the TV's clock
+**Picture and lyrics timing.** Music Assistant's stream carries timestamps and the TV's clock
 is matched to the server's, so the picture is usually on the beat out of the
 box. If it leads or trails the sound, press **Green** to show frames later and
-**Red** to show them earlier, 25 ms a step (or use the **Sync trim** row). A
+**Red** to show them earlier, 25 ms a step (or use the **Picture and lyrics
+timing** row in Settings). Timed lyrics move with the picture. A
 bass-heavy track with a plain preset such as a simple spectrum or wave makes
 the offset easy to see. The value is kept per TV; speakers with large buffers
 (Bluetooth, some Chromecasts) may want a few hundred milliseconds.
@@ -162,13 +166,14 @@ the offset easy to see. The value is kept per TV; speakers with large buffers
 This is the step that makes the difference between a show and a slideshow.
 [docs/preset-scan.md](preset-scan.md) explains it in full; the short version:
 
-1. Open the menu and choose **Scan presets** (near the bottom). The screen
+1. Open **Settings** (OK, then Settings in the top strip) and choose **Scan
+   presets** under Performance. The screen
    shows "Scanning presets 0 / 395" with the preset names going by.
 2. Leave it alone for about **35 minutes**. Music may play or not; the scan
    uses its own signal either way. You can watch, or press **Back** to pause
    and pick it up later from the same row.
-3. When it finishes, the menu's **Preset list** row shows the result:
-   "validated (294)", say. That list is what the TV plays by default.
+3. When it finishes, the **Preset list** row shows the result:
+   "Runs well here · 294", say. That list is what the TV plays by default.
 
 Until you scan, the validated list is borrowed from an LG CX. On a faster TV
 that leaves good presets out; on a slower one it lets stutterers in. Scan once
@@ -176,11 +181,12 @@ per TV.
 
 ## 8. Shape the show
 
-All in the menu; see [docs/settings.md](settings.md) for every row.
+All in Settings; see [docs/settings.md](settings.md) for every row.
 
-- **Preset list**: *validated* (the scan's pick), *all*, or *favorites*. The
+- **Preset list**: *Runs well here* (the scan's pick), *All presets*, or
+  *Favourite presets*. The
   Blue key cycles them without the menu.
-- **Preset order** random, **Change preset** every 2 minutes: the defaults
+- **Preset order** shuffled, **Change preset** every 2 minutes: the defaults
   give a rotating show. "Never" stays on the preset you chose.
 - **Favorite** (Yellow key) marks the preset on screen. Favorites are shared
   with Music Assistant's own MilkDrop favorites and across your TVs, and are
@@ -209,7 +215,25 @@ on each TV; what one TV can draw says nothing about another.
 - **Screensaver**: the app holds the TV's screensaver off while music plays
   and lets it run when the music stops, unless **Hold screen when idle** is on.
   It also nudges the picture a few pixels every two minutes against burn-in.
-- **Signing out**: OK → **Log out** removes the TV's token from the account
+- **Signing out**: Settings → **Log out** removes the TV's token from the account
   and shows the sign-in form. Do this before uninstalling or lending the TV.
 - **Uninstalling**: from the TV's home screen, Glasshouse's Apps tab, or
   `npx ares-install --device <name> --remove io.github.haydengriffin.afterglow`.
+
+## 11. Lyrics and privacy
+
+The Lyrics view (OK → **Display** → Lyrics) shows the lyrics Music Assistant
+has for the song: timed lyrics follow the music line by line, word by word
+when the lyrics carry word timing, and plain lyrics are paged with ←/→.
+
+When Music Assistant has no lyrics, the TV asks [lrclib.net](https://lrclib.net)
+directly, sending the song's title and artist; the album and length are only
+used on the TV to pick the best match. This is the only request Afterglow
+makes to a service other than your Music Assistant server (besides artwork
+that Music Assistant points at its source). **Settings → Online lyrics** turns
+it off; it is on by default.
+
+If the words run early or late on a TV, **Display → Lyrics timing** moves them
+up to 10 s either way, in 100 ms steps, without touching the picture or the
+sound. **Retry lyrics** in the same place asks again after a failed or empty
+lookup.
