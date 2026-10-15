@@ -6,7 +6,7 @@ function harness() {
   const pending = [], calls = [];
   const q = { queue_id: 'group', state: 'playing', current_index: 3, current_item: { queue_item_id: 'one', duration: 120, media_item: { media_type: 'track', name: 'Song', uri: 'library://track/1' } } };
   const live = { playback: { queue: q, connected: true, position: 20 }, call(command, args) { calls.push({ command, args }); return new Promise((resolve, reject) => pending.push({ resolve, reject })); } };
-  return { model: createPlayback({ live, host: 'ma' }), live, q, calls, pending };
+  return { model: createPlayback({ live, host: 'ma', lyricsSearch: null }), live, q, calls, pending };
 }
 const settle = () => new Promise(resolve => setImmediate(resolve));
 
@@ -91,7 +91,7 @@ test('browse and queue edits send Music Assistant 2.10 arguments on the current 
 function targeted(target) {
   const pending = [], calls = [];
   const live = { playback: null, target, call(command, args) { calls.push({ command, args }); return new Promise((resolve, reject) => pending.push({ resolve, reject })); } };
-  return { model: createPlayback({ live, host: 'ma' }), live, calls, pending };
+  return { model: createPlayback({ live, host: 'ma', lyricsSearch: null }), live, calls, pending };
 }
 const answer = async (h, i) => { await settle(); h.pending[i].resolve(null); await settle(); };
 

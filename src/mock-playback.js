@@ -122,6 +122,7 @@ export function createMockPlayback() {
     lead.group_volume = levels.length ? Math.round(levels.reduce((a, b) => a + b, 0) / levels.length) : lead.volume_level;
   }
   return {
+    mock: true, // no lyrics lookups outside the demo
     get playback() { return { queue, player: players[queue.queue_id], connected: true, position: position + (queue.state === "playing" ? (Date.now() - at) / 1000 : 0) }; },
     get palette() { return queue.current_item.demoPalette; },
     speakers() { return speakersOf(players); },

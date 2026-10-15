@@ -12,7 +12,7 @@ const NAV = [["browse", "Browse"], ["now", "Now playing"], ["queue", "Queue"], [
 const SLEEP_MINUTES = [0, 15, 30, 45, 60, 90];
 
 export function createPlayerView({ root, live, host, engine, onSettings, onMode, onNotice }) {
-  const model = createPlayback({ live, host });
+  const model = createPlayback({ live, host, lyricsSearch: live.mock ? null : undefined });
   let mode = loadPref("viewMode", "track");
   if (VIEW_MODES.indexOf(mode) < 0) mode = "track";
   let background = loadPref("playerBackground", false);

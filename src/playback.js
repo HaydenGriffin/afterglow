@@ -1,4 +1,5 @@
 // TV presentation data and commands. Music Assistant remains the playback owner.
+import { searchLyrics } from "./lrclib.js";
 import { authority } from "./relay.js";
 
 export const VIEW_MODES = ["visuals", "track", "album", "lyrics"];
@@ -78,6 +79,7 @@ export function parseLyrics(value) {
   }
   return rows.sort((a, b) => a.at - b.at).slice(0, 2000);
 }
+function firstArtist(media) { return ((media && media.artists) || []).map(a => a.name).filter(Boolean)[0] || ""; }
 export function lyricIndex(lines, position) {
   let lo = 0, hi = lines.length;
   while (lo < hi) { const mid = (lo + hi) >> 1; if (lines[mid].at <= position) lo = mid + 1; else hi = mid; }
@@ -100,7 +102,8 @@ const LATEST = { volume: true, seek: true }; // presses that only need their las
 const ASSUME_MS = 4000; // how long a value just sent outranks the queue's own
 const WAITING_MAX = 8;
 
-export function createPlayback({ live, host, now = Date.now }) {
+// lyricsSearch: the fallback when Music Assistant has no lyrics (lrclib.js); null for none.
+export function createPlayback({ live, host, now = Date.now, lyricsSearch = searchLyrics }) {
   let key = "", itemsKey = "", generation = 0, stopped = false;
   let lyrics = { status: "idle", lines: [], plain: "" };
   let items = [], itemsState = "idle", queueGeneration = 0;
@@ -135,7 +138,11 @@ export function createPlayback({ live, host, now = Date.now }) {
     if (cache.has(uri)) { lyrics = cache.get(uri); return; }
     lyrics = { status: "loading", lines: [], plain: "" };
     try {
-      const result = await live.call("metadata/get_track_lyrics", { track: track.media });
+      let result = await live.call("metadata/get_track_lyrics", { track: track.media });
+      if (!(result && (result[0] || result[1])) && lyricsSearch) {
+        const found = await lyricsSearch({ title: track.title, artist: firstArtist(track.media), duration: track.duration });
+        if (found) result = [found.plain, found.lrc];
+      }
       const lines = parseLyrics(result && result[1]);
       const plain = String(result && result[0] || "").slice(0, 50000);
       const value = { status: lines.length ? "timed" : plain ? "plain" : "missing", lines, plain };
