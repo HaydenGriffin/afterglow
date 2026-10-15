@@ -1,4 +1,4 @@
-# Unreleased — 1.5.1
+# 1.5.1 — Review fixes and an Online lyrics switch (15 October 2026)
 
 - Display → Lyrics gains **Online lyrics** (On by default, synced): Off keeps
   lyrics to what Music Assistant provides and nothing is sent to lrclib.net;
