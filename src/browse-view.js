@@ -71,7 +71,7 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
   make("h2", "", header, "Browse");
   const note = make("p", "panel-note", header), catList = make("ol", "browse-cats", body), main = make("div", "browse-main", body);
   const title = make("h3", "browse-title", main);
-  const field = createSearchField({ onFocus: toField, onSubmit: value => search(value, false), onLeave: toField });
+  const field = createSearchField({ onFocus: toField, onSubmit: value => search(value, false), onLeave: toField, onArrow: name => handleKey(name) });
   main.appendChild(field.row);
   const list = make("ol", "browse-list", main);
   let column = "cats", cat = START, index = 0, action = 0, generation = 0, version = 0, built = -1;
@@ -218,27 +218,28 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
     else return onLeave(false);
     render();
   }
+  function handleKey(name) {
+    const count = rows.length;
+    if (name === "back") return back();
+    if (name === "up" || name === "down") {
+      const step = name === "up" ? -1 : 1;
+      if (column === "cats") return choose((cat + step + CATEGORIES.length) % CATEGORIES.length);
+      if (column === "actions") action = (action + step + count) % count;
+      else if (count) index = Math.max(0, Math.min(count - 1, index + step));
+    } else if (name === "right" && column === "cats") { if (rows.length) column = "list"; }
+    else if (name === "left") return back();
+    else if (name === "ok") {
+      if (column === "cats") { if (rows.length) column = "list"; }
+      else { const b = rows[column === "actions" ? action : index]; if (b) return b.click(); }
+    }
+    render();
+  }
   return {
     open() { column = "cats"; if (isOpen) return render(); isOpen = true; choose(START); },
     close() {
       isOpen = false; confirmed = null; running = false; generation++; lists.clear();
       field.reset(); query = ""; show({ items: [] }); state = "idle"; stack = null; chosen = null; changed();
     },
-    handleKey(name) {
-      const count = rows.length;
-      if (name === "back") return back();
-      if (name === "up" || name === "down") {
-        const step = name === "up" ? -1 : 1;
-        if (column === "cats") return choose((cat + step + CATEGORIES.length) % CATEGORIES.length);
-        if (column === "actions") action = (action + step + count) % count;
-        else if (count) index = Math.max(0, Math.min(count - 1, index + step));
-      } else if (name === "right" && column === "cats") { if (rows.length) column = "list"; }
-      else if (name === "left") return back();
-      else if (name === "ok") {
-        if (column === "cats") { if (rows.length) column = "list"; }
-        else { const b = rows[column === "actions" ? action : index]; if (b) return b.click(); }
-      }
-      render();
-    },
+    handleKey,
   };
 }

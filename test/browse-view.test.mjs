@@ -252,3 +252,42 @@ test("voice or keyboard text searches after a pause; the TV keyboard closing sea
   t.mock.timers.tick(2000);
   assert.equal(h.calls.length, at + 2, "the pending pause does not search twice");
 });
+
+test("Down from the field after a voice search leaves it for the first result", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const h = harness(t);
+  const input = startSearch(h);
+  const at = h.calls.length;
+  type(input, "low tide");
+  t.mock.timers.tick(1100); // the pause searches; the field keeps focus
+  h.calls[at].resolve({ tracks: [song(5), song(6)] }); await settle();
+  assert.equal(h.doc.activeElement, input);
+  const event = input.dispatch("keydown", { keyCode: 40 });
+  assert.ok(event.defaultPrevented, "the page, not the field, takes Down");
+  assert.notEqual(h.doc.activeElement, input, "Down puts the keyboard away");
+  assert.equal(h.selected().querySelector("strong").textContent, "Song 5");
+  assert.equal(h.calls.length, at + 1, "the same text is not searched again");
+  h.key("down");
+  assert.equal(h.selected().querySelector("strong").textContent, "Song 6");
+});
+
+test("Down with text still pending searches it and moves below the field", async t => {
+  const h = harness(t);
+  const input = startSearch(h);
+  const at = h.calls.length;
+  type(input, "home");
+  input.dispatch("keydown", { keyCode: 40 });
+  assert.equal(h.calls[at].args.search_query, "home");
+  assert.equal(h.selected().querySelector("strong").textContent, "Searching…");
+  h.calls[at].resolve({ tracks: [song(1)] }); await settle();
+  assert.equal(h.selected().querySelector("strong").textContent, "Song 1");
+});
+
+test("Up from the field leaves it with the field still selected", t => {
+  const h = harness(t);
+  const input = startSearch(h);
+  const event = input.dispatch("keydown", { keyCode: 38 });
+  assert.ok(event.defaultPrevented);
+  assert.notEqual(h.doc.activeElement, input);
+  assert.ok(h.selected().contains(input));
+});

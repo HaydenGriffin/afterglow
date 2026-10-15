@@ -22,7 +22,7 @@
 #player[data-mode="visuals"] .poster, #player[data-mode="track"] .poster { display: none; }
 
 /* The poster */
-.poster { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+.poster { position: absolute; left: 0; top: 0; right: 0; bottom: 0; transition: transform 4s linear; }
 .poster-art { position: absolute; left: 0; top: 0; bottom: 0; width: 34.16vw; background: var(--field-b); overflow: hidden; }
 .poster-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .poster-target, .poster-state { position: absolute; top: 6vh; font-size: 2.2vh; font-weight: 500; letter-spacing: .01em; color: var(--paper-2); }
@@ -53,10 +53,13 @@
 .progress-track div { height: 100%; background: var(--paper); }
 #player.controls-open .poster-progress, #player.controls-open .poster-field, #player.controls-open .poster::before { visibility: hidden; }
 
-/* Lyrics take the title's place; the title moves into the artist field. */
-.poster-lyrics { display: none; }
-#player[data-mode="lyrics"] .poster-title { top: 64.6vh; left: 36.82vw; right: auto; width: 34vw; height: 8.4vh; justify-content: flex-start; font-size: 4vh; line-height: 1; z-index: 1; color: var(--on-a); }
-#player[data-mode="lyrics"] .poster-artist { margin-top: 6.4vh !important; font-size: 3vh; max-height: 3.5vh; white-space: nowrap; text-overflow: ellipsis; }
+/* Lyrics take the title's place; the title moves into the artist field, two
+   lines at most, and the artist follows it. */
+.poster-lyrics, .poster-song { display: none; }
+#player[data-mode="lyrics"] .poster-title { display: none; }
+#player[data-mode="lyrics"] .poster-song { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 4vh; line-height: 1.05; font-weight: 820; font-stretch: 80%; letter-spacing: -.02em; overflow-wrap: break-word; }
+#player[data-mode="lyrics"] .poster-song[data-length="xlong"] { font-size: 3.2vh; }
+#player[data-mode="lyrics"] .poster-artist { margin-top: 1.2vh !important; font-size: 3vh; max-height: 3.5vh; white-space: nowrap; text-overflow: ellipsis; }
 #player[data-mode="lyrics"] .poster-album { display: none; }
 #player[data-mode="lyrics"] .poster-lyrics { display: flex; flex-direction: column; justify-content: flex-end; position: absolute; left: 35.42vw; right: 5vw; top: 13vh; height: 46vh; padding-bottom: 1vh; box-sizing: border-box; }
 .lyric-before { font-size: 3vh; line-height: 1.2; color: var(--paper-2); min-height: 3.6vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -67,8 +70,11 @@
 .lyric-after { font-size: 3.6vh; line-height: 1.2; font-weight: 500; color: var(--paper-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lyric-plain { font-size: 4.4vh; line-height: 1.25; font-weight: 600; white-space: pre-line; max-height: 40vh; overflow: hidden; }
 .lyric-note { margin-top: 2vh !important; font-size: 2.4vh; color: var(--paper-2); }
-.lyric-overlay { position: absolute; left: 5vw; bottom: 6vh; max-width: 60vw; padding: 1.4vh 1.4vw; font-size: 4vh; line-height: 1.15; font-weight: 700; background: var(--field-a); color: var(--on-a); }
-.lyric-overlay:empty, #player[data-mode="visuals"] .lyric-overlay, .controls-open .lyric-overlay { display: none; }
+/* The lyric overlay shares the track card's corner; main.js lifts it above the card while the card shows. */
+.lyric-overlay { position: absolute; left: 5vw; bottom: 6vh; max-width: 60vw; padding: 1.4vh 1.4vw; font-size: 4vh; line-height: 1.15; font-weight: 700; background: var(--field-a); color: var(--on-a); transition: transform 4s linear; }
+.lyric-overlay:empty, #player[data-mode="visuals"] .lyric-overlay, .controls-open .lyric-overlay, .panel-open .lyric-overlay, .sheet-open .lyric-overlay { display: none; }
+/* Controls, Browse, a panel or Settings open: the track card steps aside. */
+.sheet-open #track { visibility: hidden; }
 
 /* Controls: a ruled strip at the top, a transport band at the bottom. */
 .player-nav, .player-controls { display: none; position: absolute; left: 0; right: 0; z-index: 2; background: var(--ground); pointer-events: auto; }
