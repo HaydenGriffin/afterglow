@@ -26,7 +26,7 @@ function page() {
     getExtension: (name) => (name === "WEBGL_lose_context" ? { loseContext: () => { gl.lost++; internal.emit("webglcontextlost"); } } : null),
   };
   const visualizer = { gl, internalCanvas: internal, rendered: 0, render() { this.rendered++; }, loadPreset() {}, setRendererSize() {} };
-  globalThis.window = { butterchurn: { createVisualizer: () => visualizer }, vizmanPresets: { a: {}, b: {} } };
+  globalThis.window = { butterchurn: { createVisualizer: () => visualizer }, afterglowPresets: { a: {}, b: {} } };
   globalThis.document = { createElement: () => ({}), head: { appendChild: (tag) => setTimeout(tag.onload, 0) } };
   return { gl, internal, visualizer };
 }

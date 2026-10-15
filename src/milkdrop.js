@@ -305,8 +305,8 @@ export function createMilkdropMode(onFail, onNotice) {
     loading = Promise.all(SCRIPTS.map(loadScript))
       .then(() => {
         const api = window.butterchurn.default || window.butterchurn;
-        presets = window.vizmanPresets || {};
-        validation.bench = window.vizmanPresetBench || {};
+        presets = window.afterglowPresets || {};
+        validation.bench = window.afterglowPresetBench || {};
         names = Object.keys(presets).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
         if (!names.length) throw new Error("no presets in the package");
         index = Math.max(0, names.indexOf(held && names.indexOf(held) >= 0 ? held : loadPref("preset", "")));

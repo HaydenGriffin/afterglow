@@ -1,10 +1,11 @@
 {
-  "id": "net.botworth.vizman",
+  "id": "io.github.haydengriffin.afterglow",
   "version": "1.4.4",
-  "vendor": "Afterglow contributors",
+  "vendor": "Hayden Griffin",
   "type": "web",
   "main": "index.html",
   "title": "Afterglow",
+  "appDescription": "Music Assistant TV companion: MilkDrop visuals, artwork, lyrics and playback",
   "icon": "icon.png",
   "largeIcon": "largeIcon.png",
   "iconColor": "#121417",

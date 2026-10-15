@@ -52,12 +52,12 @@
   document.querySelector('[aria-label="Display"]').click(); await wait();
   const pick = label => rows().find(b => b.firstChild.textContent === label).click();
   pick('Album'); await closeAll();
-  const frames = window.vizmanDiagnostics().rendering.frames; await wait();
-  assert(window.vizmanDiagnostics().rendering.frames === frames, 'Album mode must stop GPU drawing');
+  const frames = window.afterglowDiagnostics().rendering.frames; await wait();
+  assert(window.afterglowDiagnostics().rendering.frames === frames, 'Album mode must stop GPU drawing');
   key(OK); await wait(); document.querySelector('[aria-label="Display"]').click(); await wait(); pick('Visuals only'); await closeAll();
   assert(getComputedStyle(document.querySelector('#track')).display === 'none', 'Pure visuals must hide the track card');
   assert(getComputedStyle(document.querySelector('.lyric-overlay')).display === 'none', 'Pure visuals must hide lyric overlay');
-  assert(window.vizmanDiagnostics().drawing, 'Visuals should resume drawing');
+  assert(window.afterglowDiagnostics().drawing, 'Visuals should resume drawing');
 
   // Browse: a favourite album can be added to the queue without leaving Browse.
   await section(0);

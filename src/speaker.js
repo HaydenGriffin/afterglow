@@ -1,6 +1,6 @@
 // This TV as a Music Assistant speaker, through Sendspin: the app plays the
 // music itself, so one app draws and sounds. A second player app behind
-// viz-man is suspended by webOS within minutes (its socket dies and Music
+// Afterglow is suspended by webOS within minutes (its socket dies and Music
 // Assistant's sync group stalls on it), and the two together run the TV out
 // of memory.
 //
@@ -43,11 +43,12 @@ export function playerIdFor(name) {
 // The "Play on this TV" row: off when on; on again as the player this TV was
 // last (its launch parameter or an earlier choice), so it keeps its id and its
 // place in Music Assistant's groups. Only a TV never set up gets a new player.
-// The new player keeps the id it had as "viz-man TV": Music Assistant knows
-// a player by its id, so a TV that lost its stored choice (storage wiped by an
-// update) comes back as the same player rather than a second one.
+// The new player keeps the id it had before the rebrand (as "viz-man TV"):
+// Music Assistant knows a player by its id, so a TV that lost its stored choice
+// (storage wiped by an update or reinstall) comes back as the same player
+// rather than a second one.
 export const NEW_SPEAKER_NAME = "Afterglow TV";
-export const NEW_SPEAKER_ID = playerIdFor("viz-man TV");
+export const NEW_SPEAKER_ID = "webos-viz-man-tv";
 export function toggledSpeaker(current, last) {
   if (current) return null;
   return last || { name: NEW_SPEAKER_NAME, id: NEW_SPEAKER_ID };

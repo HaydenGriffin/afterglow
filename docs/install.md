@@ -1,4 +1,4 @@
-# Setting up viz-man
+# Setting up Afterglow
 
 A walkthrough from nothing to a tuned visualizer. Budget an hour the first
 time: most of it is the preset scan running on its own.
@@ -43,8 +43,8 @@ draws in time with the music. Without it the TV connects, signs in, and shows
 
 ## 3. Install the app on the TV
 
-Get `net.botworth.vizman_<version>_all.ipk` from the
-[releases page](https://github.com/mnestrud/viz-man/releases), or build it
+Get `io.github.haydengriffin.afterglow_<version>_all.ipk` from the
+[releases page](https://github.com/HaydenGriffin/afterglow/releases), or build it
 with `npm install && npm run package` (it lands in `dist/`). The package is
 the same for every TV and contains no credentials.
 
@@ -62,7 +62,7 @@ Any of these works; pick what you have.
   sideloading off again afterwards. From a checkout, `npm run install-tv --
   <tv-ip>` does the upload and the confirmation through Glasshouse's API.
 - **Shell on the TV** (SSH or telnet): copy the package over and run
-  `luna-send -n 1 luna://com.webos.appInstallService/dev/install '{"id":"net.botworth.vizman","ipkUrl":"/tmp/vizman.ipk","subscribe":true}'`.
+  `luna-send -n 1 luna://com.webos.appInstallService/dev/install '{"id":"io.github.haydengriffin.afterglow","ipkUrl":"/tmp/afterglow.ipk","subscribe":true}'`.
 
 ### Developer Mode (any webOS TV, no root)
 
@@ -75,7 +75,7 @@ Any of these works; pick what you have.
 
    ```
    npx ares-setup-device        # add the TV: its IP, port 9922, user prisoner, the passphrase
-   npx ares-install --device <name> dist/net.botworth.vizman_<version>_all.ipk
+   npx ares-install --device <name> dist/io.github.haydengriffin.afterglow_<version>_all.ipk
    ```
 
 3. Developer Mode's session expires after 50 hours and takes sideloaded apps
@@ -83,7 +83,7 @@ Any of these works; pick what you have.
    reinstall; the TV's settings and sign-in survive a reinstall, and anything
    the TV loses comes back from your Music Assistant account.
 
-Either way, an install stops a running viz-man. Open it from the home screen.
+Either way, an install stops a running Afterglow. Open it from the home screen.
 
 ## 4. Sign in
 
@@ -102,7 +102,7 @@ OK on a field opens the TV's keyboard. Finish each field with the keyboard's
 moving. OK on **Sign in** submits.
 
 What happens: the app logs in once, asks Music Assistant for a **long-lived
-token named after the TV** (`viz-man on OLED48CXPUB (a1b2c3)`, say), stores
+token named after the TV** (`Afterglow on OLED48CXPUB (a1b2c3)`, say), stores
 that token, and forgets the password. The token appears in Music Assistant
 under Settings → Users → your user, alongside its tokens for your phone and
 browser; you can remove it there at any time, or with **Log out** in the TV's
@@ -212,4 +212,4 @@ on each TV; what one TV can draw says nothing about another.
 - **Signing out**: OK → **Log out** removes the TV's token from the account
   and shows the sign-in form. Do this before uninstalling or lending the TV.
 - **Uninstalling**: from the TV's home screen, Glasshouse's Apps tab, or
-  `npx ares-install --device <name> --remove net.botworth.vizman`.
+  `npx ares-install --device <name> --remove io.github.haydengriffin.afterglow`.

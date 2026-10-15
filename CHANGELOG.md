@@ -1,3 +1,30 @@
+# Unreleased — 1.5.0
+
+- New app id: `io.github.haydengriffin.afterglow` (was `net.botworth.vizman`),
+  for publishing as Afterglow. The package is now
+  `io.github.haydengriffin.afterglow_<version>_all.ipk` and the Homebrew
+  Channel manifest `io.github.haydengriffin.afterglow.manifest.json`.
+- **Migration.** webOS treats the new id as a different app: it installs
+  beside the old one rather than replacing it. Remove `net.botworth.vizman`
+  afterwards (and its Music Assistant token, "viz-man on ..." / "Afterglow on
+  ...", under Settings → Users). On the new app, sign in again; what is kept
+  only on the TV (its login, device id, Play on this TV choice, a scan in
+  progress) starts fresh.
+  Favourites and the shared preferences synced through the Music Assistant
+  account come back after sign-in; this TV's own synced settings are keyed by
+  its device id, which is new, so they start from the shared ones. A TV that turns Play on this TV on again without its
+  launch parameter rejoins as the same player (`webos-viz-man-tv`).
+- Anything that launches the app by id (launchApp, deep links, scripts) must
+  use the new id.
+- Branding: `window.afterglowDiagnostics()` (was `vizmanDiagnostics()`), preset
+  globals `afterglowPresets` / `afterglowPresetBench`, local storage prefix
+  `afterglow.` (was `vis.`), screensaver client names under the new id.
+- Publishing metadata: vendor Hayden Griffin, app description, README,
+  LICENSE (upstream viz-man notice kept), NOTICE with credits (Butterchurn,
+  butterchurn-presets, sendspin-js, Archivo), sendspin-js's Apache-2.0 licence
+  shipped in the app, Homebrew Channel entry pointing at
+  github.com/HaydenGriffin/afterglow.
+
 # 1.4.4 — Review fixes and a waveform stall guard (15 October 2026)
 
 - The picture comes back when Music Assistant stops sending the waveform

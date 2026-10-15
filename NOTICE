@@ -1,0 +1,28 @@
+Afterglow
+Copyright (c) 2026 Hayden Griffin
+
+Afterglow began as a fork of viz-man by Michael Nestrud
+(https://github.com/mnestrud/viz-man), MIT License. The upstream copyright
+notice is kept in LICENSE.
+
+This product bundles the following third-party software:
+
+- Butterchurn, Music Assistant fork 3.0.0-beta.5.ma.4
+  https://github.com/music-assistant/butterchurn (fork of
+  https://github.com/jberg/butterchurn)
+  Copyright (c) 2013-2018 Jordan Berg. MIT License.
+
+- butterchurn-presets 2.4.7
+  https://github.com/jberg/butterchurn-presets
+  Copyright (c) 2013-2018 Jordan Berg. MIT License.
+
+- sendspin-js 3.2.1
+  https://github.com/Sendspin/sendspin-js
+  Copyright Sendspin Protocol Authors. Apache License 2.0.
+
+- Archivo typeface
+  https://github.com/Omnibus-Type/Archivo
+  Copyright (c) 2020 The Archivo Project Authors. SIL Open Font License 1.1.
+
+Full license texts ship with the app: app/THIRD_PARTY.md,
+app/sendspin-js-LICENSE.txt and app/fonts/OFL.txt.

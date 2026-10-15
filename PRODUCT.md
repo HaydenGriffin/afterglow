@@ -17,7 +17,10 @@ default. Native graphics growth remains under investigation.
 ## Identity
 Afterglow, an unofficial Music Assistant TV companion. This is a fork of
 Michael Nestrud's viz-man, not a fork of Music Assistant or an official client.
-Preserve the webOS application ID and storage keys for in-place upgrades.
+The webOS application ID is `io.github.haydengriffin.afterglow` (from 1.5.0;
+before that `net.botworth.vizman`). Keep the Music Assistant preferences key
+(`vizman`) and the new-speaker id (`webos-viz-man-tv`): synced favourites and
+the TV's player identity depend on them.
 
 ## Scope
 1.4 (14 October 2026) adds Music Assistant parity for the sofa: Browse

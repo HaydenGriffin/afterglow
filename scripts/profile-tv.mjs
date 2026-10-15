@@ -17,8 +17,8 @@ const sshHost = process.env.TV_SSH_HOST || "lg-tv";
 mkdirSync(dirname(output), { recursive: true });
 const write = (data) => appendFileSync(output, JSON.stringify({ at: new Date().toISOString(), ...data }) + "\n", { mode: 0o600 });
 const tabs = await (await fetch(endpoint + "/json/list", { signal: AbortSignal.timeout(10000) })).json();
-const tab = tabs.find((t) => t.url.endsWith("/net.botworth.vizman/index.html"));
-if (!tab) throw new Error("Afterglow / viz-man is not open");
+const tab = tabs.find((t) => t.url.endsWith("/io.github.haydengriffin.afterglow/index.html"));
+if (!tab) throw new Error("Afterglow is not open");
 const wsUrl = new URL(tab.webSocketDebuggerUrl);
 wsUrl.host = new URL(endpoint).host;
 const ws = new WebSocket(wsUrl);
@@ -72,7 +72,7 @@ try {
   const start = Date.now();
   do {
     const metrics = await call("Performance.getMetrics");
-    const page = await call("Runtime.evaluate", { expression: 'JSON.stringify({hidden:document.hidden,uptimeSec:performance.now()/1000,diagnostics:window.vizmanDiagnostics ? window.vizmanDiagnostics() : null})', returnByValue: true });
+    const page = await call("Runtime.evaluate", { expression: 'JSON.stringify({hidden:document.hidden,uptimeSec:performance.now()/1000,diagnostics:window.afterglowDiagnostics ? window.afterglowDiagnostics() : null})', returnByValue: true });
     if (page.exceptionDetails) throw new Error("diagnostics evaluation failed");
     const { stdout } = await exec("ssh", ["-T", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", sshHost, processCommand], { timeout: 10000 });
     const processes = [];

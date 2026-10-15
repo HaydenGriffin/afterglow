@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Usage: MA_HOST=<host> MA_TOKEN=<token> scripts/backup-favorites.mjs
-// Writes the account's MilkDrop favorites (as viz-man keeps them, and as
+// Writes the account's MilkDrop favorites (as Afterglow keeps them, and as
 // Music Assistant's own list) to backups/favorites-<date>.json and
 // backups/favorites-latest.json.
 import { mkdirSync, writeFileSync } from "node:fs";

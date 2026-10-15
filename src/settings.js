@@ -62,7 +62,7 @@ export function readLaunchParams(win, event) {
 // and mirrored to the Music Assistant user account (see follow.js), except
 // for the ones below, which belong to this TV alone: its login, its identity,
 // and the bookkeeping of a MilkDrop start or a preset scan in progress.
-const PREFIX = "vis.";
+const PREFIX = "afterglow.";
 export const LOCAL_PREFS = ["auth", "deviceId", "milkdropPending", "scanCursor", "scanCurrent", "speaker", "speakerLast"];
 const memory = {};
 let changeListener = null;
