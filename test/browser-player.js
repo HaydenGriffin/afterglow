@@ -6,6 +6,8 @@
   const assert = (ok, message) => { if (!ok) throw Error(message); passed++; };
   const key = code => window.dispatchEvent(new KeyboardEvent('keydown', { keyCode: code }));
   const wait = (ms = 350) => new Promise(resolve => setTimeout(resolve, ms));
+  // Waits for a condition rather than a fixed time, so a busy machine is not a failure.
+  const until = async (check, ms = 5000) => { const end = Date.now() + ms; while (!check() && Date.now() < end) await wait(100); return check(); };
   const OK = 13, BACK = 27, LEFT = 37, UP = 38, RIGHT = 39, DOWN = 40;
   const player = document.querySelector('#player');
   const title = () => document.querySelector('.poster-title').textContent;
@@ -256,17 +258,22 @@
   row('Add to a playlist').click(); await wait(600);
   assert(document.querySelector('.player-panel h2').textContent === 'Add to a playlist', 'Add to a playlist opens the picker');
   assert(rows()[0].firstChild.textContent === 'New playlist' && /^As “Playlist · \d+ \w{3}”$/.test(rows()[0].lastChild.textContent), 'New playlist comes first, named for today');
-  row('Sunday kitchen (demo)').click(); await wait(1200);
+  row('Sunday kitchen (demo)').click();
+  await until(() => /^Added/.test(row('Add to a playlist').lastChild.textContent));
   assert(/^Added to “Sunday kitchen \(demo\)”$/.test(row('Add to a playlist').lastChild.textContent) && row('Add to a playlist').classList.contains('chosen'), 'The row confirms with a tick');
   await section(2);
-  row('Save as a playlist').click(); await wait(1500);
+  row('Save as a playlist').click();
+  await until(() => /^Saved/.test(row('Save as a playlist').lastChild.textContent));
   assert(/^Saved as “Queue · \d+ \w{3}”/.test(row('Save as a playlist').lastChild.textContent), 'The queue is saved under a made-up name');
   await closeAll();
 
   // Idle: pause, and after half a minute the recent music is set as a poster; OK resumes.
-  const idle = document.getElementById('idle'), paused = title();
-  key(32); await wait(32500);
-  assert(idle.classList.contains('shown'), 'Nothing playing shows the idle poster');
+  const idle = document.getElementById('idle');
+  key(32); await wait(600);
+  const paused = title();
+  await wait(25000);
+  assert(!idle.classList.contains('shown'), 'A pause is given half a minute before the poster');
+  assert(await until(() => idle.classList.contains('shown'), 20000), 'Nothing playing shows the idle poster');
   assert(idle.querySelector('.idle-title').textContent === paused && idle.querySelector('.idle-hint').textContent === 'OK resumes', 'The paused song comes first');
   key(RIGHT); await wait();
   assert(idle.querySelector('.idle-title').textContent !== paused && idle.querySelectorAll('.idle-tile.selected').length === 1, 'Right moves along the strip');
