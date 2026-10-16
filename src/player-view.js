@@ -128,6 +128,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     root.classList.remove("controls-open"); root.classList.add("panel-open");
     root.setAttribute("data-panel", which);
     model.wantQueue(which === "queue"); model.tick();
+    if (which === "browse") root.querySelectorAll("button.selected").forEach(b => b.classList.remove("selected")); // Browse marks its own row
     if (which === "browse") return item ? browse.openPage(item, () => { browse.close(); openPanel("details"); }) : browse.open();
     if (which === "details") readProviders();
     render(); focusButton();

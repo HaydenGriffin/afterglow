@@ -185,6 +185,8 @@ export function createMockPlayback() {
     async call(command, args) {
       args = args || {};
       const library = /^music\/(\w+)s\/library_items$/.exec(command);
+      // Later pages take a moment, as on a real server, so "Loading more…" can be seen.
+      if ((library && args.offset > 0) || (command === "player_queues/items" && args.offset > queue.current_index + 1)) await new Promise(resolve => setTimeout(resolve, 300));
       if (library) return page((LIBRARY[library[1]] || []).filter(i => !args.favorite || i.favorite), args);
       if (command === "music/recently_played_items") return recentlyPlayed().slice(0, args.limit || 10);
       if (command === "music/search") return search(args);
