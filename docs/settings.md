@@ -65,9 +65,9 @@ playback.
   returns to Details. Then Start radio from this song (not for audiobooks,
   episodes or radio), Add to favourites and, for a song, Add to a playlist.
   Retry lyrics is not offered for audiobooks and episodes. With timed lyrics,
-  **Go to a line** lists the song's lines (the one on screen focused) with the time each plays at;
-  picking one seeks there, allowing for the lyrics timing, so that line is the
-  one on screen, and closes the panel.
+  **Go to a line** lists the song's lines (the one on screen focused) with
+  the time each plays at; picking one seeks there, allowing for the lyrics
+  timing, so that line is the one on screen, and closes the panel.
   **Scan to save:** when Music Assistant knows the song's page on a public
   service (Spotify, Tidal, Apple Music, YouTube Music, Deezer, Qobuz or
   SoundCloud), a QR code beside the facts opens it on a phone, labelled "Scan
@@ -145,7 +145,8 @@ When nothing has played for 8 seconds (30 seconds after a pause), the screen
 sets what was played recently as a poster: the paused song first (OK resumes
 it), then up to three audiobooks or podcast episodes in progress (OK carries
 on where it was left), then recently played items (OK plays one), and Browse
-last. Left/right
+last. Books, episodes and the programme (below) take recently played items'
+places, so the strip keeps its length and Browse stays on screen. Left/right
 move along the strip; every other key keeps its usual meaning. After three
 minutes without a key it steps down to a dim register, and the first key only
 wakes it. While no song is shown the poster's fields are neutral, not the last
