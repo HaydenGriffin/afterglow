@@ -4,6 +4,16 @@
   baseline; the launcher icon is a close-up of that sunset, a night sky over dark ground with a two-step glow
   round the sun. New app icons, favicon and social preview; `iconColor` is the sky (`#16233A`). See
   `docs/brand/README.md`.
+- Music playing on another speaker can be joined or moved: while Play on this
+  TV is on, Queue and Playing on offer **Join <speaker>** (the TV joins that
+  speaker's group, where Music Assistant allows it) and **Move here** (the
+  music moves to the TV, as the old Play on this TV row did). Nothing happens
+  until you choose one.
+- Playing on says what each speaker plays: the song and artist, Paused, or
+  Idle, instead of Speaker or Group.
+- Speakers together: **Volume for each speaker** sets one member's volume
+  (`players/cmd/volume_set`) beside the group's Volume; speakers with a fixed
+  volume are left out.
 
 # 1.5.5 — Lyric overlay looks and More cues (16 October 2026)
 

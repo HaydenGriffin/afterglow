@@ -188,6 +188,9 @@ export function createLive(settings) {
     transferPlan(playerId, stopped) {
       return follow.transferPlan(playerId, stopped);
     },
+    speakerLists() {
+      return follow.speakerLists();
+    },
     nudgeTrim(deltaMs) {
       trimMs = Math.max(-TRIM_LIMIT_MS, Math.min(TRIM_LIMIT_MS, trimMs + deltaMs));
       savePref("trim", trimMs);

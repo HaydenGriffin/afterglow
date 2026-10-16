@@ -8,6 +8,7 @@ import { FIRST_ENABLED, focusRow } from "./focus.js";
 import { KIND_PREF, LOOK_PREFS, LOOK_ROWS, OVERLAY_LABELS, overlayKind, overlayLook, placeOverlay, stepKind, stepLook } from "./lyric-overlay.js";
 import { createProgressSmoother, progressTransform } from "./progress.js";
 import { createScrollCue } from "./scroll-cue.js";
+import { joinPlan, leaderName, memberVolumes, speakerActivity } from "./speaker-group.js";
 
 // Drawn UI runs at 4 Hz, independently of the visualizer. Text only changes
 // when its value changes; artwork is requested once per URL at 512 pixels.
@@ -262,11 +263,27 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     command("transfer", value).then(ok => { if (ok) onNotice("Moved the music"); });
     setPreferred(id);
   }
+  // Music elsewhere this TV can join or take (speaker-group.js joinPlan, pick.js transferPlan).
+  function offers(t) {
+    const lists = live.speakerLists ? live.speakerLists() : null, own = live.ownPlayer || "";
+    if (!t || !lists) return { join: null, move: false, name: "" };
+    return { join: joinPlan({ players: lists.players, queues: lists.queues, leader: t.queueId, own }),
+      move: !!own && t.queueId !== own && !!live.transferPlan && !!live.transferPlan(own, true), name: leaderName(lists.players, lists.queues, t.queueId) };
+  }
+  // Join <speaker> and Move here, each only when offered.
+  function offerRows(o, disabled) {
+    if (o.join) addRow("Join " + o.name, "Plays here too", () => {
+      command("group", { add: o.join.member, leader: o.join.leader }).then(ok => { if (ok) onNotice("Joined " + o.name); });
+      setPreferred(o.join.member); picking = false; focus = FIRST_ENABLED;
+    }, disabled);
+    if (o.move) addRow("Move here", "Moves the music from " + o.name, () => { moveTo(live.ownPlayer, true); picking = false; focus = FIRST_ENABLED; }, disabled);
+  }
   // Play on: choosing a speaker moves the music there when it has none of its own.
-  function playOn(speakers, disabled) {
+  function playOn(speakers, disabled, o) {
     text(el(".player-panel h2"), "Play on");
     text(el(".player-panel .panel-note"), "Afterglow shows and controls this speaker’s music.");
-    const own = live.ownPlayer || "";
+    const own = live.ownPlayer || "", lists = live.speakerLists ? live.speakerLists() : null;
+    offerRows(o, disabled);
     const choose = id => {
       const plan = id && live.transferPlan ? live.transferPlan(id) : null;
       if (plan && !disabled) moveTo(id); else setPreferred(id);
@@ -275,32 +292,36 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     addRow("Automatic", "Whatever is playing", () => choose(""), false).classList.toggle("chosen", !live.preferred);
     speakers.forEach(sp => {
       const moves = !disabled && live.transferPlan && live.transferPlan(sp.id);
-      const kind = sp.id === own ? "This TV" : sp.group ? "Group" : "Speaker";
-      addRow(sp.name, moves ? kind + " · moves the music here" : kind, () => choose(sp.id), false).classList.toggle("chosen", live.preferred === sp.id);
+      const playing = lists ? speakerActivity(sp.id, lists.players, lists.queues) : sp.group ? "Group" : "Speaker";
+      const detail = (sp.id === own ? "This TV · " : "") + playing + (moves ? " · moves the music here" : "");
+      addRow(sp.name, detail, () => choose(sp.id), false).classList.toggle("chosen", live.preferred === sp.id);
     });
   }
   // Speakers together: a tick for each speaker sounding the target's music.
-  function together(t, options, disabled) {
+  function together(t, options, disabled, volumes) {
     text(el(".player-panel h2"), "Speakers together");
     text(el(".player-panel .panel-note"), "Ticked speakers play " + (t ? t.name : "this speaker") + "’s music.");
     options.forEach(o => {
       const detail = o.leader ? "Leads the group" : o.allowed ? "" : o.member ? "Always in the group" : "Can’t join";
       addRow(o.name, detail, () => command("group", o.member ? { remove: o.id } : { add: o.id }), disabled || !o.allowed).classList.toggle("chosen", o.member);
     });
+    if (volumes.length) heading("Volume for each speaker");
+    volumes.forEach(v => addRow(v.name, v.level + "%", dir => command("member_volume", { id: v.id, level: v.level, by: dir * 5 }), disabled, true));
   }
   function queue(s) {
     const t = s.target, q = t && t.queue || {}, level = volumeOf(t && t.player);
     const speakers = live.speakers ? live.speakers() : [];
     const options = live.groupOptions ? live.groupOptions() : [];
-    const own = live.ownPlayer || "";
-    const moveHere = !!own && !!t && t.queueId !== own && !!live.transferPlan && !!live.transferPlan(own, true);
+    const offer = offers(t), lists = live.speakerLists ? live.speakerLists() : null;
+    const volumes = t && lists ? memberVolumes(lists.players, t.queueId) : [];
     const plans = picking && live.transferPlan ? speakers.map(sp => !!live.transferPlan(sp.id)) : [];
-    const signature = JSON.stringify([s.itemsState, s.items.map(i => [i.queue_item_id, i.name, i.available]), t && t.connected, t && t.queueId, t && t.name, q.shuffle_enabled, q.smart_shuffle_active, q.repeat_mode, q.autoplay_enabled, q.crossfade_enabled, q.is_dynamic, level, sleepIndex, queuePick && queuePick.queue_item_id, picking, grouping, live.preferred, speakers.map(sp => sp.id), plans, options, moveHere]);
+    const playing = picking && lists ? speakers.map(sp => speakerActivity(sp.id, lists.players, lists.queues)) : [];
+    const signature = JSON.stringify([s.itemsState, s.items.map(i => [i.queue_item_id, i.name, i.available]), t && t.connected, t && t.queueId, t && t.name, q.shuffle_enabled, q.smart_shuffle_active, q.repeat_mode, q.autoplay_enabled, q.crossfade_enabled, q.is_dynamic, level, sleepIndex, queuePick && queuePick.queue_item_id, picking, grouping, live.preferred, speakers.map(sp => sp.id), plans, options, offer, playing, volumes]);
     if (signature === queueKey) return false;
     queueKey = signature; el(".panel-items").textContent = "";
     const disabled = !t || !t.connected;
-    if (picking) { playOn(speakers, disabled); return true; }
-    if (grouping) { together(t, options, disabled); return true; }
+    if (picking) { playOn(speakers, disabled, offer); return true; }
+    if (grouping) { together(t, options, disabled, volumes); return true; }
     if (queuePick) {
       const track = trackInfo(queuePick, host);
       text(el(".player-panel h2"), track.title);
@@ -316,9 +337,9 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     text(el(".player-panel h2"), "Queue");
     text(el(".player-panel .panel-note"), !t ? "No speakers found in Music Assistant." : s.itemsState === "loading" ? "Loading…" : s.itemsState === "error" ? "Couldn’t load the queue. Reopen to retry." : q.is_dynamic ? "Radio: songs keep coming" : "");
     if (speakers.length) addRow("Playing on", t ? t.name : "Automatic", () => { picking = true; focus = FIRST_ENABLED; }, false);
-    if (moveHere) addRow("Play on this TV", "Moves the music here", () => moveTo(own, true), disabled);
+    offerRows(offer, disabled);
     const members = options.filter(o => o.member).length;
-    if (options.some(o => o.allowed)) addRow("Speakers together", members > 1 ? members + " speakers" : "Just this one", () => { grouping = true; focus = FIRST_ENABLED; }, disabled);
+    if (options.some(o => o.allowed) || volumes.length) addRow("Speakers together", members > 1 ? members + " speakers" : "Just this one", () => { grouping = true; focus = FIRST_ENABLED; }, disabled);
     heading(s.items.length ? "Up next" : s.itemsState === "loading" ? "" : "Nothing queued after this song");
     s.items.forEach(item => {
       const track = trackInfo(item, host);

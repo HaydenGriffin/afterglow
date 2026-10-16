@@ -115,3 +115,74 @@ test("an overlay saved as On before Stage existed comes back as One line with it
   h.view.setOverlayContext({ cardPx: 0, message: false });
   assert.equal(line.style.bottom, "6vh");
 });
+
+// The Queue over the demo house (mock-playback.js): the living room plays,
+// this TV can join it or take it, the hallway's volume is fixed.
+async function demoQueue(t) {
+  useFakeDocument(t);
+  t.after(() => savePref("preferredPlayer", ""));
+  const { createMockPlayback } = await import("../src/mock-playback.js");
+  const live = createMockPlayback();
+  const doc = globalThis.document, root = doc.createElement("div"), notices = [];
+  doc.body.appendChild(root);
+  const view = createPlayerView({ root, live, host: "ma", engine: { setDrawing() {} }, onSettings() {}, onMode() {}, onNotice: (n) => notices.push(n) });
+  const rows = () => root.querySelector(".panel-items").querySelectorAll("button");
+  const labels = () => rows().map((b) => [b.children[0].textContent, b.children[1].textContent]);
+  const row = (label, at = 0) => rows().filter((b) => b.children[0].textContent === label)[at];
+  root.querySelector(".player-nav").children.find((b) => b.dataset.nav === "queue").click();
+  const back = () => view.handleKey("back");
+  const settled = async () => { await settle(); await settle(); view.handleKey("down"); view.handleKey("up"); };
+  return { live, view, labels, row, back, notices, settled };
+}
+
+test("music elsewhere offers Join and Move here, in the Queue and atop Play on", async (t) => {
+  const h = await demoQueue(t);
+  assert.deepEqual(h.labels().slice(0, 4), [
+    ["Playing on", "Living room · Preview"],
+    ["Join Living room · Preview", "Plays here too"],
+    ["Move here", "Moves the music from Living room · Preview"],
+    ["Speakers together", "Just this one"],
+  ]);
+  h.row("Playing on").click();
+  assert.deepEqual(h.labels(), [
+    ["Join Living room · Preview", "Plays here too"],
+    ["Move here", "Moves the music from Living room · Preview"],
+    ["Automatic", "Whatever is playing"],
+    ["Home speakers · Preview", "Idle · moves the music here"],
+    ["Bedroom · Preview", "Paused · Low tide — Demo Field Recordings · moves the music here"],
+    ["Hallway · Preview", "Idle · moves the music here"],
+    ["Kitchen · Preview", "Idle · moves the music here"],
+    ["Living room · Preview", "A quieter kind of evening — Afterglow demo"],
+    ["This TV · Preview", "This TV · Idle · moves the music here"],
+  ]);
+  h.row("Join Living room · Preview").click();
+  await h.settled();
+  assert.deepEqual(h.notices, ["Joined Living room · Preview"]);
+  assert.equal(h.live.preferred, "demo-tv", "this TV is now the speaker shown and controlled");
+  assert.equal(h.live.target.queueId, "demo-living", "and it sounds the living room's music");
+  assert.deepEqual(h.labels().slice(0, 2), [["Playing on", "This TV · Preview"], ["Speakers together", "2 speakers"]], "neither offer stays once joined");
+});
+
+test("Move here sends the music to this TV, as Play on this TV did", async (t) => {
+  const h = await demoQueue(t);
+  h.row("Move here").click();
+  await h.settled();
+  assert.deepEqual(h.notices, ["Moved the music"]);
+  assert.equal(h.live.playback.queue.queue_id, "demo-tv");
+});
+
+test("Speakers together lists a volume for each speaker in the group that has one", async (t) => {
+  const h = await demoQueue(t);
+  h.row("Speakers together").click();
+  assert.equal(h.labels().filter(([, v]) => /%$/.test(v)).length, 0, "no volumes for a single speaker");
+  h.row("Kitchen · Preview").click();
+  await h.settled();
+  h.row("Hallway · Preview").click();
+  await h.settled();
+  assert.deepEqual(h.labels().filter(([, v]) => /%$/.test(v)), [["Kitchen · Preview", "20%"], ["Living room · Preview", "35%"]], "the hallway's volume is fixed");
+  h.row("Kitchen · Preview", 1).click();
+  await h.settled();
+  assert.equal(h.live.speakerLists().players["demo-kitchen"].volume_level, 25, "OK steps up 5, like Volume");
+  assert.equal(h.row("Kitchen · Preview", 1).children[1].textContent, "25%");
+  assert.equal(h.live.speakerLists().players["demo-living"].volume_level, 35, "the others keep theirs");
+});

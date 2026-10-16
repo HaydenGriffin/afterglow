@@ -20,11 +20,17 @@ playback.
 - **Queue:** the next 12 songs of the queue commands act on; a song offers Play
   now, Play next, Move up, Move down and Remove from the queue. **Playing on**
   picks the player Afterglow follows (see below); picking a silent speaker
-  while music plays elsewhere moves the music to it. **Play on this TV** (shown
-  while Play on this TV is on and the music is elsewhere) moves the music to
-  the TV. **Speakers together** ticks the speakers that play the same music as
-  the chosen one; speakers that cannot join, and the group's leader, are listed
-  but cannot be changed. Shuffle, repeat, crossfade, keep playing when the
+  while music plays elsewhere moves the music to it; each speaker says what it
+  plays (the song and artist, Paused, or Idle). While Play on this TV is on and
+  the music is elsewhere, **Join <speaker>** adds the TV to that speaker's
+  group (only where Music Assistant lets the two group) and **Move here** moves
+  the music to the TV; both are offered here and at the top of Playing on, and
+  neither happens on its own. **Speakers together** ticks the speakers that
+  play the same music as the chosen one; speakers that cannot join, and the
+  group's leader, are listed but cannot be changed. Under **Volume for each
+  speaker**, left and right set one member's volume (5 % a step) while the
+  group's Volume stays in the queue; speakers with a fixed volume have no row.
+  Shuffle, repeat, crossfade, keep playing when the
   queue ends, volume (a group's volume for a group) and the sleep timer are
   here too.
 - **Details:** what the song is and how it is streamed (source, format,

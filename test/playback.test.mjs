@@ -169,6 +169,27 @@ test('transfer and grouping send Music Assistant 2.10 arguments for the target',
   assert.deepEqual(h.calls[4], { command: 'players/cmd/set_members', args: { target_player: 'group', player_ids_to_remove: ['den'] } });
 });
 
+test('joining names the leader, and one speaker of a group steps from the level last sent to it', async () => {
+  const h = harness();
+  h.model.command('group', { add: 'tv', leader: 'living' });
+  assert.deepEqual(h.calls[0], { command: 'players/cmd/set_members', args: { target_player: 'living', player_ids_to_add: ['tv'] } }, 'the leader named wins over the target');
+  await answer(h, 0);
+  h.model.command('member_volume', { id: 'kitchen', level: 20, by: 5 });
+  assert.deepEqual(h.calls[1], { command: 'players/cmd/volume_set', args: { player_id: 'kitchen', volume_level: 25 } });
+  await answer(h, 1);
+  h.model.command('member_volume', { id: 'kitchen', level: 20, by: 5 });
+  assert.equal(h.calls[2].args.volume_level, 30, 'a report that has not caught up is not built on');
+  await answer(h, 2);
+  h.model.command('member_volume', { id: 'den', level: 98, by: 5 });
+  assert.deepEqual(h.calls[3].args, { player_id: 'den', volume_level: 100 }, 'another speaker starts from its own level, at most 100');
+  await answer(h, 3);
+  h.model.command('member_volume', { id: 'den', level: 98, by: -5 });
+  assert.equal(h.calls[4].args.volume_level, 95, 'down again from the 100 sent');
+  await answer(h, 4);
+  h.model.command('member_volume', { id: 'hall', level: 3, by: -5 });
+  assert.equal(h.calls[5].args.volume_level, 0, 'at least 0');
+});
+
 test('skips pressed while one is in flight collapse into one pending skip per direction', async () => {
   const h = harness();
   const first = h.model.command('next');
