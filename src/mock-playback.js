@@ -127,7 +127,7 @@ export function createMockPlayback() {
   for (const id in players) queues[id] = { queue_id: id, display_name: players[id].name, state: "idle", current_item: null, repeat_mode: "off", items: 0 };
   // The music: one queue object, moved between speakers by a transfer.
   const queue = queues["demo-living"];
-  Object.assign(queue, { current_index: 0, current_item: tracks[0], next_item: tracks[1], state: "playing" });
+  Object.assign(queue, { current_index: 0, current_item: tracks[0], next_item: tracks[1], state: "playing", items: tracks.length });
   function select(index) { queue.current_index = Math.max(0, Math.min(tracks.length - 1, index)); refresh(); position = 0; at = Date.now(); }
   function refresh() {
     queue.current_item = tracks[queue.current_index]; queue.next_item = tracks[queue.current_index + 1] || null; queue.items = tracks.length;

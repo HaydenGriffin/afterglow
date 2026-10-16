@@ -8,8 +8,8 @@
 .programme-target, .programme-count { position: absolute; top: 6vh; font-size: 2.2vh; font-weight: 500; letter-spacing: .01em; color: var(--paper-2); }
 .programme-target { left: 5vw; right: 40vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .programme-count { right: 5vw; font-feature-settings: "tnum"; }
-.programme-word { position: absolute; left: 5vw; width: 29.16vw; top: 13vh; font-size: 18vh; line-height: .86; font-weight: 820; font-stretch: 80%; font-variation-settings: "wdth" 80; letter-spacing: -.02em; white-space: nowrap; }
-.programme-date { position: absolute; left: 5vw; width: 29.16vw; top: 31vh; font-size: 5vh; line-height: 1.05; font-weight: 750; font-stretch: 88%; font-variation-settings: "wdth" 88; }
+.programme-word { position: absolute; left: 5vw; width: 29.16vw; top: 13vh; font-size: 13.6vh; line-height: .9; font-weight: 820; font-stretch: 80%; font-variation-settings: "wdth" 80; letter-spacing: -.02em; white-space: nowrap; }
+.programme-date { position: absolute; left: 5vw; width: 29.16vw; top: 27.5vh; font-size: 5vh; line-height: 1.05; font-weight: 750; font-stretch: 88%; font-variation-settings: "wdth" 88; }
 .programme-actions { position: absolute; left: 5vw; width: 29.16vw; bottom: 11vh; }
 .programme-actions button { display: block; width: 100%; min-height: 7vh; margin: 0; padding: 1.2vh 1vw; box-sizing: border-box; border: 0; border-bottom: var(--hair) solid var(--rule); background: transparent; color: var(--paper); font: inherit; text-align: left; cursor: pointer; }
 .programme-actions button:first-child { border-top: var(--hair) solid var(--rule); }

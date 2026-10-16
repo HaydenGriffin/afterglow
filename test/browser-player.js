@@ -141,6 +141,18 @@
   assert(/FLAC|OGG/.test(document.querySelector('.details-facts').textContent), 'Details show the stream format');
   await closeAll();
 
+  // Playlists: a song goes into one from Details; the queue is saved as one, named without a keyboard.
+  await closeAll(); key(OK); await wait(); document.querySelector('[aria-label="Details"]').click(); await wait(800);
+  row('Add to a playlist').click(); await wait(600);
+  assert(document.querySelector('.player-panel h2').textContent === 'Add to a playlist', 'Add to a playlist opens the picker');
+  assert(rows()[0].firstChild.textContent === 'New playlist' && /^As “Playlist · \d+ \w{3}”$/.test(rows()[0].lastChild.textContent), 'New playlist comes first, named for today');
+  row('Sunday kitchen (demo)').click(); await wait(1200);
+  assert(/^Added to “Sunday kitchen \(demo\)”$/.test(row('Add to a playlist').lastChild.textContent) && row('Add to a playlist').classList.contains('chosen'), 'The row confirms with a tick');
+  await section(2);
+  row('Save as a playlist').click(); await wait(1500);
+  assert(/^Saved as “Queue · \d+ \w{3}”/.test(row('Save as a playlist').lastChild.textContent), 'The queue is saved under a made-up name');
+  await closeAll();
+
   // Idle: pause, and after half a minute the recent music is set as a poster; OK resumes.
   const idle = document.getElementById('idle'), paused = title();
   key(32); await wait(31500);
@@ -148,8 +160,18 @@
   assert(idle.querySelector('.idle-title').textContent === paused && idle.querySelector('.idle-hint').textContent === 'OK resumes', 'The paused song comes first');
   key(RIGHT); await wait();
   assert(idle.querySelector('.idle-title').textContent !== paused && idle.querySelectorAll('.idle-tile.selected').length === 1, 'Right moves along the strip');
-  key(LEFT); await wait(); key(OK); await wait(1500);
+  // Tonight's (or today's) programme is offered just before Browse, and opens only on request.
+  const programme = idle.querySelector('.programme');
+  assert(!programme.classList.contains('shown'), 'The programme never opens by itself');
+  for (let i = 0; i < 12 && !idle.querySelector('.idle-tile.selected.idle-programme'); i++) { key(RIGHT); await wait(100); }
+  assert(/’s programme$/.test(idle.querySelector('.idle-title').textContent), 'The programme tile is on offer');
+  key(OK); await wait(800);
+  assert(programme.classList.contains('shown') && programme.querySelectorAll('.programme-col li').length >= 3, 'The programme lists the evening');
+  key(BACK); await wait();
+  assert(!programme.classList.contains('shown') && idle.classList.contains('shown'), 'Back returns to the idle poster');
+  for (let i = 0; i < 12; i++) key(LEFT);
+  await wait(); key(OK); await wait(1500);
   assert(!idle.classList.contains('shown'), 'OK resumes and the poster leaves');
   assert(document.documentElement.scrollWidth <= innerWidth, 'Screen must not overflow horizontally');
-  return { passed: 35, viewport: [innerWidth, innerHeight] };
+  return { passed: 42, viewport: [innerWidth, innerHeight] };
 })()
