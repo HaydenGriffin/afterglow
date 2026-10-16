@@ -1,3 +1,15 @@
+# Unreleased
+
+- **Cover art in the visuals** (Settings → Visuals & presets, on by default): the 44 presets that sample a
+  picture get the song's cover instead of Butterchurn's clouds, faded in over 2 s once the artwork and its
+  colours have arrived, at most every 4 s. One fixed 512 × 512 texture is updated in place for the whole page,
+  never one per song, and released with MilkDrop.
+- **Change preset** adds **Each song** (a new preset when the queue moves to another song, after 2 s, at least
+  10 s apart) and **On big moments** (when the music's energy jumps, at least 25 s apart). Both go through the
+  preset list, favourites and skip-slow as the timer does.
+- In Shuffled order, ↓ now goes back to the preset actually shown before (the last 50), and ↑ forward again,
+  instead of another random pick.
+
 # 1.5.5 — Lyric overlay looks and More cues (16 October 2026)
 
 - Long lists show that they continue: **More** with a chevron at the bottom

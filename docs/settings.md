@@ -110,7 +110,7 @@ track:
 
 | Key | Action |
 |---|---|
-| ↑ / ↓ | Next / previous preset, within the list being browsed |
+| ↑ / ↓ | Next / previous preset, within the list being browsed. Shuffled, ↓ goes back through the presets actually shown (the last 50) and ↑ forward again |
 | ← / → | Dim the visualizer down / up, in steps of 10% |
 | OK | Open the playback controls |
 | Yellow | Add the preset to the favourites, or remove it |
@@ -169,7 +169,8 @@ that do not apply (no speaker on, MilkDrop off) are hidden.
 | Validated | Yes (52 fps) / No (18 fps) / Yes (by you) / No (by you) / Not tested | by measurement | OK adds or removes this preset from the validated list by hand. An override that agrees with the measurement again is dropped |
 | Preset list | Runs well here / All presets / Favourite presets, with a count | Runs well here | Which presets ↑/↓, shuffle and the timer draw from. A favourites list with nothing in it shows all |
 | Preset order | Shuffled / In order | Shuffled | How ↑/↓ move |
-| Change preset | Never / Every 30 s / 2 min / 5 min | Every 2 min | Picks a random preset from the list on a timer |
+| Change preset | Never / Every 30 s / 2 min / 5 min / Each song / On big moments | Every 2 min | Picks a random preset from the list: on a timer; when Music Assistant's queue moves to another song (once the song has played 2 s, and at least 10 s after the last preset change, so skipping through songs changes once); or when the music's energy jumps (a drop, a chorus coming in: the last half second at 2.5 times the loudness of the last ten), at least 25 s apart. Not on the first song, music resuming after a pause, or a song starting out of silence |
+| Cover art in the visuals | On / Off | On | The presets that sample a picture (44 of them: worms, cells, a sky…) get the song's cover instead of the clouds, faded in over 2 s once the artwork and its colours have arrived. Some expect tiling clouds and look odd with a cover. Off, or a song without artwork, gives the clouds |
 | Auto level | On / Off | Off | Scales quiet tracks so they still fill the picture |
 | MilkDrop | off: reason (OK to retry) | — | Only shown when MilkDrop could not start |
 | **Performance** | | | |
