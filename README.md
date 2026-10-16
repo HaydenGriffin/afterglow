@@ -46,9 +46,8 @@ Afterglow is independent of, and not endorsed by, Music Assistant or LG. It bega
   Butterchurn), driven by the waveform Music Assistant streams a few seconds
   ahead, so the picture lands on the beat. **Scan presets** measures each one
   on your TV and keeps a list of the ones it runs smoothly. Presets can take
-  their colours from the artwork, and a preset can be locked to an album or
-  artist. Favourites are shared with Music Assistant's own MilkDrop favourites
-  and between your TVs.
+  their colours from the artwork. Favourites are shared with Music Assistant's
+  own MilkDrop favourites and between your TVs.
 - **Remote keys.** Play/pause, Stop (pauses), fast-forward and rewind (next
   and previous track), plus the colour keys; see
   [Settings and remote keys](docs/settings.md).
