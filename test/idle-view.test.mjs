@@ -154,3 +154,12 @@ test("tiles are bounded and skip the paused song in the recent list", () => {
   assert.equal(tiles[tiles.length - 1].kind, "browse");
   assert.equal(tiles.filter(t => t.item && t.item.uri === "library://track/1").length, 1);
 });
+
+test("tonight's programme takes one recent tile's place, before Browse", () => {
+  const recent = Array.from({ length: 10 }, (_, i) => album(i + 1));
+  const plain = idleTiles(null, recent, "ready");
+  const offered = idleTiles(null, recent, "ready", { word: "Tonight", detail: "5 songs since 19:40" });
+  assert.equal(plain.length, offered.length, "the strip keeps its length, so Browse still fits");
+  assert.deepEqual(offered.slice(-2).map(t => t.kind), ["programme", "browse"]);
+  assert.equal(offered[offered.length - 2].word, "Tonight");
+});

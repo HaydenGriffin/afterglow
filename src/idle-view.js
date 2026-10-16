@@ -112,6 +112,7 @@ export function createIdle({ element, live, host, play, resume, onBrowse, now = 
     if (!showing) return;
     const playback = live.playback, queue = playback && playback.queue;
     tiles = idleTiles(playback, recent, state, programme && programme.tile());
+    if (programme && programme.isOpen) programme.render(); // its confirmation expires
     const key = state + "|" + tiles.map(t => t.kind + ":" + (t.item ? t.item.uri : t.word || "")).join(",");
     if (key !== stripKey) { stripKey = key; buildStrip(); }
     focus = Math.max(0, Math.min(focus, tiles.length - 1));

@@ -291,3 +291,37 @@ test("Up from the field leaves it with the field still selected", t => {
   assert.notEqual(h.doc.activeElement, input);
   assert.ok(h.selected().contains(input));
 });
+
+test("a song can go into a playlist from Browse; its row confirms in the list", async t => {
+  const doc = useFakeDocument(t);
+  const { createPlaylists } = await import("../src/playlists.js");
+  const answers = {
+    "music/recently_played_items": [song(1), album],
+    "music/playlists/library_items": [{ item_id: "4", name: "Sunday", is_editable: true }],
+    "music/playlists/add_playlist_tracks": { id: "t", status: "success", progress_text: "Added 1 item(s) to playlist" },
+  };
+  const calls = [];
+  const live = { call(command, args) { calls.push({ command, args }); return Promise.resolve(answers[command]); } };
+  const playlists = createPlaylists({ call: live.call, wait: () => Promise.resolve() });
+  const element = doc.createElement("section"); doc.body.appendChild(element);
+  const browse = createBrowse({ element, live, host: "ma", target: () => "Kitchen", play: async () => true, onNotice: () => {}, onLeave: () => {}, playlists });
+  const names = () => element.querySelector(".browse-list").querySelectorAll("strong").map(s => s.textContent);
+  browse.open(); await settle(); browse.handleKey("right");
+  assert.ok(actionsFor(album, true).every(([kind]) => kind !== "playlist"), "albums are not offered for now");
+  browse.handleKey("ok");
+  const at = actionsFor(song(1), true).findIndex(([kind]) => kind === "playlist");
+  assert.equal(names()[at], "Add to a playlist");
+  for (let i = 0; i < at; i++) browse.handleKey("down");
+  browse.handleKey("ok"); await settle();
+  assert.deepEqual(names(), ["New playlist", "Sunday"]);
+  browse.handleKey("back");
+  assert.equal(names()[0], "Play now", "Back from the picker returns to the song's actions");
+  browse.handleKey("ok"); await settle(); // Add to a playlist again (the focus stayed there)
+  browse.handleKey("down"); browse.handleKey("ok");
+  await settle(); await settle();
+  assert.deepEqual(calls.find(c => c.command === "music/playlists/add_playlist_tracks").args, { db_playlist_id: "4", uris: ["library://track/1"] });
+  const row = element.querySelector(".browse-added");
+  assert.ok(row, "the song's row ticks");
+  assert.equal(row.querySelector("span span").textContent, "Added to “Sunday”");
+  browse.close();
+});

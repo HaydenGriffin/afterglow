@@ -87,12 +87,13 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
   let query = ""; // the last search sent
   const lists = new Map();
   let adding = null; // the song whose playlist picker shows in the actions column
+  let expiries = [];
   // A job's row confirms as it moves, and its words go when they expire.
   const redraw = () => { if (isOpen) { changed(); render(); } };
   if (playlists) playlists.listen(() => {
     redraw();
     const job = playlists.job;
-    if (job && job.state === "done") { setTimeout(redraw, PLAYLIST_CONFIRM_MS + 20); setTimeout(redraw, NOTICE_MS + 20); }
+    if (job && job.state === "done") expiries = [setTimeout(redraw, PLAYLIST_CONFIRM_MS + 20), setTimeout(redraw, NOTICE_MS + 20)];
   });
 
   const cats = CATEGORIES.map((c, i) => {
@@ -245,7 +246,7 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
     if (column === "cats") { next.scrollIntoView({ block: "nearest" }); cue.update(); } else cue.reveal(next);
   }
   function back() {
-    if (column === "actions" && adding) { adding = null; action = 0; changed(); }
+    if (column === "actions" && adding) { adding = null; action = actionsFor(chosen, true).findIndex(([kind]) => kind === "playlist"); changed(); }
     else if (column === "actions") { column = "list"; chosen = null; changed(); }
     else if (column === "list" && stack) { generation++; show(stack.parent); index = stack.parent.index; stack = null; state = "ready"; changed(); }
     else if (column === "list") column = "cats";
@@ -272,6 +273,7 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
     open() { column = "cats"; if (isOpen) return render(); isOpen = true; choose(START); },
     close() {
       isOpen = false; confirmed = null; running = false; adding = null; generation++; lists.clear();
+      expiries.forEach(clearTimeout); expiries = [];
       field.reset(); query = ""; show({ items: [] }); state = "idle"; stack = null; chosen = null; changed();
     },
     handleKey,
