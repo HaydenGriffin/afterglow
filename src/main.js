@@ -24,6 +24,8 @@ import { SendspinPlayer } from "@sendspin/sendspin-js";
 import { createSpeaker, playerIdFor, toggledSpeaker } from "./speaker.js";
 import { allPrefs, clearPref, favoriteNames, loadPref, mergeFavorites, mergePrefs, mergeSettings, normalizeParams, onPrefChange, parseQuery, readLaunchParams, savePref, takePrefs } from "./settings.js";
 import { LISTS, VALIDATE_CHOICES } from "./validation.js";
+import { createSetupCheck, demoProbes, liveProbes } from "./setup-check.js";
+import { createSetupOffer, createSetupView } from "./setup-view.js";
 
 const TRIM_STEP_MS = 25;
 const MESSAGE_REFRESH_MS = 1000;
@@ -349,6 +351,15 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   const keepAwake = createKeepAwake(() => !document.hidden && (!engine.idle || holdWhenIdle || scan.running));
   keepAwake.start();
 
+  // Check my setup (setup-check.js): run only when asked.
+  const setupCheck = createSetupCheck({
+    facts: () => Object.assign({ host: settings.host, plays: !!speaker && speaker.on, playerId: speaker ? speaker.id : "", sendspin: speaker ? speaker.state : "",
+      onlineLyrics: loadPref("onlineLyrics", true), milkdropOn: !milkdropOff, scan: scan.progress() }, settings.mock ? { plays: true, playerId: "demo-tv", sendspin: "ready" } : {}),
+    probes: settings.mock ? demoProbes() : liveProbes({ host: settings.host, token: () => settings.token }),
+  });
+  const setupView = createSetupView(byId("setup"), setupCheck);
+  const setupOffer = createSetupOffer();
+
   const LIST_NAMES = { validated: "Runs well here", all: "All presets", favorites: "Favourite presets" };
   function listText() {
     const count = milkdrop.list === "favorites" ? milkdrop.favoriteCount : milkdrop.list === "validated" ? milkdrop.validatedCount : milkdrop.presetCount;
@@ -530,6 +541,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       change: (direction) => (milkdrop.validateFps = stepChoice(VALIDATE_CHOICES, milkdrop.validateFps, direction)),
     },
     { section: "Account & diagnostics" },
+    { label: "Check my setup", value: () => setupCheck.summary, change() { menu.close(); setupView.open(() => menu.open()); } },
     { label: "Debug readout", value: () => (debug.visible ? "On" : "Off"), change: () => debug.show(!debug.visible) },
     { label: "Log out", visible: () => !!live, value: () => (auth ? auth.user + " @ " + auth.host : "dev token"), change: logOut },
   ], { onBack: () => playerView.open() });
@@ -549,16 +561,18 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   stackLyricOverlay();
   // While controls, Browse, a panel or Settings is open, the track card and
   // lyric overlay step aside (player.css .sheet-open).
-  const markSheets = () => document.body.classList.toggle("sheet-open", playerView.isOpen || menu.isOpen);
+  const markSheets = () => document.body.classList.toggle("sheet-open", playerView.isOpen || menu.isOpen || setupView.isOpen);
   const sheetWatch = new MutationObserver(markSheets);
   sheetWatch.observe(byId("player"), { attributes: true, attributeFilter: ["class"] });
   sheetWatch.observe(byId("menu"), { attributes: true, attributeFilter: ["style"] });
+  sheetWatch.observe(byId("setup"), { attributes: true, attributeFilter: ["style"] });
 
   const idle = createIdle({
     element: byId("idle"), live: playback, host: settings.host,
     play: (media, option) => playerView.playMedia(media, option),
     resume: () => playerView.resume(),
     onBrowse() { playerView.openBrowse(); refreshMessage(); },
+    onSetup() { setupView.open(); refreshMessage(); },
   });
 
   debug = createDebug(byId("debug"), () =>
@@ -617,10 +631,11 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
 
   function refreshMessage() {
     showMessage();
+    setupOffer.show(message, message.style.display === "block" && !milkdropOff && !setupView.isOpen);
     stackLyricOverlay();
   }
   function showMessage() {
-    idle.update(!(live && live.problem) && !playerView.isOpen && !menu.isOpen && !scan.running && !login.isOpen && !leaving);
+    idle.update(!(live && live.problem) && !playerView.isOpen && !menu.isOpen && !setupView.isOpen && !scan.running && !login.isOpen && !leaving);
     if (idle.showing) { message.style.display = "none"; return; }
     if (playerView && (playerView.mode === "album" || playerView.mode === "lyrics")) { message.style.display = "none"; return; }
     if (milkdropOff) {
@@ -664,6 +679,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       if (name === "back") scan.stop();
       return;
     }
+    if (setupView.handleKey(name)) return;
     if (menu.handleKey(name)) return;
     if (playerView.handleKey(name)) return;
     if (idle.handleKey(name)) return;

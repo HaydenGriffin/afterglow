@@ -26,14 +26,17 @@ function pausedItem(playback) {
 }
 
 // The strip: the paused song (Resume), a retry after an error, what was
-// played recently (Play), and always Browse last, so OK never dead-ends.
-export function idleTiles(playback, recent, state) {
+// played recently (Play), and always Browse, so OK never dead-ends. With
+// nothing to offer (reading failed, or nothing played yet) and `setup` on,
+// Check my setup comes last.
+export function idleTiles(playback, recent, state, setup) {
   const paused = pausedItem(playback), tiles = [];
   if (paused) tiles.push({ kind: "resume", item: paused });
   if (state === "error") tiles.push({ kind: "retry" });
   (recent || []).filter(item => item && item.uri && !(paused && item.uri === paused.uri))
     .slice(0, RECENT_LIMIT).forEach(item => tiles.push({ kind: "play", item }));
   tiles.push({ kind: "browse" });
+  if (setup && !paused && (state === "error" || (state === "ready" && tiles.length === 1))) tiles.push({ kind: "setup" });
   return tiles;
 }
 
@@ -41,6 +44,7 @@ export function idleTiles(playback, recent, state) {
 export function idleCopy(tile, state, hasRecent) {
   if (tile.kind === "resume") return { title: tile.item.name, detail: ["Paused"].concat(detailOf(tile.item).split(" · ").slice(1)).join(" · "), hint: "OK resumes" };
   if (tile.kind === "play") return { title: tile.item.name, detail: detailOf(tile.item), hint: "OK plays it" };
+  if (tile.kind === "setup") return { title: "Nothing playing", detail: "Something not right? Check my setup", hint: "OK checks your setup" };
   if (tile.kind === "retry") return { title: "Nothing playing", detail: "Couldn’t load what you played", hint: "OK tries again" };
   if (state === "loading") return { title: "Nothing playing", detail: "Finding what you played…", hint: "OK opens Browse" };
   if (!hasRecent) return { title: "Nothing playing", detail: "Play something in Music Assistant and it shows here", hint: "OK opens Browse" };
@@ -51,7 +55,7 @@ function make(tag, cls, parent) { const node = document.createElement(tag); if (
 function text(node, value) { const v = String(value == null ? "" : value); if (node.textContent !== v) node.textContent = v; }
 function lengthOf(title) { return title.length > 50 ? "xlong" : title.length > 26 ? "long" : title.length > 12 ? "medium" : "short"; }
 
-export function createIdle({ element, live, host, play, resume, onBrowse, now = Date.now }) {
+export function createIdle({ element, live, host, play, resume, onBrowse, onSetup, now = Date.now }) {
   element.textContent = "";
   const art = make("div", "idle-art", element), where = make("p", "idle-target", element), status = make("p", "idle-state", element);
   const title = make("h1", "idle-title", element), field = make("div", "idle-field", element);
@@ -81,6 +85,7 @@ export function createIdle({ element, live, host, play, resume, onBrowse, now = 
   }
   async function activate(tile) {
     if (tile.kind === "browse") return onBrowse();
+    if (tile.kind === "setup") return onSetup();
     if (tile.kind === "retry") return load();
     note = tile.kind === "resume" ? "Resuming…" : "Starting…"; render();
     const ok = await (tile.kind === "resume" ? resume() : play(tile.item.uri, "replace"));
@@ -92,17 +97,18 @@ export function createIdle({ element, live, host, play, resume, onBrowse, now = 
     tiles.forEach((tile, i) => {
       const button = make("button", "idle-tile idle-" + tile.kind, make("li", "", strip));
       button.tabIndex = -1;
-      button.setAttribute("aria-label", tile.item ? tile.item.name : tile.kind === "retry" ? "Try again" : "Browse");
+      const word = tile.kind === "retry" ? "Try again" : tile.kind === "setup" ? "Check setup" : "Browse";
+      button.setAttribute("aria-label", tile.item ? tile.item.name : word);
       const url = tile.item ? imageUrl(thumbOf(tile.item), host, 160) : "";
       if (url) { const img = make("img", "", button); img.alt = ""; img.onerror = () => img.remove(); img.src = url; }
-      else if (!tile.item) make("span", "idle-word", button).textContent = tile.kind === "retry" ? "Try again" : "Browse";
+      else if (!tile.item) make("span", "idle-word", button).textContent = word;
       button.addEventListener("click", () => { focus = i; lastKey = now(); element.classList.remove("rest"); render(); activate(tiles[i]); });
     });
   }
   function render() {
     if (!showing) return;
     const playback = live.playback, queue = playback && playback.queue;
-    tiles = idleTiles(playback, recent, state);
+    tiles = idleTiles(playback, recent, state, !!onSetup);
     const key = state + "|" + tiles.map(t => t.kind + ":" + (t.item ? t.item.uri : "")).join(",");
     if (key !== stripKey) { stripKey = key; buildStrip(); }
     focus = Math.max(0, Math.min(focus, tiles.length - 1));

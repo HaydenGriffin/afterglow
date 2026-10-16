@@ -108,12 +108,15 @@ function withTimeout(promise, ms, fallback) {
   });
 }
 
-// The probes against the real server; each resolves, never rejects.
-export function liveProbes({ host, token, WebSocketImpl, fetchImpl }) {
+// The probes against the real server; each resolves, never rejects. token
+// may be a function, so a renewed token is the one used.
+export function liveProbes({ host, token: tokenOf, WebSocketImpl, fetchImpl }) {
+  const current = () => (typeof tokenOf === "function" ? tokenOf() : tokenOf);
   const Socket = WebSocketImpl || (typeof WebSocket === "function" ? WebSocket : null);
   const get = fetchImpl || (typeof fetch === "function" ? fetch : null);
   return {
     async server(playerId) {
+      const token = current();
       let api;
       try {
         api = await connectApi(host, WebSocketImpl);
@@ -136,6 +139,7 @@ export function liveProbes({ host, token, WebSocketImpl, fetchImpl }) {
       return out;
     },
     relay() {
+      const token = current();
       if (!Socket) return Promise.resolve({ ok: false });
       return withTimeout(new Promise((resolve) => {
         let ws;

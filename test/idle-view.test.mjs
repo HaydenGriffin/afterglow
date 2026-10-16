@@ -154,3 +154,31 @@ test("tiles are bounded and skip the paused song in the recent list", () => {
   assert.equal(tiles[tiles.length - 1].kind, "browse");
   assert.equal(tiles.filter(t => t.item && t.item.uri === "library://track/1").length, 1);
 });
+
+test("with nothing to offer, Check my setup comes after Browse", () => {
+  assert.deepEqual(idleTiles(null, [], "ready", true).map(t => t.kind), ["browse", "setup"]);
+  assert.deepEqual(idleTiles(null, [], "error", true).map(t => t.kind), ["retry", "browse", "setup"]);
+  assert.deepEqual(idleTiles(null, [album(1)], "ready", true).map(t => t.kind), ["play", "browse"], "recent music is something to offer");
+  assert.deepEqual(idleTiles({ queue: pausedQueue }, [], "ready", true).map(t => t.kind), ["resume", "browse"], "so is the paused song");
+  assert.deepEqual(idleTiles(null, [], "loading", true).map(t => t.kind), ["browse"], "not while still finding what was played");
+  assert.deepEqual(idleTiles(null, [], "ready").map(t => t.kind), ["browse"], "only where the app offers it");
+});
+
+test("OK on Check setup opens Check my setup", async t => {
+  const doc = useFakeDocument(t);
+  let time = Date.UTC(2026, 9, 15, 12);
+  const opened = [];
+  const calls = [];
+  const live = { playback: { queue: null, connected: true }, call(command) { return new Promise((resolve) => calls.push(resolve)); } };
+  const element = doc.createElement("div");
+  const idle = createIdle({ element, live, host: "ma", now: () => time, play: async () => true, resume: async () => true, onBrowse: () => {}, onSetup: () => opened.push(true) });
+  idle.update(true);
+  time += IDLE_AFTER_MS; idle.update(true);
+  calls[0]([]); await settle();
+  assert.equal(element.querySelectorAll("button").length, 2);
+  idle.handleKey("right");
+  assert.equal(element.querySelector(".idle-detail").textContent, "Something not right? Check my setup");
+  assert.equal(element.querySelector(".idle-hint").textContent, "OK checks your setup");
+  idle.handleKey("ok");
+  assert.deepEqual(opened, [true]);
+});
