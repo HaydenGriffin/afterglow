@@ -174,5 +174,25 @@
   key(LEFT); await wait(); key(OK); await wait(1500);
   assert(!idle.classList.contains('shown'), 'OK resumes and the poster leaves');
   assert(document.documentElement.scrollWidth <= innerWidth, 'Screen must not overflow horizontally');
-  return { passed: 35, viewport: [innerWidth, innerHeight] };
+  // Visuals & presets: Change preset offers Each song and On big moments; Cover art in the visuals toggles.
+  await closeAll(); await section(3);
+  const menuRow = label => Array.from(document.querySelectorAll('#menu .row')).find(r => r.firstChild.textContent === label);
+  const menuValue = label => menuRow(label).lastChild.textContent;
+  const seen = [];
+  for (let i = 0; i < 6; i++) { seen.push(menuValue('Change preset')); menuRow('Change preset').click(); await wait(60); }
+  assert(['Each song', 'On big moments', 'Never', 'Every 2 min'].every(v => seen.indexOf(v) >= 0), 'Change preset offers the timers, Each song and On big moments: ' + seen.join(', '));
+  for (let i = 0; i < 6 && menuValue('Change preset') !== 'Every 2 min'; i++) { menuRow('Change preset').click(); await wait(60); }
+  assert(menuValue('Cover art in the visuals') === 'On', 'Cover art in the visuals is on by default');
+  menuRow('Cover art in the visuals').click(); await wait(60);
+  assert(menuValue('Cover art in the visuals') === 'Off', 'Cover art in the visuals turns off');
+  menuRow('Cover art in the visuals').click(); await wait(60);
+  // Shuffled Previous returns to the preset shown before.
+  await closeAll();
+  const shownPreset = () => window.afterglowDiagnostics().preset;
+  const first = shownPreset(); key(UP); await wait(); const second = shownPreset(); key(UP); await wait();
+  key(DOWN); await wait();
+  assert(shownPreset() === second, 'Previous returns to the preset shown before');
+  key(DOWN); await wait();
+  assert(shownPreset() === first, 'and the one before that');
+  return { passed: 40, viewport: [innerWidth, innerHeight] };
 })()

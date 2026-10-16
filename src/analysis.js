@@ -16,10 +16,12 @@ export function createAnalysis() {
   let peak = LEVEL_TARGET;
   let gain = 1;
   let wave = SILENCE;
+  let raw = SILENCE; // as it arrived, before the level: big moments are judged on it
 
   return {
     // `dt` is the time since the previous frame, which paces the level release.
     setWave(next, dt) {
+      raw = next || SILENCE;
       if (!next || !autoLevel) {
         wave = next || SILENCE;
         gain = 1;
@@ -49,6 +51,9 @@ export function createAnalysis() {
     },
     get wave() {
       return wave;
+    },
+    get raw() {
+      return raw;
     },
   };
 }

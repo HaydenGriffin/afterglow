@@ -15,10 +15,11 @@ import { createLogin } from "./login.js";
 import { getPlayerDelay, listTokens, renewToken, setPlayerDelay, signOut } from "./ma.js";
 import { createMenu } from "./menu.js";
 import { drawSync, timingLabel } from "./sync-figure.js";
-import { COLOR_MODES, COLOR_STRENGTHS, ROTATE_CHOICES, SCALE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
+import { COLOR_MODES, COLOR_STRENGTHS, SCALE_CHOICES, clearMilkdropBlocks, createMilkdropMode, hasWebGL2, milkdropBlocker } from "./milkdrop.js";
 import { createMock } from "./mock.js";
 import { createRelaunchHandler } from "./relaunch.js";
-import { timeLabel } from "./playback.js";
+import { timeLabel, trackInfo } from "./playback.js";
+import { CHANGE_CHOICES, changeLabel } from "./preset-change.js";
 import { createScan, recoverScan } from "./scan.js";
 import { SendspinPlayer } from "@sendspin/sendspin-js";
 import { createSpeaker, playerIdFor, toggledSpeaker } from "./speaker.js";
@@ -202,6 +203,13 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   const engine = createEngine({ canvas, analysis, source });
   engine.setFpsCap(loadPref("fpsCap", 30));
 
+  // The song MilkDrop hears about: its queue item and its cover (512 px).
+  function songToVisuals(source, track) {
+    const state = source.playback;
+    const item = state && state.queue && state.queue.current_item;
+    milkdrop.setSong(track ? track.id : "", track && item ? (trackInfo(item, settings.host) || {}).image : "");
+  }
+
   // MilkDrop is the picture; when it cannot run the screen says why.
   let milkdropOff = settings.noWebgl ? "no WebGL2" : milkdropBlocker();
   const milkdrop = createMilkdropMode((reason) => {
@@ -212,7 +220,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   }, toast);
   if (!milkdropOff) engine.setRenderer(milkdrop);
   if (live) {
-    live.onTrack((track) => showTrackCard(track, trackMode === "start"));
+    live.onTrack((track) => { showTrackCard(track, trackMode === "start"); songToVisuals(live, track); });
     // The artwork palette colors the presets; one may have arrived already.
     live.onColor((p) => milkdrop.setPalette(p));
     milkdrop.setPalette(live.palette);
@@ -472,8 +480,15 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     {
       label: "Change preset",
       visible: () => !milkdropOff,
-      value: () => (milkdrop.rotateSeconds ? "Every " + (milkdrop.rotateSeconds < 60 ? milkdrop.rotateSeconds + " s" : milkdrop.rotateSeconds / 60 + " min") : "Never"),
-      change: (direction) => (milkdrop.rotateSeconds = stepChoice(ROTATE_CHOICES, milkdrop.rotateSeconds, direction)),
+      value: () => changeLabel(milkdrop.change),
+      change: (direction) => (milkdrop.change = stepChoice(CHANGE_CHOICES, milkdrop.change, direction)),
+    },
+    {
+      // The song's cover in the presets that sample a picture (cover-art.js).
+      label: "Cover art in the visuals",
+      visible: () => !milkdropOff,
+      value: () => (milkdrop.coverArt ? "On" : "Off"),
+      change: () => (milkdrop.coverArt = !milkdrop.coverArt),
     },
     {
       label: "Auto level",
@@ -543,7 +558,8 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   });
   // The demo shows the track card as Music Assistant's songs do.
   if (!live) {
-    playback.onTrack((track) => showTrackCard(track, trackMode === "start"));
+    playback.onTrack((track) => { showTrackCard(track, trackMode === "start"); songToVisuals(playback, track); });
+    songToVisuals(playback, playback.track);
     applyTrackMode();
   }
   stackLyricOverlay();
