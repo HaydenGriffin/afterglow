@@ -65,7 +65,7 @@
 /* Lyrics over Visuals + track: a screen-sized layer (the OLED drift and Dim track info act on it)
    holding One line (the track card's corner) or Stage (centred, large). lyric-overlay.js places
    the line top or bottom: at Bottom above the track card while it shows. --s is the Size. */
-.lyric-overlay { position: absolute; left: 0; top: 0; right: 0; bottom: 0; --s: 1; transition: transform 4s linear; }
+.lyric-overlay { position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; --s: 1; transition: transform 4s linear; }
 .lyric-overlay[data-size="small"] { --s: .8; }
 .lyric-overlay[data-size="large"] { --s: 1.25; }
 .lyric-overlay:not(.has-line), #player[data-mode="visuals"] .lyric-overlay { display: none; }
@@ -75,10 +75,11 @@
   font-size: calc(4vh * var(--s)); line-height: 1.15; font-weight: 700; color: var(--paper); overflow-wrap: break-word; }
 .lyric-overlay[data-kind="stage"] .lyric-overlay-line { left: 0; right: 0; margin: 0 auto !important; width: -webkit-fit-content; width: fit-content; max-width: 70vw; padding: calc(2vh * var(--s)) calc(2.2vw * var(--s));
   font-size: calc(7.4vh * var(--s)); line-height: 1.05; font-weight: 800; font-stretch: 82%; letter-spacing: -.015em; text-align: center; }
-/* Box: the flat ink field. Shade: a soft band of the ground that fades out at its edges. None: text only, with a soft dark edge. */
+/* Box: the flat ink field. Shade: a full-width band of the ground, 2.2x the text block (so it scales with Size),
+   fading out above and below; one vertical gradient, clipped to the screen by the layer. None: text only, with a soft dark edge. */
 .lyric-overlay[data-background="box"] .lyric-overlay-line { background: rgba(18,20,23,.9); }
-.lyric-overlay[data-background="shade"] .lyric-overlay-line::before { content: ""; position: absolute; z-index: -1; left: -10vw; right: -10vw; top: -6vh; bottom: -6vh;
-  background: radial-gradient(closest-side, rgba(18,20,23,.84), rgba(18,20,23,.74) 40%, rgba(18,20,23,.44) 68%, rgba(18,20,23,.16) 86%, rgba(18,20,23,0)); }
+.lyric-overlay[data-background="shade"] .lyric-overlay-line::before { content: ""; position: absolute; z-index: -1; left: -100vw; right: -100vw; top: -60%; bottom: -60%;
+  background: linear-gradient(to bottom, rgba(18,20,23,0), rgba(18,20,23,.82) 30%, rgba(18,20,23,.82) 70%, rgba(18,20,23,0)); }
 .lyric-overlay[data-background="shade"] .lyric-overlay-line { text-shadow: 0 0 .4vh rgba(18,20,23,.7); }
 .lyric-overlay[data-background="none"] .lyric-overlay-line { text-shadow: 0 0 .3vh rgba(18,20,23,.95), 0 .2vh 1.6vh rgba(18,20,23,.85), 0 0 3.2vh rgba(18,20,23,.5); }
 /* Controls, Browse, a panel or Settings open: the track card steps aside. */

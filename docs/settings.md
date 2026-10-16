@@ -60,8 +60,8 @@ playback.
     | Background | Box / Shade / None | Box | Box |
     | Size | Small / Medium / Large | Medium | Medium |
 
-    Box is the flat ink field; Shade a soft band of the ground that fades out
-    at its edges; None text only, with a soft dark edge to stay readable over
+    Box is the flat ink field; Shade a band of the ground across the whole
+    screen width, fading out above and below the text; None text only, with a soft dark edge to stay readable over
     bright visuals. Small and Large are about 0.8x and 1.25x Medium; long lines
     wrap. Top sits below the notices, Middle at the screen's vertical centre
     (moved off the "Waiting for music" line or a tall track card), Bottom on

@@ -10,7 +10,8 @@
   **Position** (Top, Middle, Bottom), **Background** (Box, Shade, None) and
   **Size** (Small, Medium, Large) follow, kept separately per overlay (One
   line: Bottom, Box, Medium; Stage: Middle, Box, Medium), saved on this TV and
-  synced with its account settings. A TV that had the overlay On keeps One
+  synced with its account settings. Shade is a full-width dark band that
+  fades out above and below the text. A TV that had the overlay On keeps One
   line. Bottom still stacks above the track card; Middle moves off a tall
   card or the "Waiting for music" line; Dim track info and the OLED shift
   apply to every look.
