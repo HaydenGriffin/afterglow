@@ -600,6 +600,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     idle: engine.idle,
     running: engine.running,
     live: live ? live.diagnostics() : null,
+    lyrics: (({ status, reason, retryAt }) => ({ status, reason, retryInMs: retryAt ? retryAt - Date.now() : null }))(playerView.snapshot().lyrics),
   });
   if (crashed) {
     debug.record("scan: " + crashed + " took the TV down; marked not validated");

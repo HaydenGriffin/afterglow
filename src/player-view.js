@@ -312,7 +312,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
         line("lyric-plain", lines.slice(plainPage * 4, plainPage * 4 + 4).join("\n"));
         line("lyric-note", "Untimed lyrics · page " + (plainPage + 1) + " of " + plainPages(s) + " · arrows turn the page");
       } else {
-        line("lyric-note", s.lyrics.status === "error" ? (s.lyrics.retryAt ? "Lyrics unavailable. Retrying shortly…" : "Lyrics couldn’t load. Retry in Display.") : s.lyrics.status === "missing" ? "No lyrics for this track" : s.track ? "Finding lyrics…" : "");
+        line("lyric-note", s.lyrics.status === "error" ? "Lyrics unavailable. Retrying shortly…" : s.lyrics.status === "missing" ? "No lyrics for this track" : s.track ? "Finding lyrics…" : "");
       }
     }
     karaoke.update();

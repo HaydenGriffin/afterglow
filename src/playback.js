@@ -102,6 +102,9 @@ const LATEST = { volume: true, seek: true }; // presses that only need their las
 const ONCE = { next: true, previous: true }; // at most one waiting per direction
 const ASSUME_MS = 4000; // how long a value just sent outranks the queue's own
 const WAITING_MAX = 8;
+// Waits before each automatic lyrics retry; the last repeats while the song plays,
+// so a busy spell at LRCLIB costs a song's lyrics for minutes, not for good.
+const LYRICS_RETRY_MS = [30000, 60000, 120000];
 
 // lyricsSearch: the fallback when Music Assistant has no lyrics (lrclib.js); null for none.
 // onlineLyrics: the "Online lyrics" setting; while it is false the fallback is not asked.
@@ -168,8 +171,8 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
       lyrics = value;
     } catch (e) {
       if (gen === generation && !stopped) lyrics = {
-        status: "error", lines: [], plain: "",
-        retryAt: lyricsRetries === 0 ? now() + 30000 : 0,
+        status: "error", lines: [], plain: "", reason: String(e && e.message || e).slice(0, 120),
+        retryAt: now() + LYRICS_RETRY_MS[Math.min(lyricsRetries, LYRICS_RETRY_MS.length - 1)],
       };
     }
   }

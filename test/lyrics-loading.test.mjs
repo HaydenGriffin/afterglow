@@ -85,31 +85,30 @@ test("lyrics timing adjusts the words without moving playback or seek targets", 
   assert.equal(model.snapshot().lyricPosition, 20.425);
 });
 
-test("temporary failures get one delayed automatic retry, without hammering the provider", async () => {
+test("temporary failures keep retrying with growing waits, without hammering the provider", async () => {
   let time = 1000;
   let calls = 0;
   const live = {
     playback: { queue: { queue_id: "tv", state: "playing", current_item: track("one") }, connected: true, position: 20 },
-    call: async () => { calls++; throw Error("unavailable"); },
+    call: async () => { calls++; throw Error("Lyrics service unavailable (503)"); },
   };
   const model = createPlayback({ live, host: "ma", lyricsSearch: null, now: () => time });
   model.wantLyrics(true);
   model.tick();
   await settle();
-  assert.equal(model.snapshot().lyrics.retryAt, 31000);
-  time = 30999;
-  model.tick();
-  await settle();
-  assert.equal(calls, 1);
-  time = 31000;
-  model.tick();
-  await settle();
-  assert.equal(calls, 2);
-  assert.equal(model.snapshot().lyrics.retryAt, 0);
-  time = 100000;
-  model.tick();
-  await settle();
-  assert.equal(calls, 2);
+  assert.equal(model.snapshot().lyrics.reason, "Lyrics service unavailable (503)");
+  for (const [wait, expected] of [[30000, 2], [60000, 3], [120000, 4], [120000, 5]]) {
+    const due = model.snapshot().lyrics.retryAt;
+    assert.equal(due, time + wait);
+    time = due - 1;
+    model.tick();
+    await settle();
+    assert.equal(calls, expected - 1, "not before the wait is over");
+    time = due;
+    model.tick();
+    await settle();
+    assert.equal(calls, expected);
+  }
 });
 
 test("a Music Assistant failure followed by an LRCLIB miss stays retryable", async (t) => {
