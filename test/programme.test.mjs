@@ -100,3 +100,26 @@ test("the page: offered on the idle poster, opened by request, kept as a playlis
   programme.handleKey("down"); programme.handleKey("ok");
   assert.equal(programme.isOpen, false, "Back closes it");
 });
+
+test("kept after midnight, the playlist is named for the evening the page heads", async t => {
+  useFakeDocument(t);
+  const time = at(23, 30) + 2 * 3600 * 1000; // 01:30 on the 17th
+  const calls = [];
+  const answers = {
+    "music/recently_played_items": [3, 2, 1].map(n => ({ uri: "lib://track/" + n, name: "Song " + n })),
+    "player_queues/items": [],
+    "music/playlists/library_items": [],
+    "music/playlists/create_playlist": { item_id: "9" },
+    "music/playlists/add_playlist_tracks": { id: "t", status: "success" },
+  };
+  const live = { call: (command, args) => { calls.push({ command, args }); return Promise.resolve(answers[command]); } };
+  const playlists = createPlaylists({ call: live.call, now: () => time, wait: () => Promise.resolve() });
+  const programme = createProgramme({ live, playlists, now: () => time });
+  await programme.refresh({ queue_id: "q", display_name: "Kitchen" });
+  programme.open();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(programme.element.querySelector(".programme-date").textContent, "16 October");
+  programme.handleKey("ok");
+  await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls.find(c => c.command === "music/playlists/create_playlist").args.name, "Tonight · 16 Oct");
+});

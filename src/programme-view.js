@@ -3,7 +3,7 @@
 // poster offers it (a tile before Browse) once the queue has played a few
 // songs in the last hours; it never opens by itself. Data: programme.js.
 import { confirmationFor } from "./playlists.js";
-import { createSessionLog, headline, historyArgs, offerDetail, offered, programmeColumns, programmeSongs, queueItemsArgs, summary } from "./programme.js";
+import { createSessionLog, eveningOf, headline, historyArgs, offerDetail, offered, programmeColumns, programmeSongs, queueItemsArgs, summary } from "./programme.js";
 
 function make(tag, cls, parent) { const node = document.createElement(tag); if (cls) node.className = cls; if (parent) parent.appendChild(node); return node; }
 function text(node, value) { const v = String(value == null ? "" : value); if (node.textContent !== v) node.textContent = v; }
@@ -58,8 +58,9 @@ export function createProgramme({ live, playlists, now = Date.now, log = createS
   }
   function keepIt() {
     if (!songs.length) return;
+    // Named for the evening, as the page heads it: half past one is still the night before.
     const head = headline(now());
-    playlists.keep(songs.map(s => s.uri), head.word, KEEP_KEY);
+    playlists.keep(songs.map(s => s.uri), head.word, KEEP_KEY, eveningOf(now()));
     render();
   }
   playlists.listen(() => render());
