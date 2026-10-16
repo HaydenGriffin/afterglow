@@ -12,6 +12,7 @@ export const IDLE_AFTER_MS = 8000;
 export const PAUSED_IDLE_AFTER_MS = 30000; // a pause is often a short one
 export const REST_AFTER_MS = 180000;
 export const RECENT_LIMIT = 8;
+export const CARRY_ON_LIMIT = 3; // audiobooks and episodes in progress, after the paused song
 const RELOAD_MS = 60000;
 
 export function nothingPlaying(playback) {
@@ -26,14 +27,17 @@ function pausedItem(playback) {
 }
 
 // The strip: the paused song (Resume), a retry after an error, what was
-// played recently (Play), and always Browse, so OK never dead-ends. With
+// played recently (Play), and always Browse, so OK never dead-ends.
+// Audiobooks and episodes in progress (Carry on) follow the paused song. With
 // nothing to offer (reading failed, or nothing played yet) and `setup` on,
 // Check my setup comes last.
-export function idleTiles(playback, recent, state, setup) {
+export function idleTiles(playback, recent, state, { inProgress = [], setup = false } = {}) {
   const paused = pausedItem(playback), tiles = [];
   if (paused) tiles.push({ kind: "resume", item: paused });
+  const shown = uri => tiles.some(t => t.item && t.item.uri === uri);
+  (inProgress || []).forEach(item => { if (item && item.uri && !shown(item.uri) && tiles.length - (paused ? 1 : 0) < CARRY_ON_LIMIT) tiles.push({ kind: "carry", item }); });
   if (state === "error") tiles.push({ kind: "retry" });
-  (recent || []).filter(item => item && item.uri && !(paused && item.uri === paused.uri))
+  (recent || []).filter(item => item && item.uri && !shown(item.uri))
     .slice(0, RECENT_LIMIT).forEach(item => tiles.push({ kind: "play", item }));
   tiles.push({ kind: "browse" });
   if (setup && !paused && (state === "error" || (state === "ready" && tiles.length === 1))) tiles.push({ kind: "setup" });
@@ -43,6 +47,7 @@ export function idleTiles(playback, recent, state, setup) {
 // What the poster says for the chosen tile.
 export function idleCopy(tile, state, hasRecent) {
   if (tile.kind === "resume") return { title: tile.item.name, detail: ["Paused"].concat(detailOf(tile.item).split(" · ").slice(1)).join(" · "), hint: "OK resumes" };
+  if (tile.kind === "carry") return { title: tile.item.name, detail: (tile.item.media_type === "podcast_episode" ? "Episode" : "Audiobook") + " · Carry on listening", hint: "OK carries on" };
   if (tile.kind === "play") return { title: tile.item.name, detail: detailOf(tile.item), hint: "OK plays it" };
   if (tile.kind === "setup") return { title: "Nothing playing", detail: "Something not right? Check my setup", hint: "OK checks your setup" };
   if (tile.kind === "retry") return { title: "Nothing playing", detail: "Couldn’t load what you played", hint: "OK tries again" };
@@ -61,13 +66,17 @@ export function createIdle({ element, live, host, play, resume, onBrowse, onSetu
   const title = make("h1", "idle-title", element), field = make("div", "idle-field", element);
   const detail = make("p", "idle-detail", field), hint = make("p", "idle-hint", field), strip = make("ol", "idle-strip", element);
   let showing = false, quietSince = 0, lastKey = 0, loadedAt = 0, generation = 0;
-  let state = "idle", recent = [], tiles = [], focus = 0, stripKey = "", artUrl = null, note = "";
+  let state = "idle", recent = [], inProgress = [], tiles = [], focus = 0, stripKey = "", artUrl = null, note = "";
 
   async function load() {
     const gen = ++generation;
     state = "loading"; render();
+    const reading = live.call("music/recently_played_items", { limit: RECENT_LIMIT + 2, fully_played_only: false });
+    // In-progress spoken word is a bonus: a server that cannot say leaves it out.
+    live.call("music/in_progress_items", { limit: CARRY_ON_LIMIT + 2 })
+      .then(r => { if (gen === generation) { inProgress = Array.isArray(r) ? r : []; render(); } }, () => {});
     try {
-      const result = await live.call("music/recently_played_items", { limit: RECENT_LIMIT + 2, fully_played_only: false });
+      const result = await reading;
       if (gen !== generation) return;
       recent = Array.isArray(result) ? result : []; state = "ready"; loadedAt = now();
     } catch (e) { if (gen !== generation) return; state = "error"; }
@@ -108,7 +117,7 @@ export function createIdle({ element, live, host, play, resume, onBrowse, onSetu
   function render() {
     if (!showing) return;
     const playback = live.playback, queue = playback && playback.queue;
-    tiles = idleTiles(playback, recent, state, !!onSetup);
+    tiles = idleTiles(playback, recent, state, { inProgress, setup: !!onSetup });
     const key = state + "|" + tiles.map(t => t.kind + ":" + (t.item ? t.item.uri : "")).join(",");
     if (key !== stripKey) { stripKey = key; buildStrip(); }
     focus = Math.max(0, Math.min(focus, tiles.length - 1));

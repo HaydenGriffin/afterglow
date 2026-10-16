@@ -2,6 +2,8 @@
 import { getLyrics, searchLyrics } from "./lrclib.js";
 import { fingerprint } from "./song-lyrics.js";
 import { authority } from "./relay.js";
+import { appendPage, QUEUE_PAGE, queueHasMore, queuePageArgs, refreshFirst } from "./queue-pages.js";
+import { speedOf } from "./spoken-word.js";
 
 export const VIEW_MODES = ["visuals", "track", "album", "lyrics"];
 export const VIEW_LABELS = { visuals: "Visuals only", track: "Visuals + track", album: "Album", lyrics: "Lyrics" };
@@ -26,8 +28,8 @@ export function trackInfo(item, host) {
   const album = media.album || {};
   const image = imageUrl(item.image || thumbOf(media), host, 512);
   return { id: item.queue_item_id, title: media.name || item.name || "Unknown track",
-    artist: (media.artists || []).map(a => a.name).filter(Boolean).join(", "),
-    album: album.name || "", duration: item.duration || media.duration || 0, image, media };
+    artist: (media.artists || media.authors || []).map(a => a.name).filter(Boolean).join(", "),
+    album: album.name || (media.podcast && media.podcast.name) || "", duration: item.duration || media.duration || 0, image, media };
 }
 
 // LRC can contain multiple timestamps per line and a signed millisecond offset
@@ -125,6 +127,7 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
   let lyricsRetries = 0;
   let items = [], itemsState = "idle", queueGeneration = 0;
   let nextQueueRead = 0, queueWanted = false, lyricsWanted = false;
+  let queueMore = false, queueTail = "", pageGeneration = 0; // later pages of Up next (queue-pages.js)
   let busy = false, error = "";
   const waiting = []; // commands pressed while one is in flight
   let assumed = {}; // field -> {value, at}: sent, not yet reflected by Music Assistant
@@ -147,7 +150,8 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
     return { queue, track, player: current && current.player, connected: !!(current && current.connected),
       position: Math.min(track && track.duration || Infinity, Math.max(0, current && current.position || 0)),
       lyricPosition: applyPresentationTrim(current && current.lyricPosition != null ? current.lyricPosition : current && current.position || 0, lyricsOffset(track, lyrics)),
-      next: trackInfo(queue && queue.next_item, host), target: targetOf(current), lyrics, items, itemsState, busy, error };
+      next: trackInfo(queue && queue.next_item, host), target: targetOf(current), lyrics, items, itemsState, busy, error,
+      queueMore, queueTail, speed: assumedOr("playback_speed", speedOf(queue)) };
   }
   async function readLyrics(track, gen) {
     if (!track || track.media.media_type !== "track") { lyrics = { status: "missing", lines: [], plain: "" }; return; }
@@ -195,16 +199,38 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
   async function readItems() {
     const target = snapshot().target;
     if (!target || !target.queue || !target.connected || itemsState === "loading") return;
-    const gen = ++queueGeneration, id = target.queueId, q = target.queue;
+    const gen = ++queueGeneration, id = target.queueId, q = target.queue, first = firstUpcoming(q);
     itemsState = "loading";
     nextQueueRead = now() + 5000;
     try {
-      const result = await live.call("player_queues/items", { queue_id: id, offset: (q.current_index == null ? -1 : q.current_index) + 1, limit: 12 });
+      const result = await live.call("player_queues/items", queuePageArgs(id, first, 0));
       const after = snapshot().target;
       if (gen !== queueGeneration || stopped || !after || after.queueId !== id) return;
-      items = (Array.isArray(result) ? result : []).slice(0, 12);
+      const page = Array.isArray(result) ? result : [];
+      const next = refreshFirst(items, page);
+      if (next.length < items.length) dropPages();
+      items = next;
+      if (items.length === page.length) queueMore = queueHasMore(items.length, page.length, first, q.items);
       itemsState = "ready";
     } catch (e) { if (gen === queueGeneration && !stopped) { itemsState = "error"; error = e.message; } }
+  }
+  // Later pages go (and a read of one is dropped); the panel reads them again as it needs them.
+  function dropPages() { pageGeneration++; queueTail = ""; }
+  function firstUpcoming(q) { return (q.current_index == null ? -1 : q.current_index) + 1; }
+  // The next page of Up next, asked for by the Queue panel near its last song.
+  async function readMoreItems() {
+    const target = snapshot().target;
+    if (!target || !target.queue || !target.connected || !queueMore || queueTail !== "" || itemsState !== "ready") return;
+    const gen = queueGeneration, pages = pageGeneration, id = target.queueId, first = firstUpcoming(target.queue);
+    queueTail = "loading";
+    try {
+      const result = await live.call("player_queues/items", queuePageArgs(id, first, items.length));
+      if (gen !== queueGeneration || pages !== pageGeneration || stopped) return;
+      const page = Array.isArray(result) ? result : [];
+      items = appendPage(items, page);
+      queueMore = queueHasMore(items.length, page.length, first, target.queue.items);
+      queueTail = "";
+    } catch (e) { if (gen === queueGeneration && pages === pageGeneration && !stopped) queueTail = "error"; }
   }
   // A value just sent, until Music Assistant reports it or it grows old.
   function assumedOr(field, actual) {
@@ -253,6 +279,7 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
       const uri = s.track && s.track.media.uri; if (!uri) return "";
       out.command = "player_queues/play_media"; out.args.media = "radio_playlist://playlist/" + uri; out.args.option = "replace";
     }
+    else if (action === "speed") { out.command = "player_queues/set_playback_speed"; out.args.speed = set("playback_speed", value); }
     else if (action === "move_item") { out.args.queue_item_id = value.id; out.args.pos_shift = value.shift; }
     else if (action === "delete_item") out.args.item_id_or_index = value;
     else if (action === "transfer") {
@@ -283,6 +310,8 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
     try {
       await live.call(built.command, built.args);
       if (built.field) assume(built.field, built.sent);
+      // An edit can move any later song: keep the first page until the refresh rereads it.
+      if ((job.family === "move_item" || job.family === "delete_item") && items.length > QUEUE_PAGE) { items = items.slice(0, QUEUE_PAGE); queueMore = true; dropPages(); }
       error = ""; nextQueueRead = 0; return true;
     } catch (e) { error = e.message; return false; }
   }
@@ -304,7 +333,7 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
       if (nextKey !== key) { key = nextKey; generation++; lyricsRetries = 0; lyrics = { status: "idle", lines: [], plain: "" }; error = ""; }
       // The queue panel lists what commands act on, which may not be what is drawn.
       const t = s.target, nextItems = t ? t.queueId + ":" + (t.track ? t.track.id : "") : "";
-      if (nextItems !== itemsKey) { itemsKey = nextItems; queueGeneration++; items = []; itemsState = "idle"; nextQueueRead = 0; }
+      if (nextItems !== itemsKey) { itemsKey = nextItems; queueGeneration++; items = []; itemsState = "idle"; nextQueueRead = 0; queueMore = false; queueTail = ""; }
       if (lyricsWanted && s.connected && s.track) {
         if (lyrics.status === "error" && lyrics.retryAt && now() >= lyrics.retryAt) {
           lyricsRetries++;
@@ -325,6 +354,8 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
       if (cache.size > 3) cache.delete(cache.keys().next().value);
       generation++; lyrics = value;
     },
+    // The Queue panel's focus is near the last loaded song; retry: after a failed page.
+    moreQueue(retry) { if (retry && queueTail === "error") queueTail = ""; if (queueWanted) readMoreItems(); },
     retryLyrics() {
       const track = snapshot().track;
       if (track) cache.delete(track.media.uri || track.id);

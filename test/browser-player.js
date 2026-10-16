@@ -211,9 +211,49 @@
   assert(!player.classList.contains('panel-open') && document.querySelector('.elapsed').textContent === target, 'Picking a line plays from it');
   key(OK); await wait(); document.querySelector('[aria-label="Display"]').click(); await wait(); pick('Visuals only'); await closeAll();
 
+  // The whole library: All albums reads more as the focus nears its end, with only a window of rows in the page.
+  await section(0);
+  const browseRows = () => Array.from(document.querySelectorAll('.browse-list button'));
+  const focusedName = () => document.querySelector('.browse-list .selected strong').textContent;
+  for (let i = 0; i < 14 && selected().textContent !== 'All albums'; i++) { key(DOWN); await wait(150); }
+  await wait(500); key(RIGHT); await wait();
+  for (let i = 0; i < 400 && focusedName() !== 'Shelf 127 (demo)'; i++) { key(DOWN); await wait(20); }
+  assert(focusedName() === 'Shelf 127 (demo)', 'Paging reaches past the first page: ' + focusedName());
+  assert(browseRows().length <= 81, 'Only a window of rows is in the page');
+  assert(document.querySelector('.player-browse .scroll-frame').classList.contains('more-below'), 'More still shows below');
+
+  // Continue listening: the book in progress carries on; Details offers Speed and Chapters.
+  key(LEFT); await wait(100);
+  for (let i = 0; i < 14 && selected().textContent !== 'Continue listening'; i++) { key(UP); await wait(150); }
+  await wait(500); key(RIGHT); await wait(); key(OK); await wait(); key(OK); await wait(900);
+  assert(/lighthouse keeper/.test(title()), 'Play now starts the book');
+  await closeAll(); key(OK); await wait(); document.querySelector('[aria-label="Details"]').click(); await wait(600);
+  assert(row('Speed') && row('Chapters') && !row('Start radio from this song'), 'A book offers Speed and Chapters, not radio');
+  assert(row('Chapters').lastChild.textContent === 'Chapter 4 of 24', 'It resumed in its fourth chapter');
+  row('Speed').click(); await wait(700);
+  assert(row('Speed').lastChild.textContent === '1.25×', 'Speed steps up');
+  row('Chapters').click(); await wait();
+  assert(document.querySelector('.player-panel h2').textContent === 'Chapters' && rows()[3].classList.contains('chosen'), 'Chapters tick the playing one');
+  rows()[1].click(); await wait(700);
+  assert(rows()[1].classList.contains('chosen'), 'A chapter plays from its start');
+  key(BACK); await wait();
+  assert(document.querySelector('.player-panel h2').textContent !== 'Chapters', 'Back returns to Details');
+
+  // Go to the album from Details, and back.
+  await section(0);
+  for (let i = 0; i < 14 && selected().textContent !== 'Favourite albums'; i++) { key(DOWN); await wait(150); }
+  await wait(500); key(RIGHT); await wait(); key(OK); await wait(); key(OK); await wait(900);
+  await closeAll(); key(OK); await wait(); document.querySelector('[aria-label="Details"]').click(); await wait(600);
+  const album = row('Go to the album').lastChild.textContent;
+  row('Go to the album').click(); await wait(700);
+  assert(player.getAttribute('data-panel') === 'browse' && document.querySelector('.browse-title').textContent === album, 'Go to the album opens its songs');
+  key(BACK); await wait();
+  assert(player.getAttribute('data-panel') === 'details', 'Back returns to Details');
+  await closeAll();
+
   // Idle: pause, and after half a minute the recent music is set as a poster; OK resumes.
   const idle = document.getElementById('idle'), paused = title();
-  key(32); await wait(31500);
+  key(32); await wait(32500);
   assert(idle.classList.contains('shown'), 'Nothing playing shows the idle poster');
   assert(idle.querySelector('.idle-title').textContent === paused && idle.querySelector('.idle-hint').textContent === 'OK resumes', 'The paused song comes first');
   key(RIGHT); await wait();

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { useFakeDocument } from "./fake-dom-tree.mjs";
-import { actionsFor, createBrowse } from "../src/browse-view.js";
+import { actionsFor, CATEGORIES, createBrowse, detailOf } from "../src/browse-view.js";
 
 const settle = () => new Promise(resolve => setImmediate(resolve));
 const album = { item_id: "7", provider: "library", media_type: "album", uri: "library://album/7", name: "Coastline", artists: [{ name: "Demo" }] };
@@ -159,7 +159,7 @@ const artist = { item_id: "3", provider: "library", media_type: "artist", uri: "
 function startSearch(h) {
   h.browse.open();
   h.calls[0].resolve([album]);
-  h.key("up"); h.key("right");
+  h.key("up"); h.key("up"); h.key("right"); // past Continue listening to Search
   const input = h.element.querySelector("input");
   assert.ok(h.selected().contains(input), "Right from Search selects the field");
   assert.notEqual(h.doc.activeElement, input, "selecting the field must not open the keyboard");
@@ -290,4 +290,115 @@ test("Up from the field leaves it with the field still selected", t => {
   assert.ok(event.defaultPrevented);
   assert.notEqual(h.doc.activeElement, input);
   assert.ok(h.selected().contains(input));
+});
+
+// Long lists: library lists read the next page near their end; only a window of rows is built.
+const many = (from, count) => Array.from({ length: count }, (_, i) => Object.assign(song(from + i), { name: "Song " + (from + i) }));
+async function openCategory(h, id, items) {
+  h.browse.open();
+  h.calls[0].resolve([]); await settle();
+  const want = CATEGORIES.findIndex(c => c.id === id), from = CATEGORIES.findIndex(c => c.id === "recent");
+  for (let i = from; i < want; i++) h.key("down");
+  const call = h.calls[h.calls.length - 1];
+  call.resolve(items); await settle();
+  h.key("right");
+  return call;
+}
+
+test("a library list reads the next page as the focus nears its end, with Loading more…", async t => {
+  const h = harness(t);
+  const first = await openCategory(h, "albums", many(0, 60));
+  assert.deepEqual(first.args, { order_by: "timestamp_added_desc", limit: 60, offset: 0 });
+  const before = h.calls.length;
+  for (let i = 0; i < 45; i++) h.key("down");
+  assert.equal(h.calls.length, before, "no read while far from the end");
+  for (let i = 0; i < 5; i++) h.key("down");
+  assert.equal(h.calls.length, before + 1, "one read near the end");
+  assert.deepEqual(h.calls[before].args, { order_by: "timestamp_added_desc", limit: 60, offset: 60 });
+  h.key("down");
+  assert.equal(h.calls.length, before + 1, "never two at once");
+  assert.equal(h.names().pop(), "Loading more…");
+  h.calls[before].resolve(many(60, 20)); await settle();
+  assert.equal(h.names().pop(), "Song 79");
+  for (let i = 0; i < 40; i++) h.key("down");
+  assert.equal(h.calls.length, before + 1, "a short page ends the list");
+  assert.equal(h.selected().querySelector("strong").textContent, "Song 79");
+});
+
+test("a failed page says so at the end and OK tries again", async t => {
+  const h = harness(t);
+  await openCategory(h, "albums", many(0, 60));
+  for (let i = 0; i < 55; i++) h.key("down");
+  h.calls[h.calls.length - 1].reject(Error("offline")); await settle();
+  assert.equal(h.names().pop(), "More couldn’t load");
+  for (let i = 0; i < 10; i++) h.key("down");
+  h.key("ok");
+  assert.deepEqual(h.calls[h.calls.length - 1].args.offset, 60);
+  assert.equal(h.names().pop(), "Loading more…");
+});
+
+test("a long whole list is kept and windowed: rows stay bounded and follow the focus", async t => {
+  const h = harness(t);
+  await openWith(h, [album]);
+  h.key("ok");
+  const show = actionsFor(album).findIndex(([kind]) => kind === "tracks");
+  for (let i = 0; i < show; i++) h.key("down");
+  h.key("ok");
+  h.calls[h.calls.length - 1].resolve(many(0, 1500)); await settle();
+  const rows = () => h.element.querySelector(".browse-list").querySelectorAll("button").length;
+  assert.ok(rows() <= 80, "at most a window of rows in the page");
+  assert.equal(h.element.querySelectorAll(".browse-spacer").length, 1, "a spacer stands for the rows below");
+  for (let i = 0; i < 1200; i++) h.key("down");
+  assert.equal(h.selected().querySelector("strong").textContent, "Song 1200");
+  assert.ok(rows() <= 80);
+  assert.equal(h.element.querySelectorAll(".browse-spacer").length, 2);
+  h.key("ok");
+  assert.equal(h.names()[0], "Play now", "the focused song opens");
+  h.key("back");
+  assert.equal(h.selected().querySelector("strong").textContent, "Song 1200", "Back returns to it");
+});
+
+test("Continue listening sits under Search and reads Music Assistant's in-progress items", async t => {
+  const h = harness(t);
+  assert.deepEqual(CATEGORIES.slice(0, 3).map(c => c.label), ["Search", "Continue listening", "Recently played"]);
+  assert.deepEqual(CATEGORIES.slice(-2).map(c => c.label), ["Podcasts", "Audiobooks"]);
+  h.browse.open();
+  assert.equal(h.calls[0].command, "music/recently_played_items", "Browse still opens on Recently played");
+  h.calls[0].resolve([]); await settle();
+  h.key("up");
+  const call = h.calls[1];
+  assert.deepEqual([call.command, call.args], ["music/in_progress_items", { limit: 30 }]);
+  call.resolve([]); await settle();
+  assert.deepEqual(h.names(), ["Nothing to carry on with"]);
+});
+
+test("a podcast offers its episodes and no radio; spoken word reads its own detail", async t => {
+  const h = harness(t);
+  const podcast = { item_id: "9", provider: "library", media_type: "podcast", uri: "library://podcast/9", name: "Quiet hour", publisher: "Demo", total_episodes: 3 };
+  assert.deepEqual(actionsFor(podcast).map(([, label]) => label), ["Play now", "Play next", "Add to the queue", "Show episodes"]);
+  assert.deepEqual(actionsFor({ media_type: "audiobook" }).map(([kind]) => kind), ["replace", "next", "add"]);
+  assert.equal(detailOf(podcast), "Podcast · Demo · 3 episodes");
+  assert.equal(detailOf({ media_type: "audiobook", authors: [{ name: "A Writer" }] }), "Audiobook · A Writer");
+  await openWith(h, [podcast]);
+  h.key("ok"); for (let i = 0; i < 3; i++) h.key("down"); h.key("ok");
+  const call = h.calls[h.calls.length - 1];
+  assert.deepEqual([call.command, call.args], ["music/podcasts/podcast_episodes", { item_id: "9", provider_instance_id_or_domain: "library" }]);
+  call.resolve([]); await settle();
+  assert.deepEqual(h.names(), ["No episodes here"]);
+});
+
+test("a page opened from Details goes back there", async t => {
+  const h = harness(t);
+  let backs = 0;
+  h.browse.openPage({ item_id: "a1", provider: "spotify--x", media_type: "album", name: "Coastline" }, () => backs++);
+  const call = h.calls[0];
+  assert.deepEqual([call.command, call.args], ["music/albums/album_tracks", { item_id: "a1", provider_instance_id_or_domain: "spotify--x" }]);
+  call.resolve([song(1), song(2)]); await settle();
+  assert.equal(h.element.querySelector(".browse-title").textContent, "Coastline");
+  assert.equal(h.selected().querySelector("strong").textContent, "Song 1");
+  h.key("ok"); h.key("back");
+  assert.equal(backs, 0, "Back from a song's actions returns to the songs");
+  h.key("back");
+  assert.equal(backs, 1);
+  assert.deepEqual(h.leaves, []);
 });

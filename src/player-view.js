@@ -12,6 +12,9 @@ import { appendDetailsTop } from "./share-link.js";
 import { joinPlan, leaderName, memberVolumes, speakerActivity } from "./speaker-group.js";
 import { createLyricsTools } from "./lyrics-tools.js";
 import { mockCandidates, mockLyricsGet } from "./mock-lyrics.js";
+import { chapterRows, detailsKey as spokenKey, detailsRows, offersRadio } from "./details-rows.js";
+import { QUEUE_NEAR_END, songWindow } from "./queue-pages.js";
+import { isSpokenWord } from "./spoken-word.js";
 
 // Drawn UI runs at 4 Hz, independently of the visualizer. Text only changes
 // when its value changes; artwork is requested once per URL at 512 pixels.
@@ -38,6 +41,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   let panel = "", row = "transport", focus = 1, timer = 0, hideAt = 0, trackKey = "", artUrl = "", lyricsKey = "", queueKey = "", optionKey = "";
   let sleepIndex = 2, plainPage = 0, palette = null, night = null;
   let queuePick = null, picking = false, grouping = false, providers = null, detailsKey = "";
+  let chaptersOpen = false, queueSong = 0, queueWin = null, keepSong = -1; // Details' Chapters page; Up next's focused song and row window
   const paths = {
     previous: '<path d="M5 5v14M19 5L8 12l11 7z"/>',
     next: '<path d="M19 5v14M5 5l11 7-11 7z"/>',
@@ -111,6 +115,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     return Array.from((row === "nav" ? nav : toolbar).children);
   }
   function focusButton() {
+    if (panel === "browse") return; // Browse keeps its own selection (a Go to row opens it)
     const list = buttons(); focus = focusRow(root, list, focus);
     if (list[focus] && panel !== "controls") panelCue.reveal(list[focus]);
   }
@@ -125,12 +130,16 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     panel = "controls"; row = "transport"; focus = 1; queuePick = null; picking = grouping = false; model.wantQueue(false);
     root.classList.add("controls-open"); root.classList.remove("panel-open"); root.removeAttribute("data-panel"); touch(); render(); focusButton();
   }
-  function openPanel(which) {
+  function openPanel(which, item) {
     lyricsTools.back(); panel = which; focus = FIRST_ENABLED; optionKey = ""; queueKey = ""; detailsKey = ""; queuePick = null; picking = grouping = false;
+    chaptersOpen = false; queueSong = 0; queueWin = null; keepSong = -1;
     root.classList.remove("controls-open"); root.classList.add("panel-open");
     root.setAttribute("data-panel", which);
     model.wantQueue(which === "queue"); model.tick();
-    if (which === "browse") return browse.open();
+    if (which === "browse") {
+      root.querySelectorAll("button.selected").forEach(b => b.classList.remove("selected")); // Browse marks its own row
+      return item ? browse.openPage(item, () => { browse.close(); openPanel("details"); }) : browse.open();
+    }
     if (which === "details") readProviders();
     render(); focusButton();
   }
@@ -228,7 +237,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
         if (onlineLyrics && model.snapshot().lyrics.status === "missing") model.retryLyrics();
       }, false, true);
       lyricsTools.chooseRow(s, panelUi);
-      if (s.lyrics.status === "error" || s.lyrics.status === "missing") addRow("Retry lyrics", "", () => model.retryLyrics());
+      if ((s.lyrics.status === "error" || s.lyrics.status === "missing") && !isSpokenWord(s.track && s.track.media)) addRow("Retry lyrics", "", () => model.retryLyrics());
     }
     heading("Extras");
     addRow("MilkDrop behind artwork and lyrics", background ? "On" : "Off", () => { background = !background; savePref("playerBackground", background); applyMode(); }, false, true);
@@ -249,10 +258,11 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   // The back of the poster: what the song is and how it sounds, then what you can do with it.
   function details(s) {
     const item = s.queue && s.queue.current_item;
-    const signature = JSON.stringify([item && item.queue_item_id, !!providers, s.connected, s.busy, s.queue && s.queue.display_name, s.lyrics.status, lyricsTools.key(s)]);
+    const signature = JSON.stringify([item && item.queue_item_id, !!providers, s.connected, s.busy, s.queue && s.queue.display_name, s.lyrics.status, lyricsTools.key(s), chaptersOpen, spokenKey(s)]);
     if (signature === detailsKey) return false;
     detailsKey = signature; el(".panel-items").textContent = "";
     if (lyricsTools.drawPage("details", s, panelUi)) return true;
+    if (chaptersOpen) return chapters(s);
     text(el(".player-panel h2"), s.track ? s.track.title : "Nothing playing");
     text(el(".player-panel .panel-note"), s.track ? [s.track.artist, s.queue.display_name].filter(Boolean).join(" · ") : "");
     const facts = document.createElement("dl"); facts.className = "details-facts";
@@ -261,10 +271,32 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     });
     appendDetailsTop(el(".panel-items"), facts, item); // the facts, and the Scan to save code beside them
     const disabled = !s.connected || s.busy || !s.track;
-    addRow("Start radio from this song", "Replaces the queue", () => command("radio"), disabled);
+    extraRows(detailsRows(s, { go: item => openPanel("browse", item), setSpeed: speed => command("speed", speed),
+      openChapters: at => { chaptersOpen = true; focus = at >= 0 ? at : FIRST_ENABLED; } }), disabled);
+    if (offersRadio(s)) addRow("Start radio from this song", "Replaces the queue", () => command("radio"), disabled);
     addRow("Add to favourites", "", () => command("favorite"), disabled);
     lyricsTools.lineRow(s, panelUi);
     return true;
+  }
+  function extraRows(rows, disabled) {
+    rows.forEach(r => addRow(r.label, r.value, r.run, disabled && r.label !== "Chapters" && !/^Go to /.test(r.label), r.adjust).classList.toggle("chosen", !!r.chosen));
+  }
+  // Details → Chapters: the playing one ticked; OK plays from a chapter's start.
+  function chapters(s) {
+    text(el(".player-panel h2"), "Chapters");
+    text(el(".player-panel .panel-note"), s.track ? s.track.title : "");
+    extraRows(chapterRows(s, start => command("seek", start)), !s.connected);
+    return true;
+  }
+  // Up next shows a window of songs around the focused one; near the last
+  // loaded song the next page is asked for.
+  function followQueue() {
+    const b = buttons()[focus];
+    if (!b || b._song == null) return;
+    queueSong = b._song;
+    const s = model.snapshot();
+    if (queueSong >= s.items.length - QUEUE_NEAR_END) model.moreQueue();
+    if (songWindow(s.items.length, queueSong, queueWin) !== queueWin) { keepSong = queueSong; queueKey = ""; render(); }
   }
   function setPreferred(id) { savePref("preferredPlayer", id); live.setPreferred(id); }
   // Moves what the target plays to a speaker and makes that speaker the target.
@@ -327,7 +359,9 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     const volumes = t && lists ? memberVolumes(lists.players, t.queueId) : [];
     const plans = picking && live.transferPlan ? speakers.map(sp => !!live.transferPlan(sp.id)) : [];
     const playing = picking && lists ? speakers.map(sp => speakerActivity(sp.id, lists.players, lists.queues)) : [];
-    const signature = JSON.stringify([s.itemsState, s.items.map(i => [i.queue_item_id, i.name, i.available]), t && t.connected, t && t.queueId, t && t.name, q.shuffle_enabled, q.smart_shuffle_active, q.repeat_mode, q.autoplay_enabled, q.crossfade_enabled, q.is_dynamic, level, sleepIndex, queuePick && queuePick.queue_item_id, picking, grouping, live.preferred, speakers.map(sp => sp.id), plans, options, offer, playing, volumes]);
+    queueWin = songWindow(s.items.length, queueSong, queueWin);
+    const shown = s.items.slice(queueWin.start, queueWin.end);
+    const signature = JSON.stringify([s.itemsState, shown.map(i => [i.queue_item_id, i.name, i.available]), queueWin, s.items.length, s.queueTail, t && t.connected, t && t.queueId, t && t.name, q.shuffle_enabled, q.smart_shuffle_active, q.repeat_mode, q.autoplay_enabled, q.crossfade_enabled, q.is_dynamic, level, sleepIndex, queuePick && queuePick.queue_item_id, picking, grouping, live.preferred, speakers.map(sp => sp.id), plans, options, offer, playing, volumes]);
     if (signature === queueKey) return false;
     queueKey = signature; el(".panel-items").textContent = "";
     const disabled = !t || !t.connected;
@@ -352,10 +386,15 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     const members = options.filter(o => o.member).length;
     if (options.some(o => o.allowed) || volumes.length) addRow("Speakers together", members > 1 ? members + " speakers" : "Just this one", () => { grouping = true; focus = FIRST_ENABLED; }, disabled);
     heading(s.items.length ? "Up next" : s.itemsState === "loading" ? "" : "Nothing queued after this song");
-    s.items.forEach(item => {
+    shown.forEach((item, k) => {
       const track = trackInfo(item, host);
-      addRow(track.title, track.artist || timeLabel(track.duration), () => { queuePick = item; focus = FIRST_ENABLED; }, item.available === false);
+      const b = addRow(track.title, track.artist || timeLabel(track.duration), () => { queuePick = item; focus = FIRST_ENABLED; }, item.available === false);
+      b._song = queueWin.start + k;
+      if (b._song === keepSong) focus = el(".panel-items").querySelectorAll("button").length - 1;
     });
+    keepSong = -1;
+    if (s.queueTail === "loading") addRow("Loading more…", "", () => {}, true);
+    else if (s.queueTail === "error") addRow("More couldn’t load", "OK tries again", () => model.moreQueue(true));
     heading("Playback");
     addRow("Shuffle", q.smart_shuffle_active ? "Smart" : q.shuffle_enabled ? "On" : "Off", () => command("shuffle"), disabled || q.smart_shuffle_active || q.is_dynamic, true);
     addRow("Repeat", { off: "Off", all: "All", one: "One" }[q.repeat_mode || "off"], dir => command("repeat", dir), disabled || q.is_dynamic, true);
@@ -523,6 +562,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       touch();
       if (panel === "browse") { browse.handleKey(name); return true; }
       if (name === "back" && lyricsTools.page) { lyricsTools.back(); focus = FIRST_ENABLED; optionKey = ""; detailsKey = ""; render(); return true; }
+      if (name === "back" && panel === "details" && chaptersOpen) { chaptersOpen = false; focus = FIRST_ENABLED; detailsKey = ""; render(); return true; }
       if (name === "back" && panel === "queue" && (queuePick || picking || grouping)) { queuePick = null; picking = grouping = false; focus = FIRST_ENABLED; queueKey = ""; render(); return true; }
       if (name === "back") { if (panel === "controls") close(); else openControls(); return true; }
       const list = buttons();
@@ -531,8 +571,10 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
         if (name === "left" || name === "right") focus = (focus + (name === "left" ? -1 : 1) + list.length) % list.length;
         else if (name === "up" && row === "transport") { row = "nav"; focus = 1; }
         else if (name === "down" && row === "nav") { row = "transport"; focus = 1; }
-      } else if (name === "up" || name === "down") focus = list.length ? (focus + (name === "up" ? -1 : 1) + list.length) % list.length : 0;
-      else if ((name === "left" || name === "right") && list[focus] && !list[focus].disabled && list[focus]._change) { list[focus]._change(name === "left" ? -1 : 1); optionKey = ""; queueKey = ""; render(); }
+      } else if (name === "up" || name === "down") {
+        focus = list.length ? (focus + (name === "up" ? -1 : 1) + list.length) % list.length : 0;
+        if (panel === "queue" && !queuePick && !picking && !grouping) followQueue();
+      } else if ((name === "left" || name === "right") && list[focus] && !list[focus].disabled && list[focus]._change) { list[focus]._change(name === "left" ? -1 : 1); optionKey = ""; queueKey = ""; render(); }
       focusButton(); return true;
     }
   };
