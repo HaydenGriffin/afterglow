@@ -8,6 +8,7 @@ import { startDevlink } from "./devlink.js";
 import { createDrift } from "./drift.js";
 import { createEngine } from "./engine.js";
 import { createIdle } from "./idle-view.js";
+import { createProgramme } from "./programme-view.js";
 import { createKeepAwake } from "./keepawake.js";
 import { exitApp, installKeys, remoteAction } from "./keys.js";
 import { createLive } from "./live.js";
@@ -559,6 +560,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     play: (media, option) => playerView.playMedia(media, option),
     resume: () => playerView.resume(),
     onBrowse() { playerView.openBrowse(); refreshMessage(); },
+    programme: createProgramme({ live: playback, playlists: playerView.playlists }),
   });
 
   debug = createDebug(byId("debug"), () =>

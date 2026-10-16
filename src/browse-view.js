@@ -2,6 +2,7 @@ import { imageUrl, thumbOf, timeLabel } from "./playback.js";
 import { cleanQuery, flattenGroups, groupResults, searchArgs } from "./search.js";
 import { createSearchField } from "./search-field.js";
 import { createScrollCue } from "./scroll-cue.js";
+import { CONFIRM_MS as PLAYLIST_CONFIRM_MS, NOTICE_MS, confirmationFor, pickerRows } from "./playlists.js";
 
 // Browse: categories on the left, the chosen list on the right, and an
 // item's actions in place of the list. Lists are read when a category is
@@ -26,10 +27,12 @@ const SONGS = { album: "music/albums/album_tracks", playlist: "music/playlists/p
 const START = 1;
 const KIND = { track: "Song", album: "Album", playlist: "Playlist", artist: "Artist", radio: "Radio" };
 
-// The actions an item offers; "tracks" opens an album, playlist or artist.
-export function actionsFor(item) {
+// The actions an item offers; "tracks" opens an album, playlist or artist,
+// "playlist" a song's playlist picker (when playlists can be changed).
+export function actionsFor(item, withPlaylists) {
   const list = [["replace", "Play now"], ["next", "Play next"], ["add", "Add to the queue"]];
   if (item.media_type !== "radio") list.push(["radio", "Start radio from this"]);
+  if (withPlaylists && item.media_type === "track") list.push(["playlist", "Add to a playlist"]);
   if (SONGS[item.media_type]) list.push(["tracks", "Show songs"]);
   return list;
 }
@@ -66,7 +69,8 @@ function makeRow(label, detail, image, cls) {
   return button;
 }
 
-export function createBrowse({ element, live, host, play, target, onNotice, onLeave }) {
+// playlists: playlists.js createPlaylists (Add to a playlist), or null.
+export function createBrowse({ element, live, host, play, target, onNotice, onLeave, playlists = null }) {
   element.textContent = "";
   const header = make("header", "", element), body = make("div", "browse-body", element);
   make("h2", "", header, "Browse");
@@ -82,6 +86,14 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
   let isOpen = false, running = false, confirmed = null; // confirmed: { uri, text } while an item's row confirms an action
   let query = ""; // the last search sent
   const lists = new Map();
+  let adding = null; // the song whose playlist picker shows in the actions column
+  // A job's row confirms as it moves, and its words go when they expire.
+  const redraw = () => { if (isOpen) { changed(); render(); } };
+  if (playlists) playlists.listen(() => {
+    redraw();
+    const job = playlists.job;
+    if (job && job.state === "done") { setTimeout(redraw, PLAYLIST_CONFIRM_MS + 20); setTimeout(redraw, NOTICE_MS + 20); }
+  });
 
   const cats = CATEGORIES.map((c, i) => {
     const button = make("button", "", make("li", "", catList), c.label);
@@ -139,6 +151,7 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
   async function run(kind, button) {
     const item = chosen, gen = generation;
     if (kind === "tracks") return showSongs(item);
+    if (kind === "playlist") { adding = item; action = 0; playlists.loadEditable(); changed(); return render(); }
     if (running) return;
     const media = kind === "radio" ? "radio_playlist://playlist/" + item.uri : item.uri;
     running = true;
@@ -164,9 +177,26 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
 
   function addRow(button, activate) { list.appendChild(make("li")).appendChild(button); button.addEventListener("click", activate); rows.push(button); }
   function status(label, detail, activate) { addRow(makeRow(label, detail, undefined, "browse-status"), activate || (() => {})); }
+  function buildPicker() {
+    text(title, "Add to a playlist");
+    const item = adding, key = "browse:" + item.uri;
+    pickerRows(playlists.list, new Date()).forEach(r => {
+      const b = makeRow(r.label, r.detail, undefined, "browse-action");
+      b.disabled = !!r.disabled;
+      addRow(b, () => {
+        if (r.kind === "retry") return playlists.loadEditable();
+        if (r.disabled || playlists.busy) return;
+        adding = null; column = "list"; chosen = null; changed();
+        if (r.kind === "new") playlists.addToNew([item.uri], key);
+        else playlists.addTo(r.playlist, [item.uri], key);
+        render();
+      });
+    });
+  }
   function buildActions() {
+    if (adding) return buildPicker();
     text(title, chosen.name);
-    actionsFor(chosen).forEach(([kind, label], i) => { const b = makeRow(label, "", undefined, "browse-action"); addRow(b, () => { action = i; run(kind, b); }); });
+    actionsFor(chosen, !!playlists).forEach(([kind, label], i) => { const b = makeRow(label, "", undefined, "browse-action"); addRow(b, () => { action = i; run(kind, b); }); });
   }
   function buildSearchStatus() {
     if (state === "idle") make("li", "browse-hint", list, "OK opens the TV keyboard. Type or say an artist, album or song.");
@@ -184,8 +214,9 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
     if (searching()) { rows.push(field.row); buildSearchStatus(); } else buildStatus();
     items.forEach((item, i) => {
       if (headings[i]) make("li", "browse-group", list, headings[i]);
+      const mark = playlists ? confirmationFor(playlists.job, "browse:" + item.uri, Date.now()) : null;
       const done = confirmed && confirmed.uri === item.uri;
-      const b = makeRow(item.name, done ? confirmed.text : detailOf(item), imageUrl(thumbOf(item), host, 160), done ? "browse-added" : "");
+      const b = makeRow(item.name, done ? confirmed.text : mark ? mark.text : detailOf(item), imageUrl(thumbOf(item), host, 160), done || (mark && mark.tick) ? "browse-added" : "");
       b.dataset.uri = item.uri; addRow(b, () => openItem(i));
     });
   }
@@ -214,7 +245,8 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
     if (column === "cats") { next.scrollIntoView({ block: "nearest" }); cue.update(); } else cue.reveal(next);
   }
   function back() {
-    if (column === "actions") { column = "list"; chosen = null; changed(); }
+    if (column === "actions" && adding) { adding = null; action = 0; changed(); }
+    else if (column === "actions") { column = "list"; chosen = null; changed(); }
     else if (column === "list" && stack) { generation++; show(stack.parent); index = stack.parent.index; stack = null; state = "ready"; changed(); }
     else if (column === "list") column = "cats";
     else return onLeave(false);
@@ -239,7 +271,7 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
   return {
     open() { column = "cats"; if (isOpen) return render(); isOpen = true; choose(START); },
     close() {
-      isOpen = false; confirmed = null; running = false; generation++; lists.clear();
+      isOpen = false; confirmed = null; running = false; adding = null; generation++; lists.clear();
       field.reset(); query = ""; show({ items: [] }); state = "idle"; stack = null; chosen = null; changed();
     },
     handleKey,
