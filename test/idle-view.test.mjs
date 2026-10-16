@@ -11,14 +11,15 @@ const pausedQueue = { queue_id: "q", display_name: "Kitchen", state: "paused",
 function harness(t, queue) {
   const doc = useFakeDocument(t);
   let time = Date.UTC(2026, 9, 15, 12);
-  const calls = [], plays = [], resumes = [], browses = [];
-  const live = { playback: { queue, connected: true }, call(command, args) { return new Promise((resolve, reject) => calls.push({ command, args, resolve, reject })); } };
+  const calls = [], carries = [], plays = [], resumes = [], browses = [];
+  // In-progress reads are kept apart: most tests only answer recent music.
+  const live = { playback: { queue, connected: true }, call(command, args) { return new Promise((resolve, reject) => (command === "music/in_progress_items" ? carries : calls).push({ command, args, resolve, reject })); } };
   const element = doc.createElement("div");
   let h;
   const idle = createIdle({ element, live, host: "ma", now: () => time,
     play: async (media, option) => { plays.push({ media, option }); return h.playResult; },
     resume: async () => { resumes.push(true); return true; }, onBrowse: () => browses.push(true) });
-  h = { doc, idle, playResult: true, element, live, calls, plays, resumes, browses,
+  h = { doc, idle, playResult: true, element, live, calls, carries, plays, resumes, browses,
     advance(ms) { time += ms; idle.update(h.allowed); }, allowed: true,
     title: () => element.querySelector(".idle-title").textContent,
     detail: () => element.querySelector(".idle-detail").textContent,
@@ -38,6 +39,7 @@ test("the idle poster waits until nothing has played for a while, and leaves whe
   assert.ok(h.element.classList.contains("shown"));
   assert.equal(h.calls.length, 1);
   assert.equal(h.calls[0].command, "music/recently_played_items");
+  assert.deepEqual([h.carries[0].command, h.carries[0].args], ["music/in_progress_items", { limit: 5 }]);
   assert.equal(h.title(), "Nothing playing");
   assert.equal(h.detail(), "Finding what you played…");
   h.calls[0].resolve([album(1), album(2)]); await settle();
@@ -153,4 +155,32 @@ test("tiles are bounded and skip the paused song in the recent list", () => {
   assert.equal(tiles.filter(t => t.kind === "play").length, 8);
   assert.equal(tiles[tiles.length - 1].kind, "browse");
   assert.equal(tiles.filter(t => t.item && t.item.uri === "library://track/1").length, 1);
+});
+
+test("audiobooks and episodes in progress follow the paused song, and OK carries on", async t => {
+  const h = harness(t, pausedQueue);
+  h.advance(PAUSED_IDLE_AFTER_MS);
+  const book = { item_id: "1", provider: "library", media_type: "audiobook", uri: "library://audiobook/1", name: "A long book" };
+  const episode = { item_id: "e", provider: "rss", media_type: "podcast_episode", uri: "rss://podcast_episode/e", name: "Episode four" };
+  h.carries[0].resolve([book, episode, book]); await settle();
+  h.calls[0].resolve([album(1), book]); await settle();
+  assert.deepEqual(idleTiles(h.live.playback, [album(1), book], "ready", [book, episode]).map(x => x.kind), ["resume", "carry", "carry", "play", "browse"], "an item is shown once");
+  assert.equal(h.tiles().length, 5);
+  h.idle.handleKey("right");
+  assert.equal(h.title(), "A long book");
+  assert.equal(h.detail(), "Audiobook · Carry on listening");
+  assert.equal(h.hint(), "OK carries on");
+  h.idle.handleKey("right");
+  assert.equal(h.detail(), "Episode · Carry on listening");
+  h.idle.handleKey("ok"); await settle();
+  assert.deepEqual(h.plays, [{ media: "rss://podcast_episode/e", option: "replace" }]);
+});
+
+test("a server that cannot list what is in progress just leaves those tiles out", async t => {
+  const h = harness(t, null);
+  h.advance(IDLE_AFTER_MS);
+  h.carries[0].reject(Error("unknown command")); await settle();
+  h.calls[0].resolve([album(1)]); await settle();
+  assert.equal(h.title(), "Album 1");
+  assert.equal(h.tiles().length, 2);
 });
