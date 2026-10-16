@@ -41,7 +41,10 @@ Afterglow is independent of, and not endorsed by, Music Assistant or LG. It bega
   there (**Play on this TV** brings it to the TV). **Speakers together** joins
   or leaves a sync group.
 - **Idle poster.** With nothing playing, the paused song or recent music is
-  set as a poster, one OK away from playing.
+  set as a poster, one OK away from playing; after a session it offers
+  tonight's programme, which can be kept as a playlist.
+- **Playlists.** Save the queue as a playlist, or add a song to one, named
+  without a keyboard.
 - **Presets.** 395 MilkDrop presets (through Music Assistant's fork of
   Butterchurn), driven by the waveform Music Assistant streams a few seconds
   ahead, so the picture lands on the beat. **Scan presets** measures each one

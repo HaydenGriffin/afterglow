@@ -15,10 +15,14 @@ playback.
   and artists, radio stations, all playlists and albums. Search opens the TV
   keyboard (type or say an artist, album or song) and lists the artists,
   albums, songs and playlists found. An item offers Play now, Play next, Add to
-  the queue, Start radio from this (not for radio stations) and, for albums,
-  playlists and artists, Show songs.
+  the queue, Start radio from this (not for radio stations), for songs Add to
+  a playlist, and, for albums, playlists and artists, Show songs.
 - **Queue:** the next 12 songs of the queue commands act on; a song offers Play
-  now, Play next, Move up, Move down and Remove from the queue. **Playing on**
+  now, Play next, Move up, Move down, Add to a playlist and Remove from the
+  queue. **Save as a playlist**, under the songs, saves the whole queue (played
+  and to come) as a new Music Assistant playlist named for the day, “Queue ·
+  16 Oct” (with “(2)” when that name is taken), so no keyboard is needed;
+  rename it in Music Assistant. **Playing on**
   picks the player Afterglow follows (see below); picking a silent speaker
   while music plays elsewhere moves the music to it. **Play on this TV** (shown
   while Play on this TV is on and the music is elsewhere) moves the music to
@@ -27,6 +31,10 @@ playback.
   but cannot be changed. Shuffle, repeat, crossfade, keep playing when the
   queue ends, volume (a group's volume for a group) and the sleep timer are
   here too.
+- **Add to a playlist** (Details, a queued song, a song in Browse): New
+  playlist (“Playlist · 16 Oct”) or one of the eight playlists you can change,
+  most recently changed first. The song's own row confirms, with a tick when it
+  went in, or says it was already there or could not be added.
 - **Details:** what the song is and how it is streamed (source, format,
   quality), with Start radio from this song and Add to favourites.
 - **Display** (saved on this TV):
@@ -91,6 +99,14 @@ move along the strip; every other key keeps its usual meaning. After three
 minutes without a key it steps down to a dim register, and the first key only
 wakes it. While no song is shown the poster's fields are neutral, not the last
 song's colours.
+
+After a listening session (at least three songs on the followed queue in the
+last four hours) the strip offers **Tonight** (17:00 to 05:00; **Today**
+otherwise) just before Browse. OK opens the evening's programme: the songs in
+order with their artists and start times where known, from Music Assistant's
+played history for that queue merged with what the TV saw while it ran. **Keep
+it as a playlist** saves them as “Tonight · 16 Oct”; Back returns to the
+poster. It never opens by itself.
 
 ### Playing on
 

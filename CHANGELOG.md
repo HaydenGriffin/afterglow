@@ -1,3 +1,19 @@
+# Unreleased
+
+- **Save the queue as a playlist.** Queue → **Save as a playlist** saves the
+  whole queue as a Music Assistant playlist named “Queue · 16 Oct” (unique
+  with “(2)”), no keyboard needed. The row and a notice confirm, say how many
+  songs could not be added, or why Music Assistant refused (an account that
+  cannot change playlists, nowhere to keep them).
+- **Add to a playlist** on Details, a queued song and a song in Browse: New
+  playlist or one of the eight playlists you can change, most recently changed
+  first; the song's row confirms with a tick, as Play next does.
+- **Tonight's programme.** After a listening session the idle poster offers
+  **Tonight** (or **Today**) before Browse: the evening's songs set as a
+  concert programme with their artists and start times, and **Keep it as a
+  playlist**. Offered only, never opened by itself; built from Music
+  Assistant's played history for the queue, so it survives a restart.
+
 # 1.5.5 — Lyric overlay looks and More cues (16 October 2026)
 
 - Long lists show that they continue: **More** with a chevron at the bottom
