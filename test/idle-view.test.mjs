@@ -212,3 +212,12 @@ test("a server that cannot list what is in progress just leaves those tiles out"
   assert.equal(h.title(), "Album 1");
   assert.equal(h.tiles().length, 2);
 });
+
+test("tonight's programme takes one recent tile's place, before Browse", () => {
+  const recent = Array.from({ length: 10 }, (_, i) => album(i + 1));
+  const plain = idleTiles(null, recent, "ready");
+  const offered = idleTiles(null, recent, "ready", { programme: { word: "Tonight", detail: "5 songs since 19:40" } });
+  assert.equal(plain.length, offered.length, "the strip keeps its length, so Browse still fits");
+  assert.deepEqual(offered.slice(-2).map(t => t.kind), ["programme", "browse"]);
+  assert.equal(offered[offered.length - 2].word, "Tonight");
+});

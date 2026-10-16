@@ -47,7 +47,11 @@ Afterglow is independent of, and not endorsed by, Music Assistant or LG. It bega
   to the TV. **Speakers together** joins or leaves a sync group and sets each
   member's own volume.
 - **Idle poster.** With nothing playing, the paused song, books and episodes
-  in progress, or recent music is set as a poster, one OK away from playing.
+  in progress, or recent music is set as a poster, one OK away from playing;
+  after a session it offers tonight's programme, which can be kept as a
+  playlist.
+- **Playlists.** Save the queue as a playlist, or add a song to one, named
+  without a keyboard.
 - **Scan to save.** Details shows a QR code that opens the playing song on
   your phone, on the streaming service it came from.
 - **Check my setup.** A pass/fail list (Music Assistant, sign-in, the TV's

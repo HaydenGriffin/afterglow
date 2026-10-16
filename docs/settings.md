@@ -20,7 +20,8 @@ playback.
   podcasts, episodes or audiobooks) and, for albums, playlists and artists,
   Show songs (a podcast: Show episodes). **Continue listening** lists the
   audiobooks and podcast episodes started and not finished, newest first;
-  playing one carries on where it was left.
+  playing one carries on where it was left. A song also offers Add to a
+  playlist.
   - The whole library: library lists (favourites, all playlists and albums,
     radio, podcasts, audiobooks) are read 60 at a time as the focus nears the
     end; **Loading more…** ends the list while the next page loads, **More
@@ -30,7 +31,11 @@ playback.
     Recently played and Continue listening show the latest 30.
 - **Queue:** Up next, from the song after the playing one, read 25 at a time
   as the focus nears the last loaded song (up to 500); a song offers Play
-  now, Play next, Move up, Move down and Remove from the queue. **Playing on**
+  now, Play next, Move up, Move down, Add to a playlist and Remove from the
+  queue. **Save as a playlist**, under the songs, saves the whole queue (played
+  and to come) as a new Music Assistant playlist named for the day, “Queue ·
+  16 Oct” (with “(2)” when that name is taken), so no keyboard is needed;
+  rename it in Music Assistant. **Playing on**
   picks the player Afterglow follows (see below); picking a silent speaker
   while music plays elsewhere moves the music to it; each speaker says what it
   plays (the song and artist, Paused, or Idle). While Play on this TV is on and
@@ -45,6 +50,10 @@ playback.
   Shuffle, repeat, crossfade, keep playing when the
   queue ends, volume (a group's volume for a group) and the sleep timer are
   here too.
+- **Add to a playlist** (Details, a queued song, a song in Browse): New
+  playlist (“Playlist · 16 Oct”) or one of the eight playlists you can change,
+  most recently changed first. The song's own row confirms, with a tick when it
+  went in, or says it was already there or could not be added.
 - **Details:** what the song is and how it is streamed (source, format,
   quality), then, when Music Assistant gives the ids, **Go to the album**,
   **Go to** *artist* (up to three) or, for an episode, **Go to the podcast**:
@@ -54,9 +63,9 @@ playback.
   24", when it has two or more): a page with one row per chapter and its
   start time, the playing one ticked; OK plays from a chapter's start and Back
   returns to Details. Then Start radio from this song (not for audiobooks,
-  episodes or radio) and Add to favourites. Retry lyrics is not offered for
-  audiobooks and episodes. With timed lyrics, **Go to a line** lists the
-  song's lines (the one on screen focused) with the time each plays at;
+  episodes or radio), Add to favourites and, for a song, Add to a playlist.
+  Retry lyrics is not offered for audiobooks and episodes. With timed lyrics,
+  **Go to a line** lists the song's lines (the one on screen focused) with the time each plays at;
   picking one seeks there, allowing for the lyrics timing, so that line is the
   one on screen, and closes the panel.
   **Scan to save:** when Music Assistant knows the song's page on a public
@@ -141,6 +150,14 @@ move along the strip; every other key keeps its usual meaning. After three
 minutes without a key it steps down to a dim register, and the first key only
 wakes it. While no song is shown the poster's fields are neutral, not the last
 song's colours.
+
+After a listening session (at least three songs on the followed queue in the
+last four hours) the strip offers **Tonight** (17:00 to 05:00; **Today**
+otherwise) just before Browse. OK opens the evening's programme: the songs in
+order with their artists and start times where known, from Music Assistant's
+played history for that queue merged with what the TV saw while it ran. **Keep
+it as a playlist** saves them as “Tonight · 16 Oct”; Back returns to the
+poster. It never opens by itself.
 
 ### Playing on
 

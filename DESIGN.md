@@ -281,6 +281,9 @@ The lyric overlay is One line (4vh 700 in the caption's corner) or Stage (7.4vh 
 
 **Scroll cue.** A list longer than its sheet ends in a fade of the ground over its last visible row (8vh) with "More" and a drawn chevron in label type and faded paper under the values column, mirrored at the top once scrolled. It is the only gradient on the sheets.
 
+### Tonight's programme
+A page of the idle poster, opened only from its **Tonight** / **Today** word tile. Ink ground, the idle poster's top line and hairline. One hero: the word in columns 1–4 at the display step (13.6vh; 18vh overflows four columns) over the evening's date in title type, with **Keep it as a playlist** and **Back** as ruled 7vh rows at the foot of the same columns. The songs run in two ruled columns over columns 5–12, eleven 6.6vh rows each: a faded tabular number, the title (2.6vh 700) over the artist (2.1vh faded), the start time right in figures; past 22 songs the last row reads "and N more". No artwork and no field colour: a programme is typographic.
+
 ### Notices
 Toast: paper fill, ink text, 2.6vh 700, top centre, .4s fade. Error: paper strip over columns 5–12 at 2vh. Hint: ink chip at the lower right. Sign-in: headline at column 5, ruled fields 44vw wide, Sign in button on field A.
 

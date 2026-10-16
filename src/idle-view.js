@@ -27,18 +27,20 @@ function pausedItem(playback) {
 }
 
 // The strip: the paused song (Resume), a retry after an error, what was
-// played recently (Play), and always Browse, so OK never dead-ends.
-// Audiobooks and episodes in progress (Carry on) follow the paused song. With
-// nothing to offer (reading failed, or nothing played yet) and `setup` on,
-// Check my setup comes last.
-export function idleTiles(playback, recent, state, { inProgress = [], setup = false } = {}) {
+// played recently (Play), tonight's programme when on offer, and always
+// Browse, so OK never dead-ends. Audiobooks and episodes in progress (Carry
+// on) follow the paused song. The programme takes one recent tile's place so
+// Browse still fits. With nothing to offer (reading failed, or nothing played
+// yet) and `setup` on, Check my setup comes last.
+export function idleTiles(playback, recent, state, { inProgress = [], setup = false, programme = null } = {}) {
   const paused = pausedItem(playback), tiles = [];
   if (paused) tiles.push({ kind: "resume", item: paused });
   const shown = uri => tiles.some(t => t.item && t.item.uri === uri);
   (inProgress || []).forEach(item => { if (item && item.uri && !shown(item.uri) && tiles.length - (paused ? 1 : 0) < CARRY_ON_LIMIT) tiles.push({ kind: "carry", item }); });
   if (state === "error") tiles.push({ kind: "retry" });
   (recent || []).filter(item => item && item.uri && !shown(item.uri))
-    .slice(0, RECENT_LIMIT).forEach(item => tiles.push({ kind: "play", item }));
+    .slice(0, programme ? RECENT_LIMIT - 1 : RECENT_LIMIT).forEach(item => tiles.push({ kind: "play", item }));
+  if (programme) tiles.push({ kind: "programme", word: programme.word, detail: programme.detail });
   tiles.push({ kind: "browse" });
   if (setup && !paused && (state === "error" || (state === "ready" && tiles.length === 1))) tiles.push({ kind: "setup" });
   return tiles;
@@ -50,6 +52,7 @@ export function idleCopy(tile, state, hasRecent) {
   if (tile.kind === "carry") return { title: tile.item.name, detail: (tile.item.media_type === "podcast_episode" ? "Episode" : "Audiobook") + " · Carry on listening", hint: "OK carries on" };
   if (tile.kind === "play") return { title: tile.item.name, detail: detailOf(tile.item), hint: "OK plays it" };
   if (tile.kind === "setup") return { title: "Nothing playing", detail: "Something not right? Check my setup", hint: "OK checks your setup" };
+  if (tile.kind === "programme") return { title: tile.word + "’s programme", detail: tile.detail, hint: "OK opens it" };
   if (tile.kind === "retry") return { title: "Nothing playing", detail: "Couldn’t load what you played", hint: "OK tries again" };
   if (state === "loading") return { title: "Nothing playing", detail: "Finding what you played…", hint: "OK opens Browse" };
   if (!hasRecent) return { title: "Nothing playing", detail: "Play something in Music Assistant and it shows here", hint: "OK opens Browse" };
@@ -60,11 +63,13 @@ function make(tag, cls, parent) { const node = document.createElement(tag); if (
 function text(node, value) { const v = String(value == null ? "" : value); if (node.textContent !== v) node.textContent = v; }
 function lengthOf(title) { return title.length > 50 ? "xlong" : title.length > 26 ? "long" : title.length > 12 ? "medium" : "short"; }
 
-export function createIdle({ element, live, host, play, resume, onBrowse, onSetup, now = Date.now }) {
+// programme: programme-view.js createProgramme, or null for none.
+export function createIdle({ element, live, host, play, resume, onBrowse, onSetup, now = Date.now, programme = null }) {
   element.textContent = "";
   const art = make("div", "idle-art", element), where = make("p", "idle-target", element), status = make("p", "idle-state", element);
   const title = make("h1", "idle-title", element), field = make("div", "idle-field", element);
   const detail = make("p", "idle-detail", field), hint = make("p", "idle-hint", field), strip = make("ol", "idle-strip", element);
+  if (programme) element.appendChild(programme.element);
   let showing = false, quietSince = 0, lastKey = 0, loadedAt = 0, generation = 0;
   let state = "idle", recent = [], inProgress = [], tiles = [], focus = 0, stripKey = "", artUrl = null, note = "";
 
@@ -86,9 +91,11 @@ export function createIdle({ element, live, host, play, resume, onBrowse, onSetu
     showing = true; lastKey = now(); focus = 0; note = "";
     element.classList.add("shown");
     if (state !== "ready" || now() - loadedAt > RELOAD_MS) load();
+    if (programme) programme.refresh(live.playback && live.playback.queue).then(render);
   }
   function hide() {
     showing = false; generation++; note = "";
+    if (programme) programme.close();
     if (state === "loading") state = "idle";
     element.classList.remove("shown", "rest");
   }
@@ -96,6 +103,7 @@ export function createIdle({ element, live, host, play, resume, onBrowse, onSetu
     if (tile.kind === "browse") return onBrowse();
     if (tile.kind === "setup") return onSetup();
     if (tile.kind === "retry") return load();
+    if (tile.kind === "programme") { programme.open(); return; }
     note = tile.kind === "resume" ? "Resuming…" : "Starting…"; render();
     const ok = await (tile.kind === "resume" ? resume() : play(tile.item.uri, "replace"));
     note = ok ? "" : "Couldn’t start it. OK tries again"; render();
@@ -106,7 +114,7 @@ export function createIdle({ element, live, host, play, resume, onBrowse, onSetu
     tiles.forEach((tile, i) => {
       const button = make("button", "idle-tile idle-" + tile.kind, make("li", "", strip));
       button.tabIndex = -1;
-      const word = tile.kind === "retry" ? "Try again" : tile.kind === "setup" ? "Check setup" : "Browse";
+      const word = tile.kind === "retry" ? "Try again" : tile.kind === "setup" ? "Check setup" : tile.kind === "programme" ? tile.word : "Browse";
       button.setAttribute("aria-label", tile.item ? tile.item.name : word);
       const url = tile.item ? imageUrl(thumbOf(tile.item), host, 160) : "";
       if (url) { const img = make("img", "", button); img.alt = ""; img.onerror = () => img.remove(); img.src = url; }
@@ -117,8 +125,9 @@ export function createIdle({ element, live, host, play, resume, onBrowse, onSetu
   function render() {
     if (!showing) return;
     const playback = live.playback, queue = playback && playback.queue;
-    tiles = idleTiles(playback, recent, state, { inProgress, setup: !!onSetup });
-    const key = state + "|" + tiles.map(t => t.kind + ":" + (t.item ? t.item.uri : "")).join(",");
+    tiles = idleTiles(playback, recent, state, { inProgress, setup: !!onSetup, programme: programme && programme.tile() });
+    if (programme && programme.isOpen) programme.render(); // its confirmation expires
+    const key = state + "|" + tiles.map(t => t.kind + ":" + (t.item ? t.item.uri : t.word || "")).join(",");
     if (key !== stripKey) { stripKey = key; buildStrip(); }
     focus = Math.max(0, Math.min(focus, tiles.length - 1));
     Array.from(strip.children).forEach((li, i) => li.firstChild.classList.toggle("selected", i === focus));
@@ -141,6 +150,7 @@ export function createIdle({ element, live, host, play, resume, onBrowse, onSetu
     get showing() { return showing; },
     // Called about once a second; `allowed` is false while anything else is on screen.
     update(allowed) {
+      if (programme) programme.observe(live.playback && live.playback.queue);
       if (!nothingPlaying(live.playback)) quietSince = 0;
       else if (!quietSince) quietSince = now();
       const queue = live.playback && live.playback.queue;
@@ -159,6 +169,7 @@ export function createIdle({ element, live, host, play, resume, onBrowse, onSetu
       if (!showing) return false;
       const resting = element.classList.contains("rest");
       lastKey = now(); element.classList.remove("rest");
+      if (programme && programme.isOpen) { if (!resting) programme.handleKey(name); render(); return true; }
       if (name !== "ok" && name !== "left" && name !== "right") return false;
       if (resting) return true; // the first press only wakes the screen
       if (name === "ok") activate(tiles[focus]);

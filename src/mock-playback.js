@@ -90,7 +90,7 @@ const LIBRARY = {
   album: ALBUMS.map(([name, artist, art, year], i) => ({ item_id: String(i + 1), provider: "library", media_type: "album", uri: "library://album/" + (i + 1), name, year, favorite: i < 2, artists: [{ name: artist }], metadata: { images: [cover(art)] } })).concat(MORE_ALBUMS),
   podcast: PODCAST_ITEMS,
   audiobook: BOOK_ITEMS,
-  playlist: PLAYLISTS.concat([["Long drive (demo)", "violet"]]).map(([name, art], i) => ({ item_id: String(i + 1), provider: "library", media_type: "playlist", uri: "library://playlist/" + (i + 1), name, favorite: i < 2, metadata: { images: [cover(art)] } })),
+  playlist: PLAYLISTS.concat([["Long drive (demo)", "violet"]]).map(([name, art], i) => ({ item_id: String(i + 1), provider: "library", media_type: "playlist", uri: "library://playlist/" + (i + 1), name, favorite: i < 2, is_editable: i < 2, is_dynamic: false, metadata: { images: [cover(art)] } })),
   artist: [...new Set(TRACKS.map(t => t[1]))].map((name, i) => ({ item_id: String(i + 1), provider: "library", media_type: "artist", uri: "library://artist/" + (i + 1), name, favorite: i === 0, metadata: { images: [cover(Object.keys(COVERS)[i])] } })),
   radio: [{ item_id: "1", provider: "library", media_type: "radio", uri: "library://radio/1", name: "Demo FM", favorite: true, metadata: { images: [cover("sky")] } }],
 };
@@ -105,6 +105,27 @@ function tracksFor(uri) {
   if (kind === "artist" && Number(id) > LIBRARY.artist.length) return [];
   if (kind === "artist") { const name = LIBRARY.artist[id - 1].name; return LIBRARY.track.filter(t => t.artists[0].name === name); }
   return LIBRARY.track.slice(0, 3);
+}
+
+// Demo playlists made or changed here: a task per change, finished when first asked about.
+const tasks = {};
+let taskNumber = 0;
+const added = {}; // playlist item_id -> uris in it
+function addToPlaylist(id, uris) {
+  const have = added[id] = added[id] || [];
+  const fresh = uris.filter(uri => have.indexOf(uri) < 0);
+  fresh.forEach(uri => have.push(uri));
+  const i = LIBRARY.playlist.findIndex(p => p.item_id === String(id));
+  if (i > 0) LIBRARY.playlist.unshift(LIBRARY.playlist.splice(i, 1)[0]); // most recently changed first
+  const id2 = "demo-task-" + ++taskNumber;
+  tasks[id2] = { id: id2, status: "success", metadata: { item_count: uris.length }, progress_text: fresh.length ? "Added " + fresh.length + " item(s) to playlist" : "No new playlist items to add" };
+  return { id: id2, status: "pending", metadata: { item_count: uris.length } };
+}
+function createPlaylist(name) {
+  const id = String(100 + LIBRARY.playlist.length);
+  const playlist = { item_id: id, provider: "library", media_type: "playlist", uri: "library://playlist/" + id, name, favorite: false, is_editable: true, is_dynamic: false, metadata: { images: [cover("teal")] } };
+  LIBRARY.playlist.unshift(playlist);
+  return playlist;
 }
 
 // Search by name across the demo library. "fail" fails, to show the error state.
@@ -152,7 +173,7 @@ export function createMockPlayback() {
   for (const id in players) queues[id] = { queue_id: id, display_name: players[id].name, state: "idle", current_item: null, repeat_mode: "off", items: 0 };
   // The music: one queue object, moved between speakers by a transfer.
   const queue = queues["demo-living"];
-  if (!EMPTY) Object.assign(queue, { current_index: 0, current_item: tracks[0], next_item: tracks[1], state: "playing" });
+  if (!EMPTY) Object.assign(queue, { current_index: 0, current_item: tracks[0], next_item: tracks[1], state: "playing", items: tracks.length });
   if (!EMPTY) Object.assign(queues["demo-bedroom"], { current_item: queueItem(LIBRARY.track[5]), state: "paused", items: 1 });
   // A book or episode carries on where it was left, as Music Assistant resumes it.
   function select(index) { queue.current_index = Math.max(0, Math.min(tracks.length - 1, index)); refresh(); position = (queue.current_item.media_item.resume_position_ms || 0) / 1000; at = Date.now(); }
@@ -205,8 +226,14 @@ export function createMockPlayback() {
       const library = /^music\/(\w+)s\/library_items$/.exec(command);
       // Later pages take a moment, as on a real server, so "Loading more…" can be seen.
       if ((library && args.offset > 0) || (command === "player_queues/items" && args.offset > queue.current_index + 1)) await new Promise(resolve => setTimeout(resolve, 300));
-      if (library) return page((LIBRARY[library[1]] || []).filter(i => !args.favorite || i.favorite), args);
+      if (library) return page((LIBRARY[library[1]] || []).filter(i => (!args.favorite || i.favorite) && (!args.search || i.name.toLowerCase().indexOf(String(args.search).toLowerCase()) >= 0)), args);
+      // A queue's history: the demo songs it played this evening, newest first.
+      if (command === "music/recently_played_items" && args.queue_id) return !EMPTY && args.queue_id === queue.queue_id ? LIBRARY.track.slice(1).reverse().map(t => ({ item_id: t.item_id, provider: t.provider, media_type: "track", uri: t.uri, name: t.name, image: t.metadata.images[0] })) : [];
       if (command === "music/recently_played_items") return recentlyPlayed().slice(0, args.limit || 10);
+      if (command === "music/playlists/create_playlist") return createPlaylist(args.name);
+      if (command === "music/playlists/add_playlist_tracks") return addToPlaylist(args.db_playlist_id, args.uris || []);
+      if (command === "player_queues/save_as_playlist") return addToPlaylist(createPlaylist(args.name).item_id, tracks.map(t => t.media_item.uri));
+      if (command === "tasks/get") return tasks[args.task_id] || null;
       if (command === "music/search") return search(args);
       if (command === "music/albums/album_tracks") return tracksFor("library://album/" + args.item_id);
       if (command === "music/playlists/playlist_tracks") return tracksFor("library://playlist/" + args.item_id);
