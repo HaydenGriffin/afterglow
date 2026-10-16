@@ -239,7 +239,7 @@ export function createMockPlayback() {
       if (command === "music/playlists/playlist_tracks") return tracksFor("library://playlist/" + args.item_id);
       if (command === "music/artists/artist_tracks") return tracksFor("library://artist/" + args.item_id);
       if (command === "music/podcasts/podcast_episodes") return episodes(PODCAST_ITEMS[args.item_id - 1] || PODCAST_ITEMS[0]);
-      if (command === "music/in_progress_items") return [BOOK_ITEMS[0], episodes(PODCAST_ITEMS[0])[1]].map(i => ({ item_id: i.item_id, provider: "library", media_type: i.media_type, uri: i.uri, name: i.name, image: i.metadata.images[0] })).slice(0, args.limit || 10);
+      if (command === "music/in_progress_items") return EMPTY ? [] : [BOOK_ITEMS[0], episodes(PODCAST_ITEMS[0])[1]].map(i => ({ item_id: i.item_id, provider: "library", media_type: i.media_type, uri: i.uri, name: i.name, image: i.metadata.images[0] })).slice(0, args.limit || 10);
       if (command === "player_queues/set_playback_speed") { queue.playback_speed = args.speed; return null; }
       if (command === "providers") return [{ instance_id: "spotify--demo", domain: "spotify", name: "Spotify (demo)" }, { instance_id: "filesystem--demo", domain: "filesystem_local", name: "Music folder (demo)" }];
       if (command === "metadata/get_track_lyrics") return [null, "[00:00]An evening without hurry\n[00:20]<00:20.0>A <00:20.6>little <00:21.4>room <00:22.4>to <00:23.0>breathe\n[00:35]<00:35.0>The <00:35.5>light <00:36.4>across <00:37.4>the <00:37.8>ceiling\n[00:50]The music underneath\n[01:10]Let the world grow quiet\n[01:30]Stay a little while"];
