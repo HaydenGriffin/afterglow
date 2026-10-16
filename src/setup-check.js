@@ -172,7 +172,7 @@ export function liveProbes({ host, token: tokenOf, WebSocketImpl, fetchImpl }) {
 
 // The browser demo's answers: nothing leaves the page.
 export function demoProbes() {
-  const later = (value) => new Promise((resolve) => setTimeout(() => resolve(value), 900));
+  const later = (value) => new Promise((resolve) => setTimeout(() => resolve(value), 1500));
   return {
     server: () => later({ reached: true, version: "2.10.6", authed: true, playerFound: true }),
     relay: () => later({ ok: true }),
