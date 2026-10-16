@@ -43,7 +43,7 @@ test('lyrics errors are retryable, missing lyrics are not repeatedly fetched', a
 });
 test('queue requests are bounded and late old-queue replies are ignored', async () => {
   const h=harness();h.model.wantQueue(true);h.model.tick();
-  assert.deepEqual(h.calls[0],{command:'player_queues/items',args:{queue_id:'group',offset:4,limit:12}});
+  assert.deepEqual(h.calls[0],{command:'player_queues/items',args:{queue_id:'group',offset:4,limit:25}});
   h.model.tick();assert.equal(h.calls.length,1);
   h.live.playback={...h.live.playback,queue:{...h.q,queue_id:'other'}};h.model.tick();
   h.pending[0].resolve([{queue_item_id:'old'}]);await settle();assert.deepEqual(h.model.snapshot().items,[]);
@@ -184,4 +184,41 @@ test('skips pressed while one is in flight collapse into one pending skip per di
   h.pending[2].resolve(null);
   assert.deepEqual(await Promise.all(more), [true, true, true, true, true], 'every press hears back');
   assert.equal(h.calls.length, 3);
+});
+const queued = (from, count) => Array.from({ length: count }, (_, i) => ({ queue_item_id: 'q' + (from + i) }));
+test('Up next reads further pages on request, one at a time, and stops at a short page', async () => {
+  const h = harness(); h.q.items = 200; h.model.wantQueue(true); h.model.tick();
+  h.pending[0].resolve(queued(0, 25)); await settle();
+  assert.equal(h.model.snapshot().queueMore, true);
+  h.model.moreQueue(); h.model.moreQueue();
+  assert.equal(h.calls.length, 2, 'never two pages at once');
+  assert.deepEqual(h.calls[1].args, { queue_id: 'group', offset: 29, limit: 25 });
+  assert.equal(h.model.snapshot().queueTail, 'loading');
+  h.pending[1].resolve(queued(25, 10)); await settle();
+  const s = h.model.snapshot();
+  assert.equal(s.items.length, 35); assert.equal(s.queueMore, false); assert.equal(s.queueTail, '');
+  h.model.moreQueue(); assert.equal(h.calls.length, 2);
+});
+test('a failed page waits for a retry; a changed first page drops later ones', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1000 });
+  const h = harness(); h.model.wantQueue(true); h.model.tick();
+  h.pending[0].resolve(queued(0, 25)); await settle();
+  h.model.moreQueue(); h.pending[1].reject(Error('offline')); await settle();
+  assert.equal(h.model.snapshot().queueTail, 'error');
+  h.model.moreQueue(); assert.equal(h.calls.length, 2, 'not again by itself');
+  h.model.moreQueue(true); h.pending[2].resolve(queued(25, 25)); await settle();
+  assert.equal(h.model.snapshot().items.length, 50);
+  t.mock.timers.tick(6000); h.model.tick();
+  h.pending[3].resolve(queued(0, 25)); await settle();
+  assert.equal(h.model.snapshot().items.length, 50, 'an unchanged first page keeps the rest');
+  t.mock.timers.tick(6000); h.model.tick();
+  h.pending[4].resolve([{ queue_item_id: 'moved' }].concat(queued(0, 24))); await settle();
+  assert.equal(h.model.snapshot().items.length, 25, 'a changed one drops them');
+});
+test('speed is sent as Music Assistant 2.10 takes it and shown from the queue', async () => {
+  const h = harness(); h.q.playback_speed = 1.25;
+  assert.equal(h.model.snapshot().speed, 1.25);
+  const done = h.model.command('speed', 1.5);
+  assert.deepEqual(h.calls[0], { command: 'player_queues/set_playback_speed', args: { queue_id: 'group', speed: 1.5 } });
+  h.pending[0].resolve(null); assert.equal(await done, true);
 });
