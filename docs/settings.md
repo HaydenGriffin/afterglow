@@ -28,7 +28,13 @@ playback.
   queue ends, volume (a group's volume for a group) and the sleep timer are
   here too.
 - **Details:** what the song is and how it is streamed (source, format,
-  quality), with Start radio from this song and Add to favourites.
+  quality), with Start radio from this song and Add to favourites. **Scan to
+  save:** when Music Assistant knows the song's page on a public service
+  (Spotify, Tidal, Apple Music, YouTube Music, Deezer, Qobuz or SoundCloud), a
+  QR code beside the facts opens it on a phone, labelled "Scan to open on your
+  phone" and the service. The page of the service the song is playing from
+  comes first. Songs with no public page (your own files, radio) show no code.
+  The code is drawn on the TV; nothing is sent anywhere.
 - **Display** (saved on this TV):
   - The view: **Visuals only** (MilkDrop alone), **Visuals + track** (MilkDrop
     with the track card), **Album** (the complete artwork, song, artist and up
@@ -178,8 +184,32 @@ that do not apply (no speaker on, MilkDrop off) are hidden.
 | Scan presets | Not run / n of 395 done / Done | — | See below |
 | Validate above | 30 / 40 / 45 / 60 fps | 40 | The bar a preset's measured frame rate must clear to be validated; takes effect at once |
 | **Account & diagnostics** | | | |
+| Check my setup | Not run / All good / n to look at | — | Opens the check below |
 | Debug readout | On / Off | Off | Frame rate, connection, buffer, errors, sync log |
 | Log out | user @ host | — | Revokes this TV's token on the account and shows the sign-in form |
+
+### Check my setup
+
+**Check my setup** (Settings, Account & diagnostics) runs a few read-only
+checks once, when you open it or choose **Check again**, and lists each as
+passed or failed; a failure carries one next step:
+
+| Row | Shown | Fails when, and the next step |
+|---|---|---|
+| Music Assistant | always | It can't be reached ("Check that Music Assistant is running at …"), or it is older than 2.10 ("Update Music Assistant to 2.10 or newer.") |
+| Signed in | always | The TV's token is refused ("Log out, then sign in again.") |
+| This TV as a speaker | Play on this TV is on | Music Assistant has no player for the TV ("Check that Music Assistant's Sendspin provider is on, then reopen Afterglow.") |
+| Sendspin | Play on this TV is on | The TV's speaker is not connected ("Check that Music Assistant's Sendspin provider is on.") |
+| MilkDrop Visualizer | always | The plugin's relay does not accept the TV ("Add MilkDrop Visualizer in Music Assistant: Settings, Plugins.") |
+| Online lyrics | Online lyrics is On | lrclib.net does not answer ("Check the TV's internet connection, or turn Online lyrics off."); a busy LRCLIB (503, 429) is shown as busy, not failed |
+| Preset scan | MilkDrop runs | No full scan yet ("Run Scan presets in Settings, Performance.") |
+
+Rows that depend on an earlier one say "Not checked" when it failed. The
+relay check logs in with a player id that does not exist, so it never starts
+an audio tap. When the screen has nothing to show, the idle poster's strip
+ends in **Check setup** ("Something not right? Check my setup"), and a
+"Waiting for music" line that stays for 20 seconds adds "Something not right?
+Check my setup in Settings."
 
 ### Timing
 

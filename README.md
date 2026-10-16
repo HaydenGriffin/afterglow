@@ -42,6 +42,11 @@ Afterglow is independent of, and not endorsed by, Music Assistant or LG. It bega
   or leaves a sync group.
 - **Idle poster.** With nothing playing, the paused song or recent music is
   set as a poster, one OK away from playing.
+- **Scan to save.** Details shows a QR code that opens the playing song on
+  your phone, on the streaming service it came from.
+- **Check my setup.** A pass/fail list (Music Assistant, sign-in, the TV's
+  speaker, the MilkDrop Visualizer plugin, online lyrics, the preset scan),
+  each failure with one plain next step.
 - **Presets.** 395 MilkDrop presets (through Music Assistant's fork of
   Butterchurn), driven by the waveform Music Assistant streams a few seconds
   ahead, so the picture lands on the beat. **Scan presets** measures each one
@@ -115,6 +120,11 @@ title and artist (the album and length are only used on the TV to pick the
 best match). LRCLIB sees the request coming from your network. Turn
 **Online lyrics** off (OK → Display → Lyrics, shown in the Lyrics view) to
 stop it; it is on by default and synced with your other TVs.
+
+**Check my setup** asks lrclib.net for one fixed record (no song, nothing about
+you) to see that it answers, only when you run it and Online lyrics is on. The
+Scan to save code in Details is drawn on the TV from the link Music Assistant
+already has; nothing is sent.
 
 The TV stores its Music Assistant token in the app's own storage, never your
 password. There is no analytics or telemetry. The browser demo requests nothing but its own files.
