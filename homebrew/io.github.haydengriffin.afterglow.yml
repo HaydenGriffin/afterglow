@@ -25,7 +25,7 @@ description: |
   - **Queue**: play, move and remove songs, shuffle, repeat, crossfade, volume and sleep timer. **Play on** moves the music to another speaker; **Speakers together** joins or leaves a sync group.
   - **Idle poster**: when nothing plays, the paused song or recent music, one OK away.
   - **Play on this TV**: the TV itself becomes a Music Assistant speaker through Sendspin.
-  - 395 MilkDrop presets; **Scan presets** measures each one on *your* TV and keeps the ones it runs smoothly. Favourites are shared with Music Assistant's own MilkDrop favourites. Lock a preset to an album or artist.
+  - 395 MilkDrop presets; **Scan presets** measures each one on *your* TV and keeps the ones it runs smoothly. Favourites are shared with Music Assistant's own MilkDrop favourites.
   - Remote media keys: play/pause, stop, fast-forward and rewind.
   - Kind to OLEDs: the screensaver is held off only while music plays, and the picture drifts against burn-in.
 
@@ -79,3 +79,5 @@ screenshots:
     caption: Settings
   - url: https://raw.githubusercontent.com/HaydenGriffin/afterglow/main/docs/screenshots/sign-in.jpg
     caption: Signing in to Music Assistant on first launch
+funding:
+  buy_me_a_coffee: haydengriffin
