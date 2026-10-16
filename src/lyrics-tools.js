@@ -162,6 +162,7 @@ export function createLyricsTools({ model, prefs, device, setDevice, online, onN
       return false;
     },
     back() { page = ""; },
-    reload() { songs = readSongs(prefs.load(SONGS_PREF, [])); },
+    // Settings restored from the account: the offer measures from the restored timing.
+    reload() { songs = readSongs(prefs.load(SONGS_PREF, [])); offer.song("", device()); },
   };
 }
