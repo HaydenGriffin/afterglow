@@ -1,4 +1,4 @@
-# Unreleased
+# 1.5.5 — Lyric overlay looks and More cues (16 October 2026)
 
 - Long lists show that they continue: **More** with a chevron at the bottom
   edge over a fade of the last visible row, and at the top once scrolled, on
