@@ -457,7 +457,7 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
           return;
         }
         requests.delete(message.message_id);
-        if (message.error_code !== undefined) request.reject(new Error(message.details || "Music Assistant refused the request."));
+        if (message.error_code !== undefined) request.reject(Object.assign(new Error(message.details || "Music Assistant refused the request."), { code: message.error_code }));
         else request.resolve(request.parts.length ? request.parts.concat(message.result || []) : message.result);
         return;
       }
