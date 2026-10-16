@@ -140,7 +140,7 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
       position: Math.min(track && track.duration || Infinity, Math.max(0, current && current.position || 0)),
       lyricPosition: applyPresentationTrim(current && current.lyricPosition != null ? current.lyricPosition : current && current.position || 0, lyricsOffset()),
       next: trackInfo(queue && queue.next_item, host), target: targetOf(current), lyrics, items, itemsState, busy, error,
-      queueMore, queueTail, speed: speedOf(queue) };
+      queueMore, queueTail, speed: assumedOr("playback_speed", speedOf(queue)) };
   }
   async function readLyrics(track, gen) {
     if (!track || track.media.media_type !== "track") { lyrics = { status: "missing", lines: [], plain: "" }; return; }

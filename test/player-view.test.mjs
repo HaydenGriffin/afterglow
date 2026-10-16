@@ -26,7 +26,7 @@ function harness(t) {
   const view = createPlayerView({ root, live, host: "ma", engine: { setDrawing() {} }, onSettings() {}, onMode() {}, onNotice() {} });
   const panelRows = () => root.querySelector(".panel-items").querySelectorAll("button");
   const row = (label) => panelRows().find((b) => b.children[0].textContent === label);
-  return { doc, root, view, calls, row };
+  return { doc, root, view, calls, row, live };
 }
 
 test("media keys send their Music Assistant commands to the target queue", async (t) => {
@@ -114,4 +114,81 @@ test("an overlay saved as On before Stage existed comes back as One line with it
   assert.equal(line.style.bottom, "6vh", "One line at Bottom sits on the safe margin");
   h.view.setOverlayContext({ cardPx: 0, message: false });
   assert.equal(line.style.bottom, "6vh");
+});
+
+const ref = (kind, id, name) => ({ item_id: id, provider: "spotify--x", uri: "spotify--x://" + kind + "/" + id, name });
+const openDetails = (h) => h.root.querySelector(".transport").children.find((b) => b.getAttribute("aria-label") === "Details").click();
+const labels = (h) => h.root.querySelector(".panel-items").querySelectorAll("button").map((b) => b.children[0].textContent);
+
+test("Details goes to the song's album and artists by their ids, and Browse's Back returns to Details", async (t) => {
+  const h = harness(t);
+  h.live.playback.queue.current_item = { queue_item_id: "i2", duration: 200, media_item: { media_type: "track", uri: "spotify--x://track/1", name: "Song",
+    album: ref("album", "a1", "Coastline"), artists: [ref("artist", "1", "One"), ref("artist", "2", "Two")] } };
+  openDetails(h);
+  assert.deepEqual(labels(h).slice(0, 3), ["Go to the album", "Go to One", "Go to Two"]);
+  assert.equal(h.row("Go to the album").children[1].textContent, "Coastline");
+  assert.ok(h.row("Start radio from this song"), "a song keeps Start radio");
+  h.row("Go to the album").click();
+  assert.equal(h.root.getAttribute("data-panel"), "browse");
+  const call = h.calls[h.calls.length - 1];
+  assert.deepEqual([call.command, call.args], ["music/albums/album_tracks", { item_id: "a1", provider_instance_id_or_domain: "spotify--x" }]);
+  assert.equal(h.root.querySelector(".browse-title").textContent, "Coastline");
+  h.view.handleKey("back");
+  assert.equal(h.root.getAttribute("data-panel"), "details");
+  h.row("Go to Two").click();
+  assert.equal(h.calls[h.calls.length - 1].command, "music/artists/artist_tracks");
+});
+
+test("an audiobook offers Speed and Chapters, and no radio; a chapter plays from its start", async (t) => {
+  const h = harness(t);
+  const chapters = [{ name: "Opening", start: 0 }, { name: "Middle", start: 5 }, { name: "", start: 100 }];
+  h.live.playback.queue.current_item = { queue_item_id: "b1", duration: 3600, media_item: { media_type: "audiobook", uri: "library://audiobook/1", name: "A long book", metadata: { chapters } } };
+  h.live.playback.queue.playback_speed = 1.25;
+  h.live.playback.position = 10;
+  openDetails(h);
+  assert.deepEqual(labels(h), ["Speed", "Chapters", "Add to favourites"]);
+  assert.equal(h.row("Speed").children[1].textContent, "1.25×");
+  assert.equal(h.row("Chapters").children[1].textContent, "Chapter 2 of 3");
+  h.row("Speed").click(); await settle();
+  assert.deepEqual(h.calls[h.calls.length - 1], { command: "player_queues/set_playback_speed", args: { queue_id: "tv", speed: 1.5 } });
+  h.row("Chapters").click();
+  assert.equal(h.root.querySelector(".player-panel h2").textContent, "Chapters");
+  assert.deepEqual(labels(h), ["Opening", "Middle", "Chapter 3"]);
+  assert.ok(h.row("Middle").classList.contains("chosen"), "the playing chapter is ticked");
+  assert.equal(h.row("Chapter 3").children[1].textContent, "1:40");
+  h.row("Chapter 3").click(); await settle();
+  assert.deepEqual(h.calls[h.calls.length - 1], { command: "player_queues/seek", args: { queue_id: "tv", position: 100 } });
+  h.view.handleKey("back");
+  assert.equal(h.root.querySelector(".player-panel h2").textContent, "A long book", "Back returns to Details");
+});
+
+test("Up next shows a window of songs and reads more near the last one", async (t) => {
+  const h = harness(t);
+  const song = (n) => ({ queue_item_id: "u" + n, name: "Song " + n, media_item: { name: "Song " + n, media_type: "track" } });
+  h.live.call = (command, args) => {
+    h.calls.push({ command, args });
+    const page = Array.from({ length: Math.max(0, Math.min(args.limit, 100 - args.offset)) }, (_, i) => song(args.offset + i));
+    return Promise.resolve(command === "player_queues/items" ? page : null);
+  };
+  h.live.playback.queue.current_index = -1; h.live.playback.queue.items = 100;
+  h.root.querySelector(".player-nav").children.find((b) => b.dataset.nav === "queue").click();
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  h.view.start(); t.after(() => h.view.stop());
+  const step = async () => { await settle(); t.mock.timers.tick(250); await settle(); };
+  await step();
+  const reads = () => h.calls.filter((c) => c.command === "player_queues/items" && c.args.offset > 0); // later pages, not the refresh
+  const focused = () => h.root.querySelector(".selected").children[0].textContent;
+  const songs = () => labels(h).filter((l) => /^Song /.test(l));
+  assert.equal(songs().length, 25);
+  for (let i = 0; i < 40 && focused() !== "Song 21"; i++) h.view.handleKey("down");
+  assert.equal(reads().length, 0, "no read far from the end");
+  h.view.handleKey("down");
+  assert.deepEqual(reads().pop().args, { queue_id: "tv", offset: 25, limit: 25 }, "the next page near the end");
+  await step();
+  for (let i = 0; i < 60 && focused() !== "Song 70"; i++) { h.view.handleKey("down"); await step(); }
+  assert.equal(focused(), "Song 70", "the focus walks on through the pages read");
+  assert.ok(songs().length <= 50, "at most 50 song rows");
+  assert.ok(!songs().includes("Song 0"), "the window moved on");
+  for (let i = 0; i < 80 && focused() !== "Song 5"; i++) { h.view.handleKey("up"); await step(); }
+  assert.equal(focused(), "Song 5", "and back again");
 });
