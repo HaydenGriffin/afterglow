@@ -9,6 +9,9 @@
 // scan or, until the TV has scanned, from the benchmark shipped with the app.
 import { favoriteNames, favoritesFromList, loadPref, savePref } from "./settings.js";
 import { DEFAULT_VALIDATE_FPS, LISTS, countValidated, describeValidation, isValidated, ratingOf, scanOrder, toggleValidated } from "./validation.js";
+import { changeChoice, createPresetChanger, timerSeconds, waveEnergy } from "./preset-change.js";
+import { createPresetHistory } from "./preset-history.js";
+import { createCoverSchedule, createCoverTexture, installCover } from "./cover-art.js";
 
 const SCRIPTS = ["./vendor/butterchurn.min.js", "./vendor/presets.js"];
 const BLEND_SECONDS = 2.7;
@@ -21,7 +24,8 @@ const SLOW_FPS = 20;
 const SLOW_SECONDS = 4; // this long below SLOW_FPS and a preset is marked slow
 const SETTLE_SECONDS = 4; // not judged while loading and blending in
 const GIVE_UP_AFTER = 8; // this many slow presets in a row and MilkDrop is off
-export const ROTATE_CHOICES = [0, 30, 120, 300]; // seconds; 0 = stay on the chosen preset
+// "Change preset" (preset-change.js): a timer in seconds (0 = stay on the
+// chosen preset), each song, or on big moments.
 export const DEFAULT_ROTATE = 120;
 export const COLOR_MODES = ["default", "art"]; // the preset's own colors, or the album art's
 export const COLOR_STRENGTHS = [25, 50, 75, 100]; // percent
@@ -93,7 +97,9 @@ export function createMilkdropMode(onFail, onNotice) {
   let favMeta = loadFavorites();
   let favorites = favoriteNames(favMeta);
   let list = loadList();
-  let rotateSeconds = loadPref("presetRotate", DEFAULT_ROTATE);
+  let change = changeChoice(loadPref("presetRotate", DEFAULT_ROTATE), DEFAULT_ROTATE);
+  const changer = createPresetChanger();
+  const history = createPresetHistory();
   let randomOrder = loadPref("presetRandom", true); // up/down pick at random instead of in order
   // Validation: measurements, the person's overrides, and the threshold.
   const validation = { rated: loadPref("rated", {}), bench: {}, overrides: loadPref("validatedOverrides", {}), validateFps: loadPref("validateFps", DEFAULT_VALIDATE_FPS) };
@@ -114,6 +120,14 @@ export function createMilkdropMode(onFail, onNotice) {
   let output = null; // the canvas the picture is copied to
   let released = false; // the page is going: nothing more is drawn
   let restoredListener = null;
+  // Cover art in the visuals (cover-art.js): the song's cover, once loaded,
+  // and the fixed texture it is drawn into, made the first time it is needed.
+  let coverOn = loadPref("coverArt", true);
+  const coverSchedule = createCoverSchedule();
+  let coverUrl = ""; // the song's cover, loaded or loading
+  let coverImages = {}; // URL -> loaded image, only the ones shown or waiting
+  let cover = null;
+  let coverFade = null;
 
   function loadFavorites() {
     // The plain list from before the timestamps is folded in whenever present,
@@ -196,6 +210,7 @@ export function createMilkdropMode(onFail, onNotice) {
     // loadPreset is async in Butterchurn 3: a preset that fails to load
     // rejects instead of throwing.
     const loaded = visualizer.loadPreset(preset, blend);
+    changer.changed(performance.now());
     if (loaded && typeof loaded.catch === "function") loaded.catch((error) => fail(describe(error)));
     current = name;
     external = name in presets ? null : preset;
@@ -203,7 +218,8 @@ export function createMilkdropMode(onFail, onNotice) {
     applyColor();
   }
 
-  function showIndexed(blend) {
+  function showIndexed(blend, fromHistory) {
+    if (!fromHistory && current !== names[index]) history.shown(current);
     watching = true;
     show(names[index], presets[names[index]], blend);
     savePref("preset", names[index]);
@@ -227,11 +243,18 @@ export function createMilkdropMode(onFail, onNotice) {
     savePref("presetList", next);
   }
 
-  // Move to the next listed preset in `direction`, or to a random one when
-  // browsing in random order.
+  // Move to the next listed preset in `direction`. In random order Previous
+  // goes back to the presets actually shown (preset-history.js), and Next
+  // forward again through them before picking a new random one.
   function step(direction, blend) {
     if (!visualizer || !names.length) return;
-    if (randomOrder) return random();
+    if (randomOrder) {
+      const available = (name) => name in presets && listed(name);
+      const name = direction < 0 ? history.back(current, available) : history.forward(current, available);
+      if (name === null) return direction < 0 ? undefined : random();
+      index = names.indexOf(name);
+      return showIndexed(blend === undefined ? BLEND_SECONDS : blend, true);
+    }
     for (let tried = 0; tried < names.length; tried++) {
       index = (index + direction + names.length) % names.length;
       if (listed(names[index])) break;
@@ -247,6 +270,60 @@ export function createMilkdropMode(onFail, onNotice) {
       if (index !== from && listed(names[index])) break;
     }
     showIndexed(BLEND_SECONDS);
+  }
+
+  // The picture the presets should get: the loaded cover, or the clouds.
+  function wantCover(now) {
+    coverSchedule.want(coverOn && coverImages[coverUrl] ? coverUrl : "", now);
+  }
+
+  function setCoverUrl(url) {
+    if (url === coverUrl) return;
+    coverUrl = url;
+    if (!url) return wantCover(performance.now());
+    const image = new Image();
+    // Music Assistant's image proxy allows any origin; an image without that
+    // permission fails to load here rather than spoil the canvas.
+    if (!/^data:/.test(url)) image.crossOrigin = "anonymous";
+    image.onload = () => {
+      if (url !== coverUrl) return;
+      coverImages = keepImages(url, image);
+      wantCover(performance.now());
+    };
+    image.onerror = () => {
+      if (url === coverUrl) wantCover(performance.now());
+    };
+    image.src = url;
+  }
+
+  // Only the images shown or about to be are kept.
+  function keepImages(url, image) {
+    const kept = {};
+    kept[url] = image;
+    if (coverFade) for (const key of [coverFade.from, coverFade.to]) if (coverImages[key]) kept[key] = coverImages[key];
+    if (coverImages[coverSchedule.shown]) kept[coverSchedule.shown] = coverImages[coverSchedule.shown];
+    return kept;
+  }
+
+  function updateCover(now) {
+    const start = coverSchedule.tick(now);
+    if (start) {
+      if (!cover) {
+        const image = visualizer.renderer && visualizer.renderer.image;
+        if (!image || !visualizer.gl) return;
+        cover = createCoverTexture(visualizer.gl, image.clouds2Image);
+        installCover(image, cover);
+      }
+      coverFade = start;
+    }
+    if (!coverFade || !cover) return;
+    const level = coverSchedule.level(now);
+    if (!cover.blend(coverImages[coverFade.from] || null, coverImages[coverFade.to] || null, level, now)) {
+      delete coverImages[coverFade.to];
+      coverFade = null;
+      return wantCover(now);
+    }
+    if (level >= 1) coverFade = null;
   }
 
   function commitRatings() {
@@ -351,6 +428,7 @@ export function createMilkdropMode(onFail, onNotice) {
           if (released) return;
           if (!loading) start(canvas);
           if (!visualizer || failed) return;
+          updateCover(f.t * 1000);
           try {
             const wave = f.analysis.wave;
             visualizer.render({ audioLevels: { timeByteArray: wave, timeByteArrayL: wave, timeByteArrayR: wave } });
@@ -361,7 +439,9 @@ export function createMilkdropMode(onFail, onNotice) {
           if (scanning) return; // the scan does its own timing
           sincePreset += f.dt;
           watchFrameRate(f.dt);
-          if (rotateSeconds && sincePreset >= rotateSeconds) random();
+          changer.hear(waveEnergy(f.analysis.raw || f.analysis.wave), f.dt);
+          const seconds = timerSeconds(change);
+          if ((seconds && sincePreset >= seconds) || changer.due(change, f.t * 1000)) random();
         },
       };
     },
@@ -396,6 +476,9 @@ export function createMilkdropMode(onFail, onNotice) {
     release() {
       if (released) return;
       released = true;
+      if (cover) cover.release();
+      cover = null;
+      coverImages = {};
       if (visualizer) {
         const gl = visualizer.gl;
         const lose = gl && gl.getExtension && gl.getExtension("WEBGL_lose_context");
@@ -415,7 +498,9 @@ export function createMilkdropMode(onFail, onNotice) {
       favMeta = loadFavorites();
       favorites = favoriteNames(favMeta);
       list = loadList();
-      rotateSeconds = loadPref("presetRotate", DEFAULT_ROTATE);
+      change = changeChoice(loadPref("presetRotate", DEFAULT_ROTATE), DEFAULT_ROTATE);
+      coverOn = loadPref("coverArt", true);
+      wantCover(performance.now());
       randomOrder = loadPref("presetRandom", true);
       validation.rated = loadPref("rated", {});
       validation.overrides = loadPref("validatedOverrides", {});
@@ -485,12 +570,27 @@ export function createMilkdropMode(onFail, onNotice) {
       randomOrder = on;
       savePref("presetRandom", on);
     },
-    get rotateSeconds() {
-      return rotateSeconds;
+    // "Change preset": seconds of a timer (0 = never), "song" or "moments".
+    get change() {
+      return change;
     },
-    set rotateSeconds(seconds) {
-      rotateSeconds = seconds;
-      savePref("presetRotate", seconds);
+    set change(value) {
+      change = value;
+      savePref("presetRotate", value);
+    },
+    // A new song (its queue item id, or "" when nothing plays) and its cover
+    // (an image URL, or "").
+    setSong(id, url) {
+      changer.song(id || "", performance.now());
+      setCoverUrl(url || "");
+    },
+    get coverArt() {
+      return coverOn;
+    },
+    set coverArt(on) {
+      coverOn = on;
+      savePref("coverArt", on);
+      wantCover(performance.now());
     },
     // "default" or "art": whether presets take their colors from the album art.
     get colorMode() {
@@ -513,6 +613,7 @@ export function createMilkdropMode(onFail, onNotice) {
     // The current track's palette from Music Assistant (live.js), or null.
     setPalette(next) {
       palette = next;
+      coverSchedule.touch(performance.now());
       applyColor();
     },
     get ready() {
@@ -566,7 +667,7 @@ export function createMilkdropMode(onFail, onNotice) {
     // browsed, on to the next one that is in it.
     resume() {
       if (!visualizer) return;
-      if (listed(names[index])) showIndexed(0);
+      if (listed(names[index])) showIndexed(0, true);
       else step(1, 0);
     },
   };
