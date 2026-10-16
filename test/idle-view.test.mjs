@@ -213,6 +213,16 @@ test("a server that cannot list what is in progress just leaves those tiles out"
   assert.equal(h.tiles().length, 2);
 });
 
+test("carry-on tiles and the programme together keep the strip's length, so Browse fits", () => {
+  const recent = Array.from({ length: 20 }, (_, i) => album(i + 1));
+  const book = { media_type: "audiobook", uri: "library://audiobook/1", name: "A long book" };
+  const episode = { media_type: "podcast_episode", uri: "library://podcast_episode/1", name: "Episode four" };
+  const plain = idleTiles({ queue: pausedQueue }, recent, "ready");
+  const full = idleTiles({ queue: pausedQueue }, recent, "ready", { inProgress: [book, episode], programme: { word: "Tonight", detail: "7 songs since 20:12" } });
+  assert.equal(full.length, plain.length);
+  assert.deepEqual(full.map(t => t.kind), ["resume", "carry", "carry", "play", "play", "play", "play", "play", "programme", "browse"]);
+});
+
 test("tonight's programme takes one recent tile's place, before Browse", () => {
   const recent = Array.from({ length: 10 }, (_, i) => album(i + 1));
   const plain = idleTiles(null, recent, "ready");

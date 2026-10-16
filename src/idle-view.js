@@ -29,8 +29,9 @@ function pausedItem(playback) {
 // The strip: the paused song (Resume), a retry after an error, what was
 // played recently (Play), tonight's programme when on offer, and always
 // Browse, so OK never dead-ends. Audiobooks and episodes in progress (Carry
-// on) follow the paused song. The programme takes one recent tile's place so
-// Browse still fits. With nothing to offer (reading failed, or nothing played
+// on) follow the paused song. Carry-on tiles and the programme take recent
+// tiles' places, so the strip keeps its length and Browse still fits on the
+// screen. With nothing to offer (reading failed, or nothing played
 // yet) and `setup` on, Check my setup comes last.
 export function idleTiles(playback, recent, state, { inProgress = [], setup = false, programme = null } = {}) {
   const paused = pausedItem(playback), tiles = [];
@@ -38,8 +39,9 @@ export function idleTiles(playback, recent, state, { inProgress = [], setup = fa
   const shown = uri => tiles.some(t => t.item && t.item.uri === uri);
   (inProgress || []).forEach(item => { if (item && item.uri && !shown(item.uri) && tiles.length - (paused ? 1 : 0) < CARRY_ON_LIMIT) tiles.push({ kind: "carry", item }); });
   if (state === "error") tiles.push({ kind: "retry" });
+  const room = RECENT_LIMIT - tiles.filter(t => t.kind === "carry").length - (programme ? 1 : 0);
   (recent || []).filter(item => item && item.uri && !shown(item.uri))
-    .slice(0, programme ? RECENT_LIMIT - 1 : RECENT_LIMIT).forEach(item => tiles.push({ kind: "play", item }));
+    .slice(0, room).forEach(item => tiles.push({ kind: "play", item }));
   if (programme) tiles.push({ kind: "programme", word: programme.word, detail: programme.detail });
   tiles.push({ kind: "browse" });
   if (setup && !paused && (state === "error" || (state === "ready" && tiles.length === 1))) tiles.push({ kind: "setup" });
