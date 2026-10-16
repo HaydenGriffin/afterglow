@@ -38,8 +38,10 @@ Afterglow is independent of, and not endorsed by, Music Assistant or LG. It bega
 - **Queue.** Play, move and remove upcoming songs; shuffle, repeat,
   crossfade, keep playing when the queue ends, volume and sleep timer.
   **Playing on** picks the speaker; picking a silent one moves the music
-  there (**Play on this TV** brings it to the TV). **Speakers together** joins
-  or leaves a sync group.
+  there and each speaker says what it plays. With the TV as a speaker, **Join**
+  adds it to the music playing elsewhere and **Move here** brings that music
+  to the TV. **Speakers together** joins or leaves a sync group and sets each
+  member's own volume.
 - **Idle poster.** With nothing playing, the paused song or recent music is
   set as a poster, one OK away from playing.
 - **Presets.** 395 MilkDrop presets (through Music Assistant's fork of
