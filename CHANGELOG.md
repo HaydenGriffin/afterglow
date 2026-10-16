@@ -1,3 +1,11 @@
+# 1.5.4 — Lyrics survive a busy LRCLIB (16 October 2026)
+
+- When lyrics fail to load (LRCLIB answering "server busy"), Afterglow keeps
+  retrying while the song plays, after 30 s, 1 min and then every 2 min,
+  instead of giving up after one retry.
+- `afterglowDiagnostics()` reports the lyrics status and why the last lookup
+  failed.
+
 # 1.5.3 — Poster block identity (16 October 2026)
 
 - New identity: the AFTER/GLOW poster-block wordmark in Archivo; new launcher icons
