@@ -15,6 +15,13 @@
     display: none; position: fixed; left: 10vw; right: 10vw; top: 46%;
     text-align: center; color: var(--paper-2); font-size: 3vh; transition: transform 4s linear;
   }
+  /* Waiting for music, a passing state: the small wordmark above the line,
+     an x-height clear of it; the pair stays centred where the line was. */
+  #message.waiting { margin-top: -8.4vh; }
+  #message.waiting::before {
+    content: ""; display: block; width: 24.93vh; height: 5vh; margin: 0 auto 3.4vh;
+    background: url(brand/afterglow-wordmark-paper.svg) no-repeat 0 0; background-size: 100% 100%;
+  }
   #hint {
     position: fixed; right: 5vw; bottom: 5vh; padding: 1.2vh 1.2vw;
     background: var(--ink); color: var(--paper); font-size: 2.2vh; font-weight: 600;
@@ -57,13 +64,20 @@
   #scan .scan-title { font-size: 5vh; font-weight: 820; font-stretch: 82%; margin-bottom: 1vh; }
   #scan .scan-detail { color: var(--paper-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #scan .scan-hint { color: var(--paper-2); font-size: 2.2vh; margin-top: 1.5vh; }
+  /* Sign-in is the brand scene (docs/brand): sky down to the horizon at 35vh,
+     the wordmark standing on it at column 5 with its sun setting, the form
+     below on the ink ground. The h1's SVG is as wide as the fields (44vw) and
+     its baseline is 80.91% of its height down, so the horizon and the
+     baseline are one line at any aspect ratio. */
   #login {
     display: none; position: fixed; left: 0; top: 0; width: 100%; height: 100%;
-    flex-direction: column; align-items: flex-start; justify-content: center; box-sizing: border-box; padding: 0 0 0 35.42vw;
+    flex-direction: column; align-items: flex-start; justify-content: flex-start; box-sizing: border-box; padding: 42vh 0 0 35.42vw;
     background: var(--ink); color: var(--paper); font-size: 2.6vh;
   }
-  #login h1 { font-size: 12.6vh; line-height: .9; font-weight: 820; font-stretch: 80%; letter-spacing: -.02em; margin: 0 0 2vh; }
-  #login p { color: var(--paper-2); margin: 0 0 5vh; }
+  #login::before { content: ""; position: absolute; left: 0; top: 0; right: 0; height: 35vh; background: #16233A; }
+  #login h1 { position: absolute; left: 35.42vw; top: calc(35vh - 8.361vw); margin: 0; line-height: 0; }
+  #login h1 svg { display: block; width: 44vw; height: 10.333vw; }
+  #login p { color: var(--paper-2); margin: 0 0 3.4vh; }
   #login .field, #login .button {
     width: 44vw; margin: 0; padding: 1.8vh 1vw; box-sizing: border-box;
     border-bottom: var(--hair) solid var(--rule);
@@ -77,7 +91,7 @@
   #login .button { margin-top: 3vh; font-weight: 800; background: var(--field-a); color: var(--on-a); border: 0; }
   #login .focus, #login .button.focus { background: var(--paper); color: var(--ink); }
   #login .login-error { color: var(--paper); font-weight: 700; min-height: 3vh; margin-top: 2vh; max-width: 44vw; }
-  #login .login-note { color: var(--paper-2); font-size: 2vh; margin-top: 4vh; max-width: 44vw; line-height: 1.4; }
+  #login .login-note { color: var(--paper-2); font-size: 2vh; margin-top: 3vh; max-width: 44vw; line-height: 1.4; }
   #debug {
     display: none; position: fixed; left: 2vw; top: 3vh; max-width: 90vw;
     padding: 1vh 1vw; background: rgba(18, 20, 23, 0.86); color: var(--paper);
@@ -104,7 +118,7 @@
   <div class="scan-hint"></div>
 </div>
 <div id="login">
-  <h1>Afterglow</h1>
+  <h1><svg viewBox="0 0 844.8 198.4" role="img" aria-label="Afterglow" focusable="false"><path fill="#242A47" d="M741.8 109.11C741.8 127.74 737.05 145.26 728.68 160.53H540.7C532.34 145.26 527.58 127.74 527.58 109.11C527.58 49.96 575.54 2 634.69 2C693.85 2 741.8 49.96 741.8 109.11Z"/><path fill="#46394A" d="M713.75 122.58C713.75 136.33 710.24 149.26 704.07 160.53H565.32C559.15 149.26 555.63 136.33 555.63 122.58C555.63 78.91 591.03 43.52 634.69 43.52C678.36 43.52 713.75 78.91 713.75 122.58Z"/><path fill="#EEB875" d="M685.7 136.04C685.7 144.92 683.43 153.26 679.45 160.53H589.94C585.95 153.26 583.69 144.92 583.69 136.04C583.69 107.87 606.52 85.04 634.69 85.04C662.86 85.04 685.7 107.87 685.7 136.04Z"/><path fill="#EFEBE3" d="M439.93 196.4H488.76Q499.24 196.4 507.72 192.48Q516.2 188.56 521.22 181.57Q526.24 174.58 526.24 165.3Q526.24 153 518.79 145.11Q511.34 137.22 497.34 137.22H460.45Q455.11 137.22 453 135.5Q450.9 133.78 450.9 131.41Q450.9 128.8 453.28 127.26Q455.67 125.72 460.78 125.72H475.02Q486.83 125.72 495.94 122.11Q505.04 118.51 510.22 111.48Q515.4 104.45 515.4 94.05Q515.4 87.71 512.69 82.22Q509.98 76.73 505.04 72.73Q511.62 71.07 516.33 67.94Q521.04 64.81 523.6 59.8Q526.15 54.78 526.15 47.63H500.06Q499.97 50.42 497.21 55.19Q494.45 59.97 487.2 64.38Q483.79 63.42 479.52 62.94Q475.25 62.46 469.87 62.46Q456.58 62.46 446.21 65.82Q435.85 69.18 429.99 76.11Q424.13 83.05 424.13 94.15Q424.13 101.72 428.17 107.93Q432.21 114.13 438.85 118.31Q431.7 119.88 426.46 124.87Q421.22 129.85 421.22 136.96Q421.22 142.05 423.81 146.09Q426.4 150.12 430.68 152.8Q424.84 155.36 420.2 160.54Q415.56 165.73 415.56 173.43Q415.56 180.32 418.92 185.52Q422.28 190.72 427.87 193.56Q433.46 196.4 439.93 196.4ZM120.03 160.53H149.84V86.29H179.69V137.81Q179.69 145.8 182.92 151.4Q186.15 157 192.58 159.85Q199 162.71 208.41 162.71Q211.36 162.71 215.01 162.3Q218.66 161.9 222.19 161.16Q225.71 160.43 228.13 159.6V141.06H218.69Q213.5 141.06 211.5 138.37Q209.5 135.69 209.5 130.58V86.29H228.13V64.64H209.5V36.61H186.81L180.73 64.64H149.84V57.58Q149.84 52.99 151.93 50.79Q154.02 48.6 159.11 48.6H167.81V29.98Q165.7 29.15 162.56 28.46Q159.42 27.78 156.15 27.36Q152.89 26.95 150.16 26.95Q140.21 26.95 133.5 30.24Q126.79 33.54 123.41 40.21Q120.03 46.88 120.03 56.9V64.64H106.41V86.29H120.03ZM721.14 160.53H751.03L761.22 121.98Q762.56 117.2 763.61 112.88Q764.66 108.56 765.46 105.09Q766.25 101.62 766.54 99.65H767.44Q768.08 102.55 769 106.57Q769.92 110.59 770.97 114.7Q772.02 118.82 772.84 122.08L782.77 160.53H812.66L844.8 64.64H815.9L805.67 104.59Q804.93 107.81 803.9 112.03Q802.88 116.24 801.9 120.32Q800.91 124.4 800.25 127.38H799.06Q798.3 123.93 797.23 119.56Q796.16 115.2 795.22 111.04Q794.29 106.89 793.56 104.34L783.51 64.64H753.06L743.16 104.16Q742.48 107.13 741.5 111.05Q740.52 114.98 739.54 119.2Q738.57 123.41 737.54 127.38H736.35Q735.68 124.66 734.69 120.45Q733.7 116.23 732.72 111.83Q731.75 107.42 730.85 104.31L720.74 64.64H689.02ZM32.18 162.71Q40.03 162.71 46.11 161.12Q52.18 159.53 56.85 156.68Q61.52 153.83 65.01 150.2H66.2Q67.39 154.01 70.38 156.82Q73.38 159.63 78.04 161.13Q82.71 162.63 88.83 162.63Q94.81 162.63 99.11 161.53Q103.4 160.43 105.42 159.4V141.06H99.2Q96.54 141.06 94.84 139.26Q93.13 137.45 93.13 134.29V93.33Q93.13 82.5 87.47 75.72Q81.8 68.94 71.81 65.7Q61.82 62.46 48.62 62.46Q34.49 62.46 24.42 65.94Q14.36 69.42 9 75.77Q3.64 82.12 3.64 90.7V92.39Q3.64 93.1 3.82 93.91H33V92.35Q33 89.41 34.8 87.34Q36.6 85.27 40.13 84.13Q43.65 82.99 48.41 82.99Q53.65 82.99 56.87 84.55Q60.09 86.11 61.71 88.94Q63.33 91.77 63.33 95.86V102Q48.75 102 37.05 103.45Q25.35 104.89 17.09 108.57Q8.83 112.25 4.42 118.86Q0 125.47 0 135.79Q0 143.83 2.75 149.09Q5.49 154.36 10.17 157.34Q14.84 160.31 20.57 161.51Q26.29 162.71 32.18 162.71ZM289.89 162.71Q300.98 162.71 309.75 160.33Q318.53 157.95 324.71 153.33Q330.88 148.72 334.12 141.89Q337.35 135.06 337.35 126.26H308.3Q308.3 129.92 307.1 132.88Q305.9 135.84 303.52 137.92Q301.13 140 297.64 141.09Q294.15 142.18 289.58 142.18Q282.08 142.18 277.47 139.47Q272.87 136.77 270.75 131.42Q268.63 126.06 268.47 118.44H337.35V112.08Q337.35 94.89 331.73 83.95Q326.11 73.02 315.26 67.74Q304.41 62.46 288.7 62.46Q272.83 62.46 261.6 67.92Q250.38 73.39 244.39 84.44Q238.41 95.5 238.41 112.58Q238.41 129.78 244.44 140.88Q250.48 151.98 262 157.34Q273.52 162.71 289.89 162.71ZM537.65 160.53H567.45V28.8H537.65ZM353.73 160.53H383.54V114.79Q383.54 108.83 384.84 104.26Q386.15 99.7 388.85 96.57Q391.56 93.45 395.78 91.9Q399.99 90.35 405.73 90.35H415.13V64.29Q413.86 63.65 411.16 63Q408.45 62.36 405.15 62.36Q399.44 62.36 394.86 64.52Q390.28 66.68 387.05 70.54Q383.82 74.4 381.7 79.44H380.43L378.32 64.64H353.73ZM454.26 178.12Q450.01 178.12 447.24 175.53Q444.47 172.94 444.47 168.76Q444.47 164.58 447.28 162.14Q450.09 159.7 454.26 159.7H486.37Q490.54 159.7 493.44 162.06Q496.35 164.43 496.35 168.86Q496.35 171.59 494.95 173.72Q493.55 175.85 491.16 176.99Q488.77 178.12 485.71 178.12ZM469.76 108.3Q464.5 108.3 460.86 106.69Q457.23 105.08 455.39 101.86Q453.54 98.63 453.54 94.05Q453.54 87.03 457.92 83.46Q462.29 79.88 469.76 79.88Q477.62 79.88 481.9 83.46Q486.18 87.03 486.18 94.05Q486.18 101.06 481.9 104.68Q477.62 108.3 469.76 108.3ZM43.26 142.14Q39.42 142.14 36.43 141.13Q33.44 140.11 31.75 137.9Q30.06 135.69 30.06 132.22Q30.06 127.33 34.02 124.27Q37.98 121.21 45.46 119.74Q52.93 118.27 63.33 118.27V124.71Q63.33 128.54 61.83 131.78Q60.33 135.03 57.66 137.29Q54.99 139.56 51.31 140.85Q47.63 142.14 43.26 142.14ZM268.73 102Q269.54 95.74 271.89 91.57Q274.24 87.4 278.61 85.24Q282.99 83.07 289.49 83.07Q293.56 83.07 296.77 84.2Q299.98 85.33 302.24 87.72Q304.5 90.1 305.71 93.64Q306.93 97.18 306.93 102Z"/></svg></h1>
   <p>Sign in to Music Assistant</p>
   <div class="field"><label for="login-host">Address</label><input id="login-host" type="text" placeholder="192.168.1.10 or host:8095" autocomplete="off" spellcheck="false"></div>
   <div class="field"><label for="login-user">Username</label><input id="login-user" type="text" autocomplete="off" spellcheck="false"></div>

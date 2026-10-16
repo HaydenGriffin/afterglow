@@ -8,6 +8,7 @@
   "appDescription": "Music Assistant TV companion: MilkDrop visuals, artwork, lyrics and playback",
   "icon": "icon.png",
   "largeIcon": "largeIcon.png",
+  "splashBackground": "splash.png",
   "iconColor": "#16233A",
   "disableBackHistoryAPI": true
 }

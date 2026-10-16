@@ -208,6 +208,11 @@
 .menu-body { height: 100%; display: flex; flex-direction: column; }
 #menu h2 { flex-shrink: 0; margin: 0 0 1vh; padding-bottom: 2vh; font-size: 9vh; line-height: .92; font-weight: 820; font-stretch: 80%; letter-spacing: -.02em; border-bottom: var(--hair) solid var(--rule); }
 #menu h3 { margin: 3.4vh 0 .6vh; font-size: 2.2vh; font-weight: 800; letter-spacing: .02em; color: var(--paper-2); }
+/* About: the wordmark over the label column, the version in the values column; quiet, at the list's end.
+   No taller than a row, so the row of context scroll-cue.js keeps below the last row shows all of it. */
+.menu-about { display: flex; justify-content: space-between; align-items: flex-end; padding: 2.4vh 1vw .6vh; }
+.menu-about img { display: block; width: 14.96vh; height: 3vh; }
+.menu-about span { margin-bottom: .3vh; font-size: 2vh; font-weight: 500; color: var(--paper-2); font-variant-numeric: tabular-nums; }
 .sync-figure { padding: 6.4vh 1vw 1vh; border-bottom: var(--hair) solid var(--rule); }
 .sync-scale { position: relative; height: 5vh; border-top: var(--hair) solid var(--rule); margin: 0 1vw; top: 2.4vh; }
 .sync-mark { position: absolute; top: -1.6vh; width: .5vw; height: 3.2vh; margin-left: -.25vw; background: var(--paper); }

@@ -48,6 +48,18 @@ that is why the horizon sits low (70 % down) and `iconColor` in `app/appinfo.jso
 The SVGs are the masters. They were drawn with a small Python script (fontTools and skia-pathops over
 `app/fonts/archivo-latin.woff2`) that is not part of this repository; edit the SVGs, not the PNGs.
 
+## In the app
+
+The logo appears only on screens you pass through or open on purpose, never on the now-playing or idle poster:
+the TV is an OLED and a still logo would burn in.
+
+- **Launch splash:** `app/splash.png` (1920 × 1080, `splashBackground` in `app/appinfo.json`), the scene with the
+  word centred, as on the PS5.
+- **Sign-in:** the scene drawn by CSS and an inline SVG in `app/index.html`: sky down to the horizon at 35vh,
+  the word with its glow standing on it at column 5, as wide as the fields (44vw), the form below on ink.
+- **Waiting for music:** `app/brand/afterglow-wordmark-paper.svg` (a copy of the master) above the line.
+- **Settings:** the same file at the foot of the list, with the version.
+
 ## Clear space and minimum size
 
 Keep clear space of one x-height round the wordmark, and use it at 96 px wide or more. Use the icon master down to

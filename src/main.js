@@ -37,8 +37,22 @@ const TRACK_CARD_MS = 9000;
 const TRACK_MODES = ["start", "always", "off"];
 const DIM_CHOICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]; // percent
 const RENEW_CHECK_MS = 8000; // after launch
+const APP_VERSION = typeof AFTERGLOW_VERSION === "string" ? AFTERGLOW_VERSION : "dev";
 
 let booted = false;
+
+// The foot of Settings: the wordmark and the version, quiet. Never on the
+// posters: a still logo would burn into the OLED.
+function aboutFooter(box) {
+  box.className = "figure menu-about";
+  const mark = document.createElement("img");
+  mark.src = "brand/afterglow-wordmark-paper.svg";
+  mark.alt = "Afterglow";
+  const version = document.createElement("span");
+  version.textContent = "Version " + APP_VERSION;
+  box.appendChild(mark);
+  box.appendChild(version);
+}
 
 function boot(event) {
   if (booted) return;
@@ -560,6 +574,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     { label: "Check my setup", value: () => setupCheck.summary, change() { menu.close(); setupView.open(() => menu.open()); } },
     { label: "Debug readout", value: () => (debug.visible ? "On" : "Off"), change: () => debug.show(!debug.visible) },
     { label: "Log out", visible: () => !!live, value: () => (auth ? auth.user + " @ " + auth.host : "dev token"), change: logOut },
+    { figure: aboutFooter },
   ], { onBack: () => playerView.open() });
 
   const playback = live || createMockPlayback();
@@ -596,7 +611,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   debug = createDebug(byId("debug"), () =>
     Object.assign(
       {
-        version: typeof AFTERGLOW_VERSION === "string" ? AFTERGLOW_VERSION : "dev",
+        version: APP_VERSION,
         preset: milkdrop.presetPosition + " " + milkdrop.presetName,
         list: listText() + ", validated " + milkdrop.validatedCount + "/" + milkdrop.presetCount + " at " + milkdrop.validateFps + " fps",
         favorites: milkdrop.favoriteCount,
@@ -627,7 +642,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   // Read-only, bounded diagnostic snapshot for the TV soak tool. Deliberately
   // excludes credentials, account identity and track metadata.
   window.afterglowDiagnostics = () => ({
-    version: typeof AFTERGLOW_VERSION === "string" ? AFTERGLOW_VERSION : "dev",
+    version: APP_VERSION,
     preset: milkdrop.presetName,
     fps: engine.fps,
     fpsCap: engine.fpsCap,
@@ -657,6 +672,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     if (idle.showing) { message.style.display = "none"; return; }
     if (playerView && (playerView.mode === "album" || playerView.mode === "lyrics")) { message.style.display = "none"; return; }
     if (milkdropOff) {
+      message.classList.remove("waiting");
       message.textContent = "MilkDrop can't run on this TV: " + milkdropOff + (hasWebGL2() ? " (OK, then MilkDrop, to retry)" : "");
       message.style.display = "block";
       return;
@@ -666,6 +682,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
       return;
     }
     message.textContent = (live && live.problem) || "Waiting for music";
+    message.classList.toggle("waiting", !(live && live.problem));
     message.style.display = "block";
   }
   engine.onIdleChange(refreshMessage);

@@ -4,6 +4,11 @@
   baseline; the launcher icon is a close-up of that sunset, a night sky over dark ground with a two-step glow
   round the sun. New app icons, favicon and social preview; `iconColor` is the sky (`#16233A`). See
   `docs/brand/README.md`.
+- The logo inside the app, only where you pass through or go on purpose, never on the now-playing or idle
+  poster, where a still logo would burn into the OLED: sign-in is the sunset scene, sky over the ink ground
+  with the wordmark standing on the horizon and the form below; the webOS launch splash is the same scene
+  (`splashBackground` in `appinfo.json`); a small wordmark sits above **Waiting for music**; and Settings ends
+  in a quiet About line, the wordmark and the version.
 - Music playing on another speaker can be joined or moved: while Play on this
   TV is on, Queue and Playing on offer **Join <speaker>** (the TV joins that
   speaker's group, where Music Assistant allows it) and **Move here** (the
