@@ -44,13 +44,17 @@ Afterglow is independent of, and not endorsed by, Music Assistant or LG. It bega
   member's own volume.
 - **Idle poster.** With nothing playing, the paused song or recent music is
   set as a poster, one OK away from playing.
+- **Scan to save.** Details shows a QR code that opens the playing song on
+  your phone, on the streaming service it came from.
+- **Check my setup.** A pass/fail list (Music Assistant, sign-in, the TV's
+  speaker, the MilkDrop Visualizer plugin, online lyrics, the preset scan),
+  each failure with one plain next step.
 - **Presets.** 395 MilkDrop presets (through Music Assistant's fork of
   Butterchurn), driven by the waveform Music Assistant streams a few seconds
   ahead, so the picture lands on the beat. **Scan presets** measures each one
   on your TV and keeps a list of the ones it runs smoothly. Presets can take
-  their colours from the artwork, and a preset can be locked to an album or
-  artist. Favourites are shared with Music Assistant's own MilkDrop favourites
-  and between your TVs.
+  their colours from the artwork. Favourites are shared with Music Assistant's
+  own MilkDrop favourites and between your TVs.
 - **Remote keys.** Play/pause, Stop (pauses), fast-forward and rewind (next
   and previous track), plus the colour keys; see
   [Settings and remote keys](docs/settings.md).
@@ -119,6 +123,11 @@ best match). LRCLIB sees the request coming from your network. Turn
 **Online lyrics** off (OK → Display → Lyrics, shown in the Lyrics view) to
 stop it; it is on by default and synced with your other TVs.
 
+**Check my setup** asks lrclib.net for one fixed record (no song, nothing about
+you) to see that it answers, only when you run it and Online lyrics is on. The
+Scan to save code in Details is drawn on the TV from the link Music Assistant
+already has; nothing is sent.
+
 The TV stores its Music Assistant token in the app's own storage, never your
 password. There is no analytics or telemetry. The browser demo requests nothing but its own files.
 
@@ -158,6 +167,7 @@ pull requests are just as welcome.
 - [butterchurn-presets](https://github.com/jberg/butterchurn-presets) (MIT),
   and the MilkDrop preset authors.
 - [sendspin-js](https://github.com/Sendspin/sendspin-js) (Apache-2.0).
+- [QR Code generator](https://github.com/nayuki/QR-Code-generator) by Project Nayuki (MIT), for Scan to save.
 - [Archivo](https://github.com/Omnibus-Type/Archivo) typeface (SIL OFL 1.1).
 - Lyrics fallback by [LRCLIB](https://lrclib.net).
 

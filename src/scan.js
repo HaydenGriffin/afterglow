@@ -150,6 +150,12 @@ export function createScan({ milkdrop, engine, source, overlay, onDone, onNotice
       if (loadPref("scanDone", 0)) return "Done: " + milkdrop.validatedCount + " of " + count + " run well · OK scans again";
       return "Not run · OK starts";
     },
+    // For Check my setup: whether a full pass is done, and how far one got.
+    progress() {
+      const saved = loadPref("scanCursor", null), total = milkdrop.presetCount;
+      const measured = Array.isArray(saved) && saved.length && saved.length < total ? total - saved.length : 0;
+      return { done: !!loadPref("scanDone", 0) && !measured, measured, total };
+    },
     status() {
       return running ? total - queue.length + "/" + total + " (" + (queue[0] || "") + ")" : "idle";
     },

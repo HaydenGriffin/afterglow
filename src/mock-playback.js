@@ -48,10 +48,20 @@ function demoPlayers() {
 
 const cover = key => ({ type: "thumb", path: "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">' + COVERS[key] + "</svg>"), remotely_accessible: true });
 const albumOf = name => ALBUMS.find(a => a[0] === name);
+// Where a demo song lives on public services (Scan to save in Details); the
+// last one has none, so Details shows no code for it. Made-up ids, never fetched.
+function demoMappings(i) {
+  if (i === TRACKS.length - 1) return [{ provider_domain: "filesystem_local", provider_instance: "filesystem--demo", item_id: String(i + 1), url: null }];
+  const id = "afterglowdemo" + String(i + 1).padStart(4, "0");
+  return [
+    { provider_domain: "tidal", provider_instance: "tidal--demo", item_id: id, url: "https://tidal.com/browse/track/" + (900000 + i) },
+    { provider_domain: "spotify", provider_instance: "spotify--demo", item_id: id, url: "https://open.spotify.com/track/" + id },
+  ];
+}
 function track([name, artist, album, duration, art], i) {
   const year = (albumOf(album) || [])[3];
   return { item_id: String(i + 1), provider: "library", media_type: "track", uri: "library://track/" + (i + 1), name, duration, favorite: i % 2 === 0,
-    artists: [{ name: artist }], album: { name: album, year }, metadata: { images: [cover(art)] }, demoArt: art };
+    artists: [{ name: artist }], album: { name: album, year }, metadata: { images: [cover(art)] }, demoArt: art, provider_mappings: demoMappings(i) };
 }
 const LIBRARY = {
   track: TRACKS.map(track),
@@ -78,7 +88,11 @@ function search(args) {
 }
 
 // What the idle poster and Browse show as played lately: every kind, each with a cover.
+// ?mock=1&demo=empty: a library with nothing played and nothing playing, to
+// show the idle poster offering Check my setup.
+const EMPTY = typeof location !== "undefined" && /[?&]demo=empty(&|$)/.test(location.search || "");
 function recentlyPlayed() {
+  if (EMPTY) return [];
   return [LIBRARY.album[2], LIBRARY.track[4], LIBRARY.playlist[0], LIBRARY.album[0], LIBRARY.artist[1], LIBRARY.radio[0], LIBRARY.album[1], LIBRARY.playlist[2]]
     .map(i => Object.assign({ image: i.metadata.images[0] }, i));
 }
@@ -108,8 +122,8 @@ export function createMockPlayback() {
   for (const id in players) queues[id] = { queue_id: id, display_name: players[id].name, state: "idle", current_item: null, repeat_mode: "off", items: 0 };
   // The music: one queue object, moved between speakers by a transfer.
   const queue = queues["demo-living"];
-  Object.assign(queue, { current_index: 0, current_item: tracks[0], next_item: tracks[1], state: "playing" });
-  Object.assign(queues["demo-bedroom"], { current_item: queueItem(LIBRARY.track[5]), state: "paused", items: 1 });
+  if (!EMPTY) Object.assign(queue, { current_index: 0, current_item: tracks[0], next_item: tracks[1], state: "playing" });
+  if (!EMPTY) Object.assign(queues["demo-bedroom"], { current_item: queueItem(LIBRARY.track[5]), state: "paused", items: 1 });
   function select(index) { queue.current_index = Math.max(0, Math.min(tracks.length - 1, index)); refresh(); position = 0; at = Date.now(); }
   function refresh() {
     queue.current_item = tracks[queue.current_index]; queue.next_item = tracks[queue.current_index + 1] || null; queue.items = tracks.length;
@@ -139,7 +153,7 @@ export function createMockPlayback() {
   return {
     mock: true, // no lyrics lookups outside the demo
     get playback() { return { queue, player: players[queue.queue_id], connected: true, position: position + (queue.state === "playing" ? (Date.now() - at) / 1000 : 0) }; },
-    get palette() { return queue.current_item.demoPalette; },
+    get palette() { return queue.current_item ? queue.current_item.demoPalette : null; },
     get track() { return trackOf(queue.current_item); },
     onTrack(fn) { trackListener = fn; announced = queue.current_item ? queue.current_item.queue_item_id : ""; },
     speakers() { return speakersOf(players); },

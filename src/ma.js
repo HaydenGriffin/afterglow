@@ -33,6 +33,7 @@ export function connectApi(host, WebSocketImpl) {
       if (!greeted && message.server_version) {
         greeted = true;
         clearTimeout(timer);
+        api.serverVersion = String(message.server_version); // for Check my setup
         resolve(api);
         return;
       }

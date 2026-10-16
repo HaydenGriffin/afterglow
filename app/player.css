@@ -228,3 +228,28 @@
   .lyric-now { font-size: 5.4vw; }
   .player-panel { left: 20vw; } .transport button { width: 12vw; margin-right: .8vw; }
 }
+
+/* Details: Scan to save, a flat paper square beside the facts (share-link.js). */
+.details-top { display: flex; align-items: flex-start; }
+.details-top .details-facts { flex: 1; min-width: 0; }
+.share-block { flex-shrink: 0; width: 26vh; margin: 2vh 0 3vh 2.5vw; }
+.share-code { display: block; width: 26vh; height: 26vh; }
+.share-label { margin-top: 1.4vh !important; font-size: 2.2vh; font-weight: 700; line-height: 1.25; }
+.share-service { margin-top: .4vh !important; font-size: 2.2vh; font-weight: 500; color: var(--paper-2); }
+
+/* Check my setup (setup-view.js): a sheet where Settings sits. A failed row
+   says so in bold paper with its next step beneath; nothing takes a colour. */
+#setup { display: none; position: fixed; z-index: 3; left: 34.16vw; right: 0; top: 0; bottom: 0; box-sizing: border-box; padding: 6vh 5vw 4vh 1.26vw; background: var(--ground); color: var(--paper); font-family: var(--face); font-size: 2.5vh; }
+.setup-body { height: 100%; display: flex; flex-direction: column; }
+#setup h2 { flex-shrink: 0; margin: 0; font-size: 9vh; line-height: .92; font-weight: 820; font-stretch: 80%; letter-spacing: -.02em; }
+.setup-note { flex-shrink: 0; margin: 1.2vh 0 0; padding-bottom: 2vh; font-size: 2.6vh; font-weight: 600; color: var(--paper-2); border-bottom: var(--hair) solid var(--rule); }
+.scroll-frame > .setup-rows { flex: 1; min-height: 0; overflow-y: auto; }
+.setup-row { padding: 1.5vh 1vw; border-bottom: var(--hair) solid var(--rule); }
+.setup-line { display: flex; justify-content: space-between; line-height: 1.3; font-weight: 600; }
+.setup-line span:last-child { margin-left: 2vw; text-align: right; white-space: nowrap; font-weight: 500; color: var(--paper-2); font-variant-numeric: tabular-nums; }
+.setup-row.fail .setup-line span:last-child, .setup-row.busy .setup-line span:last-child { color: inherit; font-weight: 800; }
+.setup-next { margin: .5vh 0 0; font-size: 2.2vh; font-weight: 500; line-height: 1.35; color: var(--paper-2); }
+.setup-row.again { margin-top: 2vh; font-weight: 700; }
+.setup-row.focus { background: var(--paper); color: var(--ink); }
+.setup-row.focus .setup-line span:last-child, .setup-row.focus .setup-next { color: var(--ink); }
+#message .setup-offer { display: block; margin-top: 1.4vh; font-size: 2.2vh; color: var(--paper-2); }

@@ -23,6 +23,18 @@
   preset list, favourites and skip-slow as the timer does.
 - In Shuffled order, ↓ now goes back to the preset actually shown before (the last 50), and ↑ forward again,
   instead of another random pick.
+- **Scan to save:** Details shows a QR code beside the facts that opens the
+  playing song on a phone, on a public service Music Assistant knows it from
+  (Spotify, Tidal, Apple Music, YouTube Music, Deezer, Qobuz, SoundCloud),
+  preferring the one it plays from. Drawn on the TV with Project Nayuki's QR
+  Code generator (MIT); hidden when the song has no public page.
+- **Check my setup** (Settings, Account & diagnostics): Music Assistant
+  reachable and 2.10 or newer, the token accepted, this TV's speaker known and
+  connected, the MilkDrop Visualizer plugin found, lrclib.net answering (busy
+  is not a failure) and the preset scan done, each failure with one next step.
+  Runs only when asked. An empty idle poster offers it as **Check setup**.
+- README: the per-album and per-artist preset locks removed in 1.5.2 are no
+  longer described.
 
 # 1.5.5 — Lyric overlay looks and More cues (16 October 2026)
 

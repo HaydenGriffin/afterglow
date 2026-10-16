@@ -2,7 +2,8 @@
 // It operates only on demo music; refuses a live Music Assistant page.
 (async () => {
   if (!new URLSearchParams(location.search).has('mock')) throw Error('Use ?mock=1');
-  const assert = (ok, message) => { if (!ok) throw Error(message); };
+  let passed = 0;
+  const assert = (ok, message) => { if (!ok) throw Error(message); passed++; };
   const key = code => window.dispatchEvent(new KeyboardEvent('keydown', { keyCode: code }));
   const wait = (ms = 350) => new Promise(resolve => setTimeout(resolve, ms));
   const OK = 13, BACK = 27, LEFT = 37, UP = 38, RIGHT = 39, DOWN = 40;
@@ -162,6 +163,28 @@
   // Details: the back of the poster carries the stream's format.
   await closeAll(); key(OK); await wait(); document.querySelector('[aria-label="Details"]').click(); await wait(800);
   assert(/FLAC|OGG/.test(document.querySelector('.details-facts').textContent), 'Details show the stream format');
+  // Scan to save: the song's public page as a code beside the facts.
+  const share = document.querySelector('.details-top .share-block');
+  assert(share && share.querySelector('svg.share-code path').getAttribute('d').length > 100, 'Details show a Scan to save code');
+  assert(share.querySelector('.share-label').textContent === 'Scan to open on your phone' && share.querySelector('.share-service').textContent === 'Spotify', 'The code is labelled with its service');
+  const code = share.getBoundingClientRect(), factsBox = document.querySelector('.details-facts').getBoundingClientRect();
+  assert(code.left >= factsBox.right && Math.abs(code.width - innerHeight * 0.26) < 2, 'The code sits beside the facts, 26vh wide');
+  await closeAll();
+
+  // Check my setup: Settings, last section; it runs at once and lists pass and fail with next steps.
+  await closeAll(); key(OK); await wait(); key(UP); key(LEFT); key(RIGHT); key(RIGHT); key(RIGHT); await wait(100); key(OK); await wait(500);
+  key(UP); key(UP); await wait();
+  assert(document.querySelector('#menu .row.focus').firstChild.textContent === 'Check my setup', 'Check my setup sits at the end of Settings');
+  key(OK); await wait(200);
+  const setup = document.getElementById('setup');
+  assert(getComputedStyle(setup).display === 'block' && setup.querySelector('.setup-note').textContent === 'Checking…', 'It opens and starts checking');
+  await wait(2000);
+  const setupRows = Array.from(setup.querySelectorAll('.setup-row')).map(r => r.querySelector('.setup-line').firstChild.textContent);
+  assert(setupRows[0] === 'Music Assistant' && setupRows[setupRows.length - 1] === 'Check again', 'Rows run from Music Assistant to Check again');
+  assert(setup.querySelector('.setup-row.busy .setup-next').textContent === 'LRCLIB is busy. Lyrics are tried again by themselves.', 'Busy lyrics say what happens next');
+  key(BACK); await wait();
+  assert(getComputedStyle(setup).display === 'none' && document.getElementById('menu').style.display === 'block', 'Back returns to Settings');
+  assert(document.querySelector('#menu .row.focus').lastChild.textContent !== 'Not run', 'Settings shows the result');
   await closeAll();
 
   // Idle: pause, and after half a minute the recent music is set as a poster; OK resumes.
@@ -194,5 +217,5 @@
   assert(shownPreset() === second, 'Previous returns to the preset shown before');
   key(DOWN); await wait();
   assert(shownPreset() === first, 'and the one before that');
-  return { passed: 40, viewport: [innerWidth, innerHeight] };
+  return { passed, viewport: [innerWidth, innerHeight] };
 })()

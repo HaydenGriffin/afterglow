@@ -8,6 +8,7 @@ import { FIRST_ENABLED, focusRow } from "./focus.js";
 import { KIND_PREF, LOOK_PREFS, LOOK_ROWS, OVERLAY_LABELS, overlayKind, overlayLook, placeOverlay, stepKind, stepLook } from "./lyric-overlay.js";
 import { createProgressSmoother, progressTransform } from "./progress.js";
 import { createScrollCue } from "./scroll-cue.js";
+import { appendDetailsTop } from "./share-link.js";
 import { joinPlan, leaderName, memberVolumes, speakerActivity } from "./speaker-group.js";
 
 // Drawn UI runs at 4 Hz, independently of the visualizer. Text only changes
@@ -249,7 +250,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     describeStream(item, providers).forEach(f => {
       const dt = document.createElement("dt"), dd = document.createElement("dd"); text(dt, f.label); text(dd, f.value); facts.appendChild(dt); facts.appendChild(dd);
     });
-    if (facts.children.length) el(".panel-items").appendChild(facts);
+    appendDetailsTop(el(".panel-items"), facts, item); // the facts, and the Scan to save code beside them
     const disabled = !s.connected || s.busy || !s.track;
     addRow("Start radio from this song", "Replaces the queue", () => command("radio"), disabled);
     addRow("Add to favourites", "", () => command("favorite"), disabled);
