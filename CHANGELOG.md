@@ -1,4 +1,4 @@
-# Unreleased
+# 1.5.6 — New logo, playlists and cover art in the visuals (16 October 2026)
 
 - **New logo.** The wordmark is *afterglow* in lowercase Archivo with its o as the sun, setting below the
   baseline; the launcher icon is a close-up of that sunset, a night sky over dark ground with a two-step glow
