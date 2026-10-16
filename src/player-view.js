@@ -8,6 +8,8 @@ import { FIRST_ENABLED, focusRow } from "./focus.js";
 import { KIND_PREF, LOOK_PREFS, LOOK_ROWS, OVERLAY_LABELS, overlayKind, overlayLook, placeOverlay, stepKind, stepLook } from "./lyric-overlay.js";
 import { createProgressSmoother, progressTransform } from "./progress.js";
 import { createScrollCue } from "./scroll-cue.js";
+import { createLyricsTools } from "./lyrics-tools.js";
+import { mockCandidates, mockLyricsGet } from "./mock-lyrics.js";
 
 // Drawn UI runs at 4 Hz, independently of the visualizer. Text only changes
 // when its value changes; artwork is requested once per URL at 512 pixels.
@@ -19,7 +21,11 @@ const SLEEP_MINUTES = [0, 15, 30, 45, 60, 90];
 export function createPlayerView({ root, live, host, engine, onSettings, onMode, onNotice }) {
   let lyricsOffsetMs = loadPref("lyricsOffsetMs", 0);
   let onlineLyrics = loadPref("onlineLyrics", true); // Off: nothing is asked of lrclib.net
-  const model = createPlayback({ live, host, lyricsSearch: live.mock ? null : undefined, onlineLyrics: () => onlineLyrics, lyricsOffset: () => lyricsOffsetMs });
+  const model = createPlayback({ live, host, lyricsSearch: live.mock ? null : undefined, onlineLyrics: () => onlineLyrics, lyricsOffset: (track, lyrics) => lyricsTools.offsetFor(track, lyrics),
+    lyricsChoice: uri => lyricsTools.lyricsChoice(uri), lyricsGet: live.mock ? mockLyricsGet : undefined, onChoiceGone: uri => lyricsTools.choiceGone(uri) });
+  const lyricsTools = createLyricsTools({ model, prefs: { load: loadPref, save: savePref }, device: () => lyricsOffsetMs,
+    setDevice: ms => { lyricsOffsetMs = ms; savePref("lyricsOffsetMs", ms); }, online: () => onlineLyrics, onNotice,
+    seek: at => command("seek", at), closePanel: () => { close(); el(".panel-items").textContent = ""; }, search: live.mock ? mockCandidates : undefined });
   let mode = loadPref("viewMode", "track");
   if (VIEW_MODES.indexOf(mode) < 0) mode = "track";
   let background = loadPref("playerBackground", false);
@@ -118,7 +124,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     root.classList.add("controls-open"); root.classList.remove("panel-open"); root.removeAttribute("data-panel"); touch(); render(); focusButton();
   }
   function openPanel(which) {
-    panel = which; focus = FIRST_ENABLED; optionKey = ""; queueKey = ""; detailsKey = ""; queuePick = null; picking = grouping = false;
+    lyricsTools.back(); panel = which; focus = FIRST_ENABLED; optionKey = ""; queueKey = ""; detailsKey = ""; queuePick = null; picking = grouping = false;
     root.classList.remove("controls-open"); root.classList.add("panel-open");
     root.setAttribute("data-panel", which);
     model.wantQueue(which === "queue"); model.tick();
@@ -205,21 +211,21 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     return button;
   }
   function display(s) {
-    const stateKey = JSON.stringify([panel, mode, background, overlay, looks[overlay], s.lyrics.status, plainPage, lyricsOffsetMs, onlineLyrics]);
+    const stateKey = JSON.stringify([panel, mode, background, overlay, looks[overlay], s.lyrics.status, plainPage, lyricsOffsetMs, onlineLyrics, lyricsTools.key(s)]);
     if (stateKey === optionKey) return false;
     optionKey = stateKey; el(".panel-items").textContent = "";
+    if (lyricsTools.drawPage("display", s, panelUi)) return true;
     text(el(".player-panel h2"), "Display");
     text(el(".player-panel .panel-note"), "Saved on this TV.");
     VIEW_MODES.forEach(value => addRow(VIEW_LABELS[value], "", () => setMode(value)).classList.toggle("chosen", mode === value));
     if (mode === "lyrics" || overlay !== "off") {
       heading("Lyrics");
-      addRow("Lyrics timing", lyricsOffsetMs ? (Math.abs(lyricsOffsetMs) / 1000).toFixed(1) + " s " + (lyricsOffsetMs > 0 ? "later" : "earlier") : "With the music",
-        dir => { lyricsOffsetMs = Math.max(-10000, Math.min(10000, lyricsOffsetMs + dir * 100)); savePref("lyricsOffsetMs", lyricsOffsetMs); }, false, true);
-      if (lyricsOffsetMs) addRow("Reset lyrics timing", "", () => { lyricsOffsetMs = 0; savePref("lyricsOffsetMs", 0); });
+      lyricsTools.timingRows(s, panelUi);
       addRow("Online lyrics", onlineLyrics ? "On" : "Off", () => {
         onlineLyrics = !onlineLyrics; savePref("onlineLyrics", onlineLyrics);
         if (onlineLyrics && model.snapshot().lyrics.status === "missing") model.retryLyrics();
       }, false, true);
+      lyricsTools.chooseRow(s, panelUi);
       if (s.lyrics.status === "error" || s.lyrics.status === "missing") addRow("Retry lyrics", "", () => model.retryLyrics());
     }
     heading("Extras");
@@ -230,6 +236,8 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     if (s.lyrics.status === "plain") addRow("Lyrics page", plainPage + 1, dir => { plainPage = Math.max(0, plainPage + dir); lyricsKey = ""; }, false, true);
     return true;
   }
+  // What the lyrics tools (lyrics-tools.js) draw a panel with.
+  const panelUi = { addRow, heading, title: v => text(el(".player-panel h2"), v), note: v => text(el(".player-panel .panel-note"), v), setFocus: i => { focus = i; } };
   async function readProviders() {
     if (providers) return;
     // A failure is not kept: the next look at the details asks again.
@@ -239,9 +247,10 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   // The back of the poster: what the song is and how it sounds, then what you can do with it.
   function details(s) {
     const item = s.queue && s.queue.current_item;
-    const signature = JSON.stringify([item && item.queue_item_id, !!providers, s.connected, s.busy, s.queue && s.queue.display_name]);
+    const signature = JSON.stringify([item && item.queue_item_id, !!providers, s.connected, s.busy, s.queue && s.queue.display_name, s.lyrics.status, lyricsTools.key(s)]);
     if (signature === detailsKey) return false;
     detailsKey = signature; el(".panel-items").textContent = "";
+    if (lyricsTools.drawPage("details", s, panelUi)) return true;
     text(el(".player-panel h2"), s.track ? s.track.title : "Nothing playing");
     text(el(".player-panel .panel-note"), s.track ? [s.track.artist, s.queue.display_name].filter(Boolean).join(" · ") : "");
     const facts = document.createElement("dl"); facts.className = "details-facts";
@@ -252,6 +261,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     const disabled = !s.connected || s.busy || !s.track;
     addRow("Start radio from this song", "Replaces the queue", () => command("radio"), disabled);
     addRow("Add to favourites", "", () => command("favorite"), disabled);
+    lyricsTools.lineRow(s, panelUi);
     return true;
   }
   function setPreferred(id) { savePref("preferredPlayer", id); live.setPreferred(id); }
@@ -378,6 +388,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     const s = model.snapshot(), track = s.track;
     applyColours(!!track);
     const nextTrackKey = s.queue ? s.queue.queue_id + ":" + (track ? track.id : "") : "";
+    lyricsTools.tick(s);
     if (nextTrackKey !== trackKey) {
       trackKey = nextTrackKey; lyricsKey = ""; plainPage = 0;
 
@@ -471,7 +482,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     },
     reloadPrefs() {
       lyricsOffsetMs = loadPref("lyricsOffsetMs", 0); onlineLyrics = loadPref("onlineLyrics", true); const next = loadPref("viewMode", "track"); if (VIEW_MODES.indexOf(next) >= 0) mode = next; background = loadPref("playerBackground", false);
-      overlay = overlayKind(loadPref(KIND_PREF, false)); looks.line = overlayLook("line", loadPref(LOOK_PREFS.line, null)); looks.stage = overlayLook("stage", loadPref(LOOK_PREFS.stage, null));
+      lyricsTools.reload(); overlay = overlayKind(loadPref(KIND_PREF, false)); looks.line = overlayLook("line", loadPref(LOOK_PREFS.line, null)); looks.stage = overlayLook("stage", loadPref(LOOK_PREFS.stage, null));
       applyMode();
     },
     // What the lyric overlay keeps clear of: the track card's height (px, 0
@@ -489,6 +500,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       if (!panel) return false;
       touch();
       if (panel === "browse") { browse.handleKey(name); return true; }
+      if (name === "back" && lyricsTools.page) { lyricsTools.back(); focus = FIRST_ENABLED; optionKey = ""; detailsKey = ""; render(); return true; }
       if (name === "back" && panel === "queue" && (queuePick || picking || grouping)) { queuePick = null; picking = grouping = false; focus = FIRST_ENABLED; queueKey = ""; render(); return true; }
       if (name === "back") { if (panel === "controls") close(); else openControls(); return true; }
       const list = buttons();

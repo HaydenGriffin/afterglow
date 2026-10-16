@@ -1,5 +1,6 @@
 // TV presentation data and commands. Music Assistant remains the playback owner.
-import { searchLyrics } from "./lrclib.js";
+import { getLyrics, searchLyrics } from "./lrclib.js";
+import { fingerprint } from "./song-lyrics.js";
 import { authority } from "./relay.js";
 
 export const VIEW_MODES = ["visuals", "track", "album", "lyrics"];
@@ -79,7 +80,13 @@ export function parseLyrics(value) {
   }
   return rows.sort((a, b) => a.at - b.at).slice(0, 2000);
 }
-function firstArtist(media) { return ((media && media.artists) || []).map(a => a.name).filter(Boolean)[0] || ""; }
+// source: "ma", "lrclib" (the automatic match) or "chosen"; sum: the
+// fingerprint of the words shown (song-lyrics.js).
+function lyricsValue(lines, plain, lrc, source) {
+  const status = lines.length ? "timed" : plain ? "plain" : "missing";
+  return { status, lines, plain, source: status === "missing" ? "" : source, sum: fingerprint(status === "timed" ? lrc : status === "plain" ? plain : "") };
+}
+export function firstArtist(media) { return ((media && media.artists) || []).map(a => a.name).filter(Boolean)[0] || ""; }
 export function lyricIndex(lines, position) {
   let lo = 0, hi = lines.length;
   while (lo < hi) { const mid = (lo + hi) >> 1; if (lines[mid].at <= position) lo = mid + 1; else hi = mid; }
@@ -108,7 +115,11 @@ const LYRICS_RETRY_MS = [30000, 60000, 120000];
 
 // lyricsSearch: the fallback when Music Assistant has no lyrics (lrclib.js); null for none.
 // onlineLyrics: the "Online lyrics" setting; while it is false the fallback is not asked.
-export function createPlayback({ live, host, now = Date.now, lyricsSearch = searchLyrics, onlineLyrics = () => true, lyricsOffset = () => 0 }) {
+// lyricsChoice(uri): the LRCLIB record chosen for a song (song-lyrics.js), 0 for
+// none; it is fetched with lyricsGet instead of asking Music Assistant, and
+// onChoiceGone(uri) hears when LRCLIB no longer has it.
+export function createPlayback({ live, host, now = Date.now, lyricsSearch = searchLyrics, onlineLyrics = () => true, lyricsOffset = () => 0,
+  lyricsChoice = () => 0, lyricsGet = getLyrics, onChoiceGone = () => {} }) {
   let key = "", itemsKey = "", generation = 0, stopped = false;
   let lyrics = { status: "idle", lines: [], plain: "" };
   let lyricsRetries = 0;
@@ -135,7 +146,7 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
     const track = trackInfo(queue && queue.current_item, host);
     return { queue, track, player: current && current.player, connected: !!(current && current.connected),
       position: Math.min(track && track.duration || Infinity, Math.max(0, current && current.position || 0)),
-      lyricPosition: applyPresentationTrim(current && current.lyricPosition != null ? current.lyricPosition : current && current.position || 0, lyricsOffset()),
+      lyricPosition: applyPresentationTrim(current && current.lyricPosition != null ? current.lyricPosition : current && current.position || 0, lyricsOffset(track, lyrics)),
       next: trackInfo(queue && queue.next_item, host), target: targetOf(current), lyrics, items, itemsState, busy, error };
   }
   async function readLyrics(track, gen) {
@@ -144,8 +155,13 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
     if (cache.has(uri)) { lyrics = cache.get(uri); return; }
     lyrics = { status: "loading", lines: [], plain: "" };
     try {
-      let result = null, primaryError = null, timeout;
-      try {
+      let result = null, primaryError = null, timeout, source = "ma";
+      const chosen = onlineLyrics() && lyricsGet ? lyricsChoice(uri) : 0;
+      const picked = chosen ? await lyricsGet(chosen) : null;
+      if (gen !== generation || stopped) return;
+      if (picked) { result = [picked.plain, picked.lrc]; source = "chosen"; }
+      else if (chosen) onChoiceGone(uri);
+      if (!result) try {
         // A provider can keep retrying past the API's own timeout. Let the
         // direct lookup recover without making the screen wait for all retries.
         result = await Promise.race([
@@ -158,13 +174,13 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
       const search = onlineLyrics() ? lyricsSearch : null;
       if (!(result && (result[0] || result[1])) && search) {
         const found = await search({ title: track.title, artist: firstArtist(track.media), album: track.album, duration: track.duration });
-        if (found) result = [found.plain, found.lrc];
+        if (found) { result = [found.plain, found.lrc]; source = "lrclib"; }
         // Only a clean answer from both is "missing"; a failed lookup is retried.
         else if (primaryError) throw primaryError;
       } else if (primaryError) throw primaryError;
       const lines = parseLyrics(result && result[1]);
       const plain = String(result && result[0] || "").slice(0, 50000);
-      const value = { status: lines.length ? "timed" : plain ? "plain" : "missing", lines, plain };
+      const value = lyricsValue(lines, plain, result && result[1], source);
       if (gen !== generation || stopped) return;
       cache.set(uri, value);
       if (cache.size > 3) cache.delete(cache.keys().next().value);
@@ -292,6 +308,16 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
     },
     wantLyrics(on) { lyricsWanted = on; },
     wantQueue(on) { queueWanted = on; if (on) nextQueueRead = 0; },
+    // Show these lyrics for the song now ("Choose other lyrics"); a later
+    // look-up (a retry) asks lyricsChoice again.
+    useLyrics({ plain, lrc }) {
+      const track = snapshot().track;
+      if (!track) return;
+      const value = lyricsValue(parseLyrics(lrc), String(plain || "").slice(0, 50000), lrc, "chosen");
+      cache.set(track.media.uri || track.id, value);
+      if (cache.size > 3) cache.delete(cache.keys().next().value);
+      generation++; lyrics = value;
+    },
     retryLyrics() {
       const track = snapshot().track;
       if (track) cache.delete(track.media.uri || track.id);
