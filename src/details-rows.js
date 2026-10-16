@@ -5,6 +5,7 @@
 import { chapterAt, chaptersOf, clockLabel, isSpokenWord, linksOf, speedLabel, stepSpeed } from "./spoken-word.js";
 
 // Go to the album / artists / podcast, then Speed and Chapters for spoken word.
+// openChapters gets the playing chapter (-1 before the first), where the page opens.
 export function detailsRows(s, { go, setSpeed, openChapters }) {
   const media = s.track && s.track.media;
   const rows = linksOf(media).map(link => ({ label: link.label, value: link.value, run: () => go(link.item) }));
@@ -14,7 +15,7 @@ export function detailsRows(s, { go, setSpeed, openChapters }) {
   const chapters = chaptersOf(media);
   if (chapters.length) {
     const at = chapterAt(chapters, s.position);
-    rows.push({ label: "Chapters", value: at >= 0 ? "Chapter " + (at + 1) + " of " + chapters.length : chapters.length + " chapters", run: openChapters });
+    rows.push({ label: "Chapters", value: at >= 0 ? "Chapter " + (at + 1) + " of " + chapters.length : chapters.length + " chapters", run: () => openChapters(at) });
   }
   return rows;
 }

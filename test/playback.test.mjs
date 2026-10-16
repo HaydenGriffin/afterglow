@@ -25,6 +25,12 @@ test('artwork uses bounded MA imageproxy and rejects non-http external schemes',
   assert.equal(trackInfo(item, 'ma').image, '');
   assert.equal(timeLabel(125), '2:05');
 });
+test('a book names its authors and an episode its podcast where a song names its artist and album', () => {
+  const book = trackInfo({ media_item: { media_type: 'audiobook', name: 'Book', authors: [{ name: 'A. Writer' }, { name: 'B. Writer' }] } }, 'ma');
+  assert.equal(book.artist, 'A. Writer, B. Writer');
+  const episode = trackInfo({ media_item: { media_type: 'podcast_episode', name: 'Ep 1', podcast: { name: 'The Show' } } }, 'ma');
+  assert.equal(episode.album, 'The Show');
+});
 test('lyrics fetched only when wanted; stale song responses cannot overwrite current lyrics', async () => {
   const h = harness(); h.model.tick(); assert.equal(h.calls.length,0);
   h.model.wantLyrics(true); h.model.tick(); assert.equal(h.calls.length,1);

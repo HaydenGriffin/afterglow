@@ -155,6 +155,7 @@ test("an audiobook offers Speed and Chapters, and no radio; a chapter plays from
   assert.equal(h.root.querySelector(".player-panel h2").textContent, "Chapters");
   assert.deepEqual(labels(h), ["Opening", "Middle", "Chapter 3"]);
   assert.ok(h.row("Middle").classList.contains("chosen"), "the playing chapter is ticked");
+  assert.ok(h.row("Middle").classList.contains("selected"), "the page opens on the playing chapter");
   assert.equal(h.row("Chapter 3").children[1].textContent, "1:40");
   h.row("Chapter 3").click(); await settle();
   assert.deepEqual(h.calls[h.calls.length - 1], { command: "player_queues/seek", args: { queue_id: "tv", position: 100 } });

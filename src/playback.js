@@ -27,8 +27,8 @@ export function trackInfo(item, host) {
   const album = media.album || {};
   const image = imageUrl(item.image || thumbOf(media), host, 512);
   return { id: item.queue_item_id, title: media.name || item.name || "Unknown track",
-    artist: (media.artists || []).map(a => a.name).filter(Boolean).join(", "),
-    album: album.name || "", duration: item.duration || media.duration || 0, image, media };
+    artist: (media.artists || media.authors || []).map(a => a.name).filter(Boolean).join(", "),
+    album: album.name || (media.podcast && media.podcast.name) || "", duration: item.duration || media.duration || 0, image, media };
 }
 
 // LRC can contain multiple timestamps per line and a signed millisecond offset

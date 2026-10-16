@@ -261,7 +261,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     if (facts.children.length) el(".panel-items").appendChild(facts);
     const disabled = !s.connected || s.busy || !s.track;
     extraRows(detailsRows(s, { go: item => openPanel("browse", item), setSpeed: speed => command("speed", speed),
-      openChapters: () => { chaptersOpen = true; focus = FIRST_ENABLED; } }), disabled);
+      openChapters: at => { chaptersOpen = true; focus = at >= 0 ? at : FIRST_ENABLED; } }), disabled);
     if (offersRadio(s)) addRow("Start radio from this song", "Replaces the queue", () => command("radio"), disabled);
     addRow("Add to favourites", "", () => command("favorite"), disabled);
     return true;
