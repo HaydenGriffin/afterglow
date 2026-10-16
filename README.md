@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/hero.jpg" alt="Afterglow on a TV: the album artwork, the lyrics with the current line sung word by word, and MilkDrop visuals behind" width="100%">
+  <img src="docs/images/hero.jpg" alt="Afterglow on an LG C1, captured on the TV: the artwork of Flower In A Hurricane, its lyrics with the current line leading, and MilkDrop visuals behind" width="100%">
 </p>
 
 # Afterglow
@@ -57,7 +57,7 @@ Afterglow is independent of, and not endorsed by, Music Assistant or LG. It bega
 - **Kind to OLEDs.** Holds the screensaver off only while music plays and
   drifts the picture against burn-in.
 
-<img src="docs/images/views.jpg" alt="Four views: Album, Browse, the queue, and the idle poster with nothing playing" width="100%">
+<img src="docs/images/views.jpg" alt="Four captures from the TV: the Album view, One line lyrics over MilkDrop, Stage lyrics over MilkDrop, and the Display settings with the lyric overlay rows" width="100%">
 
 ## Requirements
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Usage: npm run build && node scripts/showcase.mjs
-// Renders the README images from the demo (mock) at 1920x1080:
+// Renders the demo (mock) README images at 1920x1080. The README now uses
+// captures from a real TV instead (luna://com.webos.service.capture), so this
+// is for checking the demo:
 //   docs/images/hero.jpg   the Lyrics view mid-line, MilkDrop behind the artwork
 //   docs/images/views.jpg  album, browse, queue and idle (docs/screenshots) in a grid
 // Needs Playwright, which is not a dependency:
