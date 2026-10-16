@@ -1,3 +1,25 @@
+# Unreleased
+
+- The whole library: Browse reads library lists (favourites, all playlists,
+  all albums, radio, podcasts, audiobooks) 60 at a time as the focus nears
+  the end, with **Loading more…** and **More couldn’t load** (OK tries again)
+  at the end, up to 10,000 items. An album's, playlist's or artist's songs
+  are no longer cut at 200. Only a window of rows is in the page, so long
+  lists stay quick; the scrollbar and **More** still tell the truth.
+- Queue: Up next is read 25 songs at a time as you scroll, up to 500 (was the
+  next 12).
+- Details: **Go to the album**, **Go to** *artist* and, for a podcast
+  episode, **Go to the podcast** open Browse on that page; Back returns to
+  Details.
+- Audiobooks and podcasts: Browse has **Continue listening**, **Podcasts**
+  and **Audiobooks** (a podcast offers Show episodes). Playing one resumes
+  where it was left. While one plays, Details offers **Speed** (0.75× to 2×)
+  and **Chapters** (jump to a chapter's start); radio and Retry lyrics are not
+  offered for them. The idle poster offers up to three in progress after the
+  paused song ("OK carries on").
+- The browser demo (`?mock=1`) has a 400-song playlist, 150 more albums,
+  podcasts and audiobooks with chapters.
+
 # 1.5.5 — Lyric overlay looks and More cues (16 October 2026)
 
 - Long lists show that they continue: **More** with a chevron at the bottom

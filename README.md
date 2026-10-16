@@ -33,15 +33,19 @@ Afterglow is independent of, and not endorsed by, Music Assistant or LG. It bega
   itself (see [Privacy](#privacy)). A per-TV **Lyrics timing** control moves
   the words up to 10 s earlier or later, and **Retry lyrics** asks again.
 - **Browse and Search.** Recently played, favourite playlists, albums, songs
-  and artists, radio stations, all playlists and albums, and search with the
-  TV keyboard or voice. Play now, play next, add to the queue or start radio.
+  and artists, radio stations, all playlists and albums (the whole library,
+  read as you scroll), and search with the TV keyboard or voice. Play now,
+  play next, add to the queue or start radio. Details goes to the playing
+  song's album or artist.
+- **Audiobooks and podcasts.** Browse them, Continue listening where you left
+  off, change the speed and jump between chapters.
 - **Queue.** Play, move and remove upcoming songs; shuffle, repeat,
   crossfade, keep playing when the queue ends, volume and sleep timer.
   **Playing on** picks the speaker; picking a silent one moves the music
   there (**Play on this TV** brings it to the TV). **Speakers together** joins
   or leaves a sync group.
-- **Idle poster.** With nothing playing, the paused song or recent music is
-  set as a poster, one OK away from playing.
+- **Idle poster.** With nothing playing, the paused song, books and episodes
+  in progress, or recent music is set as a poster, one OK away from playing.
 - **Presets.** 395 MilkDrop presets (through Music Assistant's fork of
   Butterchurn), driven by the waveform Music Assistant streams a few seconds
   ahead, so the picture lands on the beat. **Scan presets** measures each one

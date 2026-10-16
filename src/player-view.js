@@ -128,8 +128,10 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     root.classList.remove("controls-open"); root.classList.add("panel-open");
     root.setAttribute("data-panel", which);
     model.wantQueue(which === "queue"); model.tick();
-    if (which === "browse") root.querySelectorAll("button.selected").forEach(b => b.classList.remove("selected")); // Browse marks its own row
-    if (which === "browse") return item ? browse.openPage(item, () => { browse.close(); openPanel("details"); }) : browse.open();
+    if (which === "browse") {
+      root.querySelectorAll("button.selected").forEach(b => b.classList.remove("selected")); // Browse marks its own row
+      return item ? browse.openPage(item, () => { browse.close(); openPanel("details"); }) : browse.open();
+    }
     if (which === "details") readProviders();
     render(); focusButton();
   }
@@ -527,7 +529,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       touch();
       if (panel === "browse") { browse.handleKey(name); return true; }
       if (name === "back" && panel === "details" && chaptersOpen) { chaptersOpen = false; focus = FIRST_ENABLED; detailsKey = ""; render(); return true; }
-    if (name === "back" && panel === "queue" && (queuePick || picking || grouping)) { queuePick = null; picking = grouping = false; focus = FIRST_ENABLED; queueKey = ""; render(); return true; }
+      if (name === "back" && panel === "queue" && (queuePick || picking || grouping)) { queuePick = null; picking = grouping = false; focus = FIRST_ENABLED; queueKey = ""; render(); return true; }
       if (name === "back") { if (panel === "controls") close(); else openControls(); return true; }
       const list = buttons();
       if (name === "ok") { if (list[focus] && !list[focus].disabled) list[focus].click(); }
@@ -536,10 +538,9 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
         else if (name === "up" && row === "transport") { row = "nav"; focus = 1; }
         else if (name === "down" && row === "nav") { row = "transport"; focus = 1; }
       } else if (name === "up" || name === "down") {
-      focus = list.length ? (focus + (name === "up" ? -1 : 1) + list.length) % list.length : 0;
-      if (panel === "queue" && !queuePick && !picking && !grouping) followQueue();
-    }
-      else if ((name === "left" || name === "right") && list[focus] && !list[focus].disabled && list[focus]._change) { list[focus]._change(name === "left" ? -1 : 1); optionKey = ""; queueKey = ""; render(); }
+        focus = list.length ? (focus + (name === "up" ? -1 : 1) + list.length) % list.length : 0;
+        if (panel === "queue" && !queuePick && !picking && !grouping) followQueue();
+      } else if ((name === "left" || name === "right") && list[focus] && !list[focus].disabled && list[focus]._change) { list[focus]._change(name === "left" ? -1 : 1); optionKey = ""; queueKey = ""; render(); }
       focusButton(); return true;
     }
   };

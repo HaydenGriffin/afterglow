@@ -11,13 +11,25 @@ it leaves the app. The controls hide after nine seconds without a key. Pointer
 clicks and the remote's play/pause keys also work; in a browser Space toggles
 playback.
 
-- **Browse:** Search, then recently played, favourite playlists, albums, songs
-  and artists, radio stations, all playlists and albums. Search opens the TV
-  keyboard (type or say an artist, album or song) and lists the artists,
-  albums, songs and playlists found. An item offers Play now, Play next, Add to
-  the queue, Start radio from this (not for radio stations) and, for albums,
-  playlists and artists, Show songs.
-- **Queue:** the next 12 songs of the queue commands act on; a song offers Play
+- **Browse:** Search, Continue listening, recently played, favourite
+  playlists, albums, songs and artists, radio stations, all playlists and
+  albums, Podcasts and Audiobooks (it opens on Recently played). Search opens
+  the TV keyboard (type or say an artist, album or song) and lists the
+  artists, albums, songs and playlists found. An item offers Play now, Play
+  next, Add to the queue, Start radio from this (not for radio stations,
+  podcasts, episodes or audiobooks) and, for albums, playlists and artists,
+  Show songs (a podcast: Show episodes). **Continue listening** lists the
+  audiobooks and podcast episodes started and not finished, newest first;
+  playing one carries on where it was left.
+  - The whole library: library lists (favourites, all playlists and albums,
+    radio, podcasts, audiobooks) are read 60 at a time as the focus nears the
+    end; **Loading more…** ends the list while the next page loads, **More
+    couldn’t load** (OK tries again) if it fails. Up to 10,000 items load
+    (**Showing the first 10,000** past that). An album's, playlist's or
+    artist's songs and a podcast's episodes are read whole, up to 10,000.
+    Recently played and Continue listening show the latest 30.
+- **Queue:** Up next, from the song after the playing one, read 25 at a time
+  as the focus nears the last loaded song (up to 500); a song offers Play
   now, Play next, Move up, Move down and Remove from the queue. **Playing on**
   picks the player Afterglow follows (see below); picking a silent speaker
   while music plays elsewhere moves the music to it. **Play on this TV** (shown
@@ -28,7 +40,16 @@ playback.
   queue ends, volume (a group's volume for a group) and the sleep timer are
   here too.
 - **Details:** what the song is and how it is streamed (source, format,
-  quality), with Start radio from this song and Add to favourites.
+  quality), then, when Music Assistant gives the ids, **Go to the album**,
+  **Go to** *artist* (up to three) or, for an episode, **Go to the podcast**:
+  Browse opens on its songs or episodes, and Back returns to Details. While an
+  audiobook or podcast episode plays: **Speed** (0.75×, 1×, 1.25×, 1.5×, 2×;
+  left/right step, OK steps up and wraps) and **Chapters** ("Chapter 3 of
+  24", when it has two or more): a page with one row per chapter and its
+  start time, the playing one ticked; OK plays from a chapter's start and Back
+  returns to Details. Then Start radio from this song (not for audiobooks,
+  episodes or radio) and Add to favourites. Retry lyrics is not offered for
+  audiobooks and episodes.
 - **Display** (saved on this TV):
   - The view: **Visuals only** (MilkDrop alone), **Visuals + track** (MilkDrop
     with the track card), **Album** (the complete artwork, song, artist and up
@@ -86,7 +107,9 @@ or a new song moves it at once, and it holds still while paused.
 
 When nothing has played for 8 seconds (30 seconds after a pause), the screen
 sets what was played recently as a poster: the paused song first (OK resumes
-it), then recently played items (OK plays one), and Browse last. Left/right
+it), then up to three audiobooks or podcast episodes in progress (OK carries
+on where it was left), then recently played items (OK plays one), and Browse
+last. Left/right
 move along the strip; every other key keeps its usual meaning. After three
 minutes without a key it steps down to a dim register, and the first key only
 wakes it. While no song is shown the poster's fields are neutral, not the last
