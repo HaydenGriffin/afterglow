@@ -48,6 +48,7 @@ test("in shuffled order Previous goes back to the presets shown, Next forward ag
   const { loaded } = page(["a", "b", "c", "d", "e", "f"]);
   const mode = createMilkdropMode(() => {}, () => {});
   mode.randomOrder = true;
+  mode.list = "all";
   await started(mode);
   mode.step(1);
   mode.step(1);
@@ -95,6 +96,7 @@ test("Each song changes the preset after the song has settled", async () => {
   const { loaded } = page(["a", "b", "c", "d"]);
   const mode = createMilkdropMode(() => {}, () => {});
   mode.change = "song";
+  mode.list = "all";
   const { draw } = await started(mode);
   mode.setSong("q1", "");
   for (let i = 0; i < 30 * 12; i++) draw();

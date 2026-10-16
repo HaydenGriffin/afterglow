@@ -128,6 +128,9 @@ export function createMilkdropMode(onFail, onNotice) {
   let coverImages = {}; // URL -> loaded image, only the ones shown or waiting
   let cover = null;
   let coverFade = null;
+  // The time of the last frame drawn (ms, the engine's clock): song, colour
+  // and preset changes are timed against it.
+  let frameNow = 0;
 
   function loadFavorites() {
     // The plain list from before the timestamps is folded in whenever present,
@@ -210,7 +213,7 @@ export function createMilkdropMode(onFail, onNotice) {
     // loadPreset is async in Butterchurn 3: a preset that fails to load
     // rejects instead of throwing.
     const loaded = visualizer.loadPreset(preset, blend);
-    changer.changed(performance.now());
+    changer.changed(frameNow);
     if (loaded && typeof loaded.catch === "function") loaded.catch((error) => fail(describe(error)));
     current = name;
     external = name in presets ? null : preset;
@@ -280,7 +283,7 @@ export function createMilkdropMode(onFail, onNotice) {
   function setCoverUrl(url) {
     if (url === coverUrl) return;
     coverUrl = url;
-    if (!url) return wantCover(performance.now());
+    if (!url) return wantCover(frameNow);
     const image = new Image();
     // Music Assistant's image proxy allows any origin; an image without that
     // permission fails to load here rather than spoil the canvas.
@@ -288,10 +291,10 @@ export function createMilkdropMode(onFail, onNotice) {
     image.onload = () => {
       if (url !== coverUrl) return;
       coverImages = keepImages(url, image);
-      wantCover(performance.now());
+      wantCover(frameNow);
     };
     image.onerror = () => {
-      if (url === coverUrl) wantCover(performance.now());
+      if (url === coverUrl) wantCover(frameNow);
     };
     image.src = url;
   }
@@ -428,7 +431,8 @@ export function createMilkdropMode(onFail, onNotice) {
           if (released) return;
           if (!loading) start(canvas);
           if (!visualizer || failed) return;
-          updateCover(f.t * 1000);
+          frameNow = f.t * 1000;
+          updateCover(frameNow);
           try {
             const wave = f.analysis.wave;
             visualizer.render({ audioLevels: { timeByteArray: wave, timeByteArrayL: wave, timeByteArrayR: wave } });
@@ -441,7 +445,7 @@ export function createMilkdropMode(onFail, onNotice) {
           watchFrameRate(f.dt);
           changer.hear(waveEnergy(f.analysis.raw || f.analysis.wave), f.dt);
           const seconds = timerSeconds(change);
-          if ((seconds && sincePreset >= seconds) || changer.due(change, f.t * 1000)) random();
+          if ((seconds && sincePreset >= seconds) || changer.due(change, frameNow)) random();
         },
       };
     },
@@ -500,7 +504,7 @@ export function createMilkdropMode(onFail, onNotice) {
       list = loadList();
       change = changeChoice(loadPref("presetRotate", DEFAULT_ROTATE), DEFAULT_ROTATE);
       coverOn = loadPref("coverArt", true);
-      wantCover(performance.now());
+      wantCover(frameNow);
       randomOrder = loadPref("presetRandom", true);
       validation.rated = loadPref("rated", {});
       validation.overrides = loadPref("validatedOverrides", {});
@@ -581,7 +585,7 @@ export function createMilkdropMode(onFail, onNotice) {
     // A new song (its queue item id, or "" when nothing plays) and its cover
     // (an image URL, or "").
     setSong(id, url) {
-      changer.song(id || "", performance.now());
+      changer.song(id || "", frameNow);
       setCoverUrl(url || "");
     },
     get coverArt() {
@@ -590,7 +594,7 @@ export function createMilkdropMode(onFail, onNotice) {
     set coverArt(on) {
       coverOn = on;
       savePref("coverArt", on);
-      wantCover(performance.now());
+      wantCover(frameNow);
     },
     // "default" or "art": whether presets take their colors from the album art.
     get colorMode() {
@@ -613,7 +617,7 @@ export function createMilkdropMode(onFail, onNotice) {
     // The current track's palette from Music Assistant (live.js), or null.
     setPalette(next) {
       palette = next;
-      coverSchedule.touch(performance.now());
+      coverSchedule.touch(frameNow);
       applyColor();
     },
     get ready() {
