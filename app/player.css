@@ -127,8 +127,9 @@
 .scroll-cue-label svg { width: 2.6vh; height: 2.6vh; margin-left: .4vw; }
 .panel-items h3 { font-size: 2.2vh; font-weight: 800; letter-spacing: .02em; color: var(--paper-2); margin: 3vh 0 .6vh !important; }
 .player-option { width: 100%; min-height: 7vh; display: flex; align-items: center; justify-content: space-between; text-align: left; padding: 1.2vh 1vw; box-sizing: border-box; font-size: 2.6vh !important; font-weight: 600; border-bottom: var(--hair) solid var(--rule) !important; }
-.player-option span:first-child { flex: 1; margin-right: 1vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.player-option span:last-child { font-size: 2.2vh; font-weight: 500; max-width: 45%; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The label keeps its words (up to 70% of the row); the value takes the rest and is cut first. */
+.player-option span:first-child { flex: 1 0 auto; max-width: 70%; margin-right: 1vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player-option span:last-child { flex: 0 1 auto; min-width: 0; font-size: 2.2vh; font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Details: the back of the poster, over the title and fields; the artwork stays. */
 #player[data-panel="details"] .player-panel h2 { font-size: 9vh; line-height: .92; padding-bottom: .16em; max-height: 20vh; overflow: hidden; }
 .details-facts { display: flex; flex-wrap: wrap; margin: 2vh 0 3vh; }
