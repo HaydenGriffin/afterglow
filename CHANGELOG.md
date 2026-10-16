@@ -1,3 +1,10 @@
+# Unreleased
+
+- **New logo.** The wordmark is *afterglow* in lowercase Archivo with its o as the sun, setting below the
+  baseline; the launcher icon is a close-up of that sunset, a night sky over dark ground with a two-step glow
+  round the sun. New app icons, favicon and social preview; `iconColor` is the sky (`#16233A`). See
+  `docs/brand/README.md`.
+
 # 1.5.5 — Lyric overlay looks and More cues (16 October 2026)
 
 - Long lists show that they continue: **More** with a chevron at the bottom
