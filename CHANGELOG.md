@@ -1,3 +1,24 @@
+# Unreleased
+
+- Long lists show that they continue: **More** with a chevron at the bottom
+  edge over a fade of the last visible row, and at the top once scrolled, on
+  Settings, Display, Queue (and its Play on and Speakers together pages),
+  Details and Browse. The focused row keeps one row of context beyond it, so
+  the cue never covers it; the scrollbar stays.
+- Display → **Lyrics over Visuals + track** is now Off / **One line** /
+  **Stage** (the current line large, centred). While one is chosen,
+  **Position** (Top, Middle, Bottom), **Background** (Box, Shade, None) and
+  **Size** (Small, Medium, Large) follow, kept separately per overlay (One
+  line: Bottom, Box, Medium; Stage: Middle, Box, Medium), saved on this TV and
+  synced with its account settings. A TV that had the overlay On keeps One
+  line. Bottom still stacks above the track card; Middle moves off a tall
+  card or the "Waiting for music" line; Dim track info and the OLED shift
+  apply to every look.
+- The progress bar under Album and Lyrics moves smoothly every frame, by
+  transform rather than width; small clock corrections are eased in and never
+  move it backwards, seeks and new songs snap, and it holds still while paused.
+- The browser demo (`?mock=1`) shows the track card as live songs do.
+
 # 1.5.4 — Lyrics survive a busy LRCLIB (16 October 2026)
 
 - When lyrics fail to load (LRCLIB answering "server busy"), Afterglow keeps

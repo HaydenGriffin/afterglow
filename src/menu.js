@@ -1,5 +1,7 @@
 // Settings sheet. It keeps its own focus index because webOS does not move DOM
-// focus on arrow keys.
+// focus on arrow keys. The title stays put; the rows scroll beneath it with
+// the "More" cue (scroll-cue.js) while some are out of sight.
+import { createScrollCue } from "./scroll-cue.js";
 
 const IDLE_CLOSE_MS = 45000; // closes after this long without a key
 const REFRESH_MS = 1000; // values are re-read this often while open
@@ -28,6 +30,21 @@ export function createMenu(element, rows, { title = "Settings", onBack, timers =
   let listed = [];
   let cells = []; // [row, label span, value span] for every focusable row on screen
 
+  const body = document.createElement("div");
+  body.className = "menu-body";
+  const heading = document.createElement("h2");
+  heading.textContent = title;
+  const frame = document.createElement("div");
+  frame.className = "scroll-frame";
+  const list = document.createElement("div");
+  list.className = "menu-rows";
+  frame.appendChild(list);
+  body.appendChild(heading);
+  body.appendChild(frame);
+  element.textContent = "";
+  element.appendChild(body);
+  const cue = createScrollCue(list, frame);
+
   const labelOf = (row) => (typeof row.label === "function" ? row.label() : row.label);
   const valueOf = (row) => (row.value ? row.value() : "");
 
@@ -46,22 +63,19 @@ export function createMenu(element, rows, { title = "Settings", onBack, timers =
     if (focus < 0) focus = 0;
     focusRow = shown[focus] || null;
     cells = [];
-    element.textContent = "";
-    const heading = document.createElement("h2");
-    heading.textContent = title;
-    element.appendChild(heading);
+    list.textContent = "";
     listed.forEach((row) => {
       if (row.section) {
         const h = document.createElement("h3");
         h.textContent = row.section;
-        element.appendChild(h);
+        list.appendChild(h);
         return;
       }
       if (row.figure) {
         const box = document.createElement("div");
         box.className = "figure";
         row.figure(box);
-        element.appendChild(box);
+        list.appendChild(box);
         return;
       }
       const i = shown.indexOf(row);
@@ -78,12 +92,11 @@ export function createMenu(element, rows, { title = "Settings", onBack, timers =
         focusRow = row;
         activate(1);
       });
-      element.appendChild(line);
+      list.appendChild(line);
       cells.push([row, label, value]);
     });
-    const selected = element.querySelector(".focus");
-    if (selected) selected.scrollIntoView({ block: "nearest" });
-    if (focus === 0) element.scrollTop = 0;
+    if (focus === 0) list.scrollTop = 0;
+    cue.reveal(list.querySelector(".focus"));
   }
 
   // Re-read labels and values in place; rebuild only when the rows changed.
@@ -98,6 +111,7 @@ export function createMenu(element, rows, { title = "Settings", onBack, timers =
       if (label.textContent !== l) label.textContent = l;
       if (value.textContent !== v) value.textContent = v;
     }
+    cue.update();
   }
 
   function touch() {

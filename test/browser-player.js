@@ -59,6 +59,58 @@
   assert(getComputedStyle(document.querySelector('.lyric-overlay')).display === 'none', 'Pure visuals must hide lyric overlay');
   assert(window.afterglowDiagnostics().drawing, 'Visuals should resume drawing');
 
+  // Lists longer than their sheet say so: "More" below, then above once scrolled; the focused row keeps a row beyond it.
+  await section(2);
+  const frame = document.querySelector('.player-panel .scroll-frame');
+  assert(frame.classList.contains('more-below') && !frame.classList.contains('more-above'), 'A long queue shows More below');
+  for (let i = 0; i < 9; i++) { key(DOWN); await wait(60); }
+  const box = frame.getBoundingClientRect(), focused = selected().getBoundingClientRect();
+  assert(focused.bottom + focused.height <= box.bottom + 2, 'The focused row keeps one row of context above the cue');
+  assert(frame.classList.contains('more-above'), 'Scrolled down, More shows above');
+  for (let i = 0; i < 30 && selected() !== rows()[rows().length - 1]; i++) { key(DOWN); await wait(40); }
+  assert(!frame.classList.contains('more-below'), 'At the last row More below goes');
+
+  // Lyrics over Visuals + track: One line and Stage, each with its own Position, Background and Size.
+  await closeAll(); key(OK); await wait(); document.querySelector('[aria-label="Display"]').click(); await wait();
+  pick('Visuals + track'); await wait();
+  const option = label => rows().find(b => b.firstChild.textContent === label);
+  const shows = label => option(label) && option(label).lastChild.textContent;
+  async function choose(label, value) { for (let i = 0; i < 4 && shows(label) !== value; i++) { option(label).click(); await wait(80); } assert(shows(label) === value, label + ' reaches ' + value); }
+  await choose('Lyrics over Visuals + track', 'Off');
+  assert(!option('Position'), 'No look rows while the overlay is Off');
+  await choose('Lyrics over Visuals + track', 'One line');
+  assert(shows('Position') === 'Bottom' && shows('Background') === 'Box' && shows('Size') === 'Medium', 'One line starts at Bottom, Box, Medium');
+  await choose('Position', 'Middle'); await choose('Background', 'None');
+  await choose('Lyrics over Visuals + track', 'Stage');
+  assert(shows('Position') === 'Middle' && shows('Background') === 'Box', 'Stage keeps its own look');
+  await choose('Position', 'Top'); await choose('Size', 'Large');
+  await choose('Lyrics over Visuals + track', 'One line');
+  assert(shows('Position') === 'Middle' && shows('Background') === 'None', 'Changing Stage did not move One line');
+  await closeAll(); await wait(1500);
+  const line = document.querySelector('.lyric-overlay-line'), layer = document.querySelector('.lyric-overlay');
+  assert(layer.classList.contains('has-line') && getComputedStyle(layer).visibility === 'visible', 'The overlay shows as soon as the panel closes');
+  const middle = line.getBoundingClientRect();
+  assert(Math.abs((middle.top + middle.bottom) / 2 - innerHeight / 2) < 3, 'Middle is the vertical centre');
+  assert(/rgba?\(0, 0, 0, 0\)|transparent/.test(getComputedStyle(line).backgroundColor) && getComputedStyle(line).textShadow !== 'none', 'None: text only, with a soft dark edge');
+  // Bottom stacks above the track card, which a new song brings up.
+  key(OK); await wait(); document.querySelector('[aria-label="Display"]').click(); await wait();
+  await choose('Position', 'Bottom'); await choose('Background', 'Box');
+  await closeAll(); key(OK); await wait(); document.querySelector('[aria-label="Next"]').click(); await wait(600); await closeAll(); await wait(1500);
+  const card = document.getElementById('track');
+  assert(card.classList.contains('shown'), 'A new song shows the track card');
+  assert(line.getBoundingClientRect().bottom <= card.getBoundingClientRect().top - 4, 'One line at Bottom stacks above the track card');
+  assert(getComputedStyle(layer).opacity === getComputedStyle(card).opacity, 'Dim track info dims the overlay with the card');
+
+  // Smooth progress: the bar's fill is a transform that moves between frames.
+  key(OK); await wait(); document.querySelector('[aria-label="Display"]').click(); await wait();
+  await choose('Lyrics over Visuals + track', 'Off');
+  pick('Album'); await closeAll(); await wait(500);
+  const fill = document.querySelector('.progress-track div');
+  const scale = () => Number(/scaleX\(([\d.]+)\)/.exec(fill.style.transform)[1]);
+  const before = scale(); await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); await wait(60);
+  assert(scale() > before && !fill.style.width, 'The progress bar moves every frame by transform');
+  key(OK); await wait(); document.querySelector('[aria-label="Display"]').click(); await wait(); pick('Visuals only'); await closeAll();
+
   // Browse: a favourite album can be added to the queue without leaving Browse.
   await section(0);
   assert(player.getAttribute('data-panel') === 'browse', 'Browse opens from the top strip');
@@ -99,5 +151,5 @@
   key(LEFT); await wait(); key(OK); await wait(1500);
   assert(!idle.classList.contains('shown'), 'OK resumes and the poster leaves');
   assert(document.documentElement.scrollWidth <= innerWidth, 'Screen must not overflow horizontally');
-  return { passed: 20, viewport: [innerWidth, innerHeight] };
+  return { passed: 35, viewport: [innerWidth, innerHeight] };
 })()

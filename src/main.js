@@ -107,6 +107,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   // The track card: title, artist, album, label, lower left, a flat field
   // in the artwork's colour. Shown for a while when a track starts, or always.
   const trackCard = byId("track");
+  let trackSource = null; // live, or the demo's playback (?mock=1)
   let trackMode = loadPref("trackInfo", "start");
   let trackTimer = 0;
   function fillTrackCard(track) {
@@ -126,16 +127,16 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     trackCard.classList.toggle("shown", shown);
     stackLyricOverlay();
   }
-  // The lyric overlay and the card share the lower left corner: while the
-  // card shows, the overlay sits on top of it, a gutter above.
+  // The lyric overlay keeps clear of the card and of the "Waiting for music"
+  // line: at Bottom it sits on top of the card, a gutter above, while the card
+  // shows; at Middle it moves off either (lyric-overlay.js placeOverlay).
   function stackLyricOverlay() {
-    const overlay = document.querySelector(".lyric-overlay");
-    if (!overlay) return;
+    if (!playerView) return;
     const cardShown = trackCard.classList.contains("shown") && trackCard.style.display !== "none";
-    overlay.style.bottom = cardShown ? "calc(6vh + " + trackCard.offsetHeight + "px + 1.4vh)" : "";
+    playerView.setOverlayContext({ cardPx: cardShown ? trackCard.offsetHeight : 0, message: message.style.display === "block" });
   }
   function applyTrackMode() {
-    const track = live ? live.track : null;
+    const track = trackSource ? trackSource.track : null;
     showTrackCard(track, trackMode === "start");
   }
 
@@ -534,11 +535,18 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   ], { onBack: () => playerView.open() });
 
   const playback = live || createMockPlayback();
+  trackSource = playback;
   playerView = createPlayerView({
     root: byId("player"), live: playback, host: settings.host,
     engine, onSettings: () => menu.open(), onNotice: text => toast(text, true),
     onMode(mode) { trackCard.style.display = mode === "track" ? "" : "none"; stackLyricOverlay(); applyDim(); }
   });
+  // The demo shows the track card as Music Assistant's songs do.
+  if (!live) {
+    playback.onTrack((track) => showTrackCard(track, trackMode === "start"));
+    applyTrackMode();
+  }
+  stackLyricOverlay();
   // While controls, Browse, a panel or Settings is open, the track card and
   // lyric overlay step aside (player.css .sheet-open).
   const markSheets = () => document.body.classList.toggle("sheet-open", playerView.isOpen || menu.isOpen);
@@ -608,6 +616,10 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   }
 
   function refreshMessage() {
+    showMessage();
+    stackLyricOverlay();
+  }
+  function showMessage() {
     idle.update(!(live && live.problem) && !playerView.isOpen && !menu.isOpen && !scan.running && !login.isOpen && !leaving);
     if (idle.showing) { message.style.display = "none"; return; }
     if (playerView && (playerView.mode === "album" || playerView.mode === "lyrics")) { message.style.display = "none"; return; }

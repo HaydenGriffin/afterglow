@@ -34,6 +34,9 @@ export class FakeNode {
   addEventListener(type, fn) {
     this.listeners[type] = fn;
   }
+  setAttribute(name, value) {
+    this.attributes = Object.assign(this.attributes || {}, { [name]: String(value) });
+  }
   scrollIntoView() {}
   all() {
     return this.children.reduce((list, c) => list.concat([c], c.all()), []);

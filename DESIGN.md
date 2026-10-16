@@ -277,6 +277,10 @@ Sound and sync drawn as one horizontal timeline under a hairline scale, ±600 ms
 ### Visuals + track caption
 In Visuals modes, one field-A rectangle at the lower left (5vw, 6vh from the bottom, at most 62vw wide) with the title clamped to two lines, then artist, album and label. It fades in over .5s and is the only Afterglow surface over MilkDrop besides the optional lyric overlay, which uses the same field.
 
+The lyric overlay is One line (4vh 700 in the caption's corner) or Stage (7.4vh 800 at 82% width, centred, at most 70vw). Its Box background is the flat ink field. Two opt-in backgrounds are the only exceptions to the Flat Field Rule: Shade, a radial band of ink fading to nothing, and None, paper text with a soft ink text shadow. Size scales type and padding by 0.8 / 1 / 1.25.
+
+**Scroll cue.** A list longer than its sheet ends in a fade of the ground over its last visible row (8vh) with "More" and a drawn chevron in label type and faded paper under the values column, mirrored at the top once scrolled. It is the only gradient on the sheets.
+
 ### Notices
 Toast: paper fill, ink text, 2.6vh 700, top centre, .4s fade. Error: paper strip over columns 5–12 at 2vh. Hint: ink chip at the lower right. Sign-in: headline at column 5, ruled fields 44vw wide, Sign in button on field A.
 

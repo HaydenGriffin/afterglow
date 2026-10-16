@@ -90,9 +90,17 @@ function queueItem(media) {
       audio_processing: { input_fidelity: { quality: quality[3] } } } };
 }
 
+// The track card's fields, as follow.js trackOf gives them.
+function trackOf(item) {
+  if (!item) return null;
+  const media = item.media_item;
+  return { id: item.queue_item_id, title: media.name, artist: media.artists.map(a => a.name).join(", "), album: media.album.name, year: media.album.year || "", label: "Demo Records" };
+}
+
 export function createMockPlayback() {
   let tracks = LIBRARY.track.slice(0, 5).map(queueItem);
   let position = 24, at = Date.now(), preferred = "", own = "demo-tv";
+  let trackListener = null, announced = ""; // the track card's song (main.js showTrackCard)
   const players = demoPlayers();
   const queues = {};
   for (const id in players) queues[id] = { queue_id: id, display_name: players[id].name, state: "idle", current_item: null, repeat_mode: "off", items: 0 };
@@ -100,7 +108,11 @@ export function createMockPlayback() {
   const queue = queues["demo-living"];
   Object.assign(queue, { current_index: 0, current_item: tracks[0], next_item: tracks[1], state: "playing" });
   function select(index) { queue.current_index = Math.max(0, Math.min(tracks.length - 1, index)); refresh(); position = 0; at = Date.now(); }
-  function refresh() { queue.current_item = tracks[queue.current_index]; queue.next_item = tracks[queue.current_index + 1] || null; queue.items = tracks.length; }
+  function refresh() {
+    queue.current_item = tracks[queue.current_index]; queue.next_item = tracks[queue.current_index + 1] || null; queue.items = tracks.length;
+    const id = queue.current_item ? queue.current_item.queue_item_id : "";
+    if (id !== announced) { announced = id; if (trackListener) trackListener(trackOf(queue.current_item)); }
+  }
   function insert(items, where) { tracks.splice(where, 0, ...items); refresh(); }
   const page = (list, args) => list.slice(args.offset || 0, (args.offset || 0) + (args.limit || 500));
   const target = () => commandTarget({ players, queues, preferred, current: queue.queue_id, last: "", own });
@@ -125,6 +137,8 @@ export function createMockPlayback() {
     mock: true, // no lyrics lookups outside the demo
     get playback() { return { queue, player: players[queue.queue_id], connected: true, position: position + (queue.state === "playing" ? (Date.now() - at) / 1000 : 0) }; },
     get palette() { return queue.current_item.demoPalette; },
+    get track() { return trackOf(queue.current_item); },
+    onTrack(fn) { trackListener = fn; announced = queue.current_item ? queue.current_item.queue_item_id : ""; },
     speakers() { return speakersOf(players); },
     get preferred() { return preferred; },
     get following() { return { name: players[queue.queue_id].name, playerId: queue.queue_id, queueId: queue.queue_id, reason: "auto" }; },

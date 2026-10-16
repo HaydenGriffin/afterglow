@@ -1,6 +1,7 @@
 import { imageUrl, thumbOf, timeLabel } from "./playback.js";
 import { cleanQuery, flattenGroups, groupResults, searchArgs } from "./search.js";
 import { createSearchField } from "./search-field.js";
+import { createScrollCue } from "./scroll-cue.js";
 
 // Browse: categories on the left, the chosen list on the right, and an
 // item's actions in place of the list. Lists are read when a category is
@@ -73,7 +74,8 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
   const title = make("h3", "browse-title", main);
   const field = createSearchField({ onFocus: toField, onSubmit: value => search(value, false), onLeave: toField, onArrow: name => handleKey(name) });
   main.appendChild(field.row);
-  const list = make("ol", "browse-list", main);
+  const frame = make("div", "scroll-frame", main), list = make("ol", "browse-list", frame);
+  const cue = createScrollCue(list, frame);
   let column = "cats", cat = START, index = 0, action = 0, generation = 0, version = 0, built = -1;
   let items = [], headings = {}, state = "idle", stack = null, chosen = null; // stack: { title, parent, item } while showing an album's songs
   let rows = [], selected = null; // rows: what OK can activate in the list column, in order
@@ -209,7 +211,7 @@ export function createBrowse({ element, live, host, play, target, onNotice, onLe
     if (!next) return;
     next.classList.add("selected"); next.tabIndex = 0;
     if (!field.typing) next.focus({ preventScroll: true });
-    next.scrollIntoView({ block: "nearest" });
+    if (column === "cats") { next.scrollIntoView({ block: "nearest" }); cue.update(); } else cue.reveal(next);
   }
   function back() {
     if (column === "actions") { column = "list"; chosen = null; changed(); }

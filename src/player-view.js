@@ -5,9 +5,14 @@ import { createBrowse } from "./browse-view.js";
 import { describeStream } from "./stream-details.js";
 import { createKaraoke } from "./karaoke.js";
 import { FIRST_ENABLED, focusRow } from "./focus.js";
+import { KIND_PREF, LOOK_PREFS, LOOK_ROWS, OVERLAY_LABELS, overlayKind, overlayLook, placeOverlay, stepKind, stepLook } from "./lyric-overlay.js";
+import { createProgressSmoother, progressTransform } from "./progress.js";
+import { createScrollCue } from "./scroll-cue.js";
 
 // Drawn UI runs at 4 Hz, independently of the visualizer. Text only changes
 // when its value changes; artwork is requested once per URL at 512 pixels.
+// The progress bar alone moves every animation frame (progress.js) while the
+// song plays in Album or Lyrics.
 const NAV = [["browse", "Browse"], ["now", "Now playing"], ["queue", "Queue"], ["settings", "Settings"]];
 const SLEEP_MINUTES = [0, 15, 30, 45, 60, 90];
 
@@ -18,7 +23,10 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   let mode = loadPref("viewMode", "track");
   if (VIEW_MODES.indexOf(mode) < 0) mode = "track";
   let background = loadPref("playerBackground", false);
-  let overlay = loadPref("lyricsOverlay", false);
+  // Lyrics over Visuals + track: "off", "line" or "stage", and each overlay's own look.
+  let overlay = overlayKind(loadPref(KIND_PREF, false));
+  const looks = { line: overlayLook("line", loadPref(LOOK_PREFS.line, null)), stage: overlayLook("stage", loadPref(LOOK_PREFS.stage, null)) };
+  let overlayContext = { cardPx: 0, message: false }; // what main.js says the overlay must keep clear of
   let panel = "", row = "transport", focus = 1, timer = 0, hideAt = 0, trackKey = "", artUrl = "", lyricsKey = "", queueKey = "", optionKey = "";
   let sleepIndex = 2, plainPage = 0, palette = null, night = null;
   let queuePick = null, picking = false, grouping = false, providers = null, detailsKey = "";
@@ -42,16 +50,19 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       '<div class="poster-meta"><p class="poster-song"></p><p class="poster-artist"></p><p class="poster-album"></p></div>' +
       '<div class="poster-up-next"><h2>Up next</h2><ol class="poster-next"></ol></div>' +
       '<div class="poster-progress"><span class="elapsed">0:00</span><div class="progress-track" role="progressbar" aria-label="Track progress"><div></div></div><span class="duration">0:00</span></div>' +
-    '</section><div class="lyric-overlay"></div>' +
+    '</section><div class="lyric-overlay"><p class="lyric-overlay-line"></p></div>' +
     '<nav class="player-nav" aria-label="Afterglow"></nav>' +
     '<section class="player-controls" aria-label="Playback controls"><div class="control-heading"><span class="control-track"></span><span class="control-time"></span></div>' +
       '<div class="transport"></div></section>' +
     '<section class="player-browse" aria-label="Browse"></section>' +
-    '<section class="player-panel" aria-label="Player options"><header><h2></h2><p class="panel-note"></p></header><div class="panel-items"></div></section>' +
+    '<section class="player-panel" aria-label="Player options"><header><h2></h2><p class="panel-note"></p></header><div class="scroll-frame"><div class="panel-items"></div></div></section>' +
     '<p class="player-error" role="status"></p>';
   const el = selector => root.querySelector(selector);
   function text(node, value) { const v = String(value == null ? "" : value); if (node.textContent !== v) node.textContent = v; }
   const nav = el(".player-nav"), toolbar = el(".transport");
+  const panelCue = createScrollCue(el(".panel-items"), el(".player-panel .scroll-frame"));
+  const overlayLayer = el(".lyric-overlay"), overlayLine = el(".lyric-overlay-line");
+  const bar = el(".progress-track div");
   NAV.forEach(([id, label]) => {
     const button = document.createElement("button");
     button.dataset.nav = id; text(button, label);
@@ -93,7 +104,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   }
   function focusButton() {
     const list = buttons(); focus = focusRow(root, list, focus);
-    if (list[focus] && panel !== "controls") list[focus].scrollIntoView({ block: "nearest" });
+    if (list[focus] && panel !== "controls") panelCue.reveal(list[focus]);
   }
   function close() {
     if (panel === "browse") browse.close();
@@ -134,8 +145,36 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     root.setAttribute("data-mode", mode);
     root.classList.toggle("has-background", background && (mode === "album" || mode === "lyrics"));
     engine.setDrawing(mode === "visuals" || mode === "track" || background);
-    model.wantLyrics(mode === "lyrics" || (overlay && mode !== "visuals"));
+    model.wantLyrics(mode === "lyrics" || (overlay !== "off" && mode !== "visuals"));
+    applyOverlayLook();
     onMode(mode);
+  }
+  // The overlay's look as attributes for player.css, then its place.
+  function applyOverlayLook() {
+    const kind = overlay === "off" ? "line" : overlay, look = looks[kind];
+    overlayLayer.setAttribute("data-kind", kind);
+    LOOK_ROWS.forEach(([field]) => overlayLayer.setAttribute("data-" + field, look[field]));
+    placeLyricOverlay();
+  }
+  // Middle needs the box's height to centre it, so only Middle measures.
+  function placeLyricOverlay() {
+    const look = looks[overlay === "off" ? "line" : overlay];
+    const vh = typeof window !== "undefined" && window.innerHeight ? 100 / window.innerHeight : 0;
+    const height = look.position === "middle" && overlayLine.textContent ? (overlayLine.offsetHeight || 0) * vh : 0;
+    const at = placeOverlay({ position: look.position, height, card: overlayContext.cardPx ? overlayContext.cardPx * vh : null, message: overlayContext.message });
+    const top = at.top != null ? at.top + "vh" : "", bottom = at.bottom != null ? at.bottom + "vh" : "";
+    if (overlayLine.style.top !== top) overlayLine.style.top = top;
+    if (overlayLine.style.bottom !== bottom) overlayLine.style.bottom = bottom;
+  }
+  function setOverlayText(value) {
+    if (overlayLine.textContent === value) return;
+    text(overlayLine, value); overlayLayer.classList.toggle("has-line", !!value);
+    if (value) placeLyricOverlay();
+  }
+  function setLook(field, direction) {
+    looks[overlay] = stepLook(looks[overlay], field, direction);
+    savePref(LOOK_PREFS[overlay], looks[overlay]);
+    applyOverlayLook();
   }
   function setMode(next) { karaoke.show(null); mode = next; savePref("viewMode", mode); lyricsKey = ""; plainPage = 0; applyMode(); render(); }
 
@@ -166,13 +205,13 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     return button;
   }
   function display(s) {
-    const stateKey = JSON.stringify([panel, mode, background, overlay, s.lyrics.status, plainPage, lyricsOffsetMs, onlineLyrics]);
+    const stateKey = JSON.stringify([panel, mode, background, overlay, looks[overlay], s.lyrics.status, plainPage, lyricsOffsetMs, onlineLyrics]);
     if (stateKey === optionKey) return false;
     optionKey = stateKey; el(".panel-items").textContent = "";
     text(el(".player-panel h2"), "Display");
     text(el(".player-panel .panel-note"), "Saved on this TV.");
     VIEW_MODES.forEach(value => addRow(VIEW_LABELS[value], "", () => setMode(value)).classList.toggle("chosen", mode === value));
-    if (mode === "lyrics" || overlay) {
+    if (mode === "lyrics" || overlay !== "off") {
       heading("Lyrics");
       addRow("Lyrics timing", lyricsOffsetMs ? (Math.abs(lyricsOffsetMs) / 1000).toFixed(1) + " s " + (lyricsOffsetMs > 0 ? "later" : "earlier") : "With the music",
         dir => { lyricsOffsetMs = Math.max(-10000, Math.min(10000, lyricsOffsetMs + dir * 100)); savePref("lyricsOffsetMs", lyricsOffsetMs); }, false, true);
@@ -185,7 +224,9 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     }
     heading("Extras");
     addRow("MilkDrop behind artwork and lyrics", background ? "On" : "Off", () => { background = !background; savePref("playerBackground", background); applyMode(); }, false, true);
-    addRow("Lyrics over Visuals + track", overlay ? "On" : "Off", () => { overlay = !overlay; savePref("lyricsOverlay", overlay); applyMode(); }, false, true);
+    addRow("Lyrics over Visuals + track", OVERLAY_LABELS[overlay], dir => { overlay = stepKind(overlay, dir); savePref(KIND_PREF, overlay); applyMode(); }, false, true);
+    // Position, Background and Size act on the overlay chosen above.
+    if (overlay !== "off") LOOK_ROWS.forEach(([field, label, , names]) => addRow(label, names[looks[overlay][field]], dir => setLook(field, dir), false, true));
     if (s.lyrics.status === "plain") addRow("Lyrics page", plainPage + 1, dir => { plainPage = Math.max(0, plainPage + dir); lyricsKey = ""; }, false, true);
     return true;
   }
@@ -316,9 +357,9 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       }
     }
     karaoke.update();
-    const showOverlay = overlay && mode === "track" && s.lyrics.status === "timed";
+    const showOverlay = overlay !== "off" && mode === "track" && s.lyrics.status === "timed";
     const current = s.lyrics.lines[index];
-    text(el(".lyric-overlay"), showOverlay && current ? current.text : "");
+    setOverlayText(showOverlay && current ? current.text : "");
   }
   function renderNext(s) {
     const list = el(".poster-next");
@@ -367,8 +408,9 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     text(el(".control-track"), tt ? tt.title + (tt.artist ? " · " + tt.artist : "") + (t.drawn ? "" : " · " + t.name) : t ? "Nothing playing on " + t.name : "Finding speakers…");
     text(el(".control-time"), (tPaused ? "Paused · " : "") + timeLabel(tPosition) + " / " + (tt && tt.duration ? timeLabel(tt.duration) : "Live"));
     const progress = track && track.duration ? Math.min(100, s.position / track.duration * 100) : 0;
-    el(".progress-track div").style.width = progress + "%";
     el(".progress-track").setAttribute("aria-valuenow", String(Math.round(progress)));
+    progressSong = trackKey; progressDuration = track && track.duration || 0; progressPlaying = !!(s.queue && s.queue.state === "playing");
+    if (!progressRaf) { drawProgress(s.position); runProgress(); }
     const playing = t && t.queue && t.queue.state === "playing";
     const play = toolbar.children[1];
     if (play.getAttribute("aria-label") !== (playing ? "Pause" : "Play")) {
@@ -378,11 +420,38 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     Array.from(toolbar.children).slice(0, 7).forEach((b, i) => b.disabled = !t || !t.connected || (i >= 3 && i <= 4 && (!tt || !tt.duration)) || (i >= 5 && !track));
     Array.from(nav.children).forEach(b => b.classList.toggle("current", b.dataset.nav === (panel === "queue" || panel === "browse" ? panel : "now")));
     text(el(".player-error"), s.error);
-    if (mode === "lyrics" || overlay) renderLyrics(s);
+    if (mode === "lyrics" || overlay !== "off") renderLyrics(s);
+    else setOverlayText("");
     // Panels are only refocused when rebuilt, so a pointer can scroll a long queue.
     const rebuilt = panel === "display" ? display(s) : panel === "queue" ? queue(s) : panel === "details" ? details(s) : false;
     if (panel === "controls" || rebuilt) focusButton();
   }
+
+  // The bar's fill: the smoothed position as a transform, every frame while
+  // the song plays in Album or Lyrics with the poster's progress in view.
+  const motion = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  const smoother = createProgressSmoother({ reduced: () => !!(motion && motion.matches) });
+  let progressSong = "", progressDuration = 0, progressPlaying = false, progressRaf = 0;
+  function drawProgress(position) {
+    const shown = smoother.next({ target: position, playing: progressPlaying, song: progressSong, at: Date.now() });
+    const value = progressTransform(shown, progressDuration);
+    if (bar.style.transform !== value) bar.style.transform = value;
+  }
+  function progressWanted() {
+    return !!timer && progressPlaying && progressDuration > 0 && (mode === "album" || mode === "lyrics") && panel !== "controls";
+  }
+  function runProgress() {
+    if (!progressRaf && progressWanted() && typeof requestAnimationFrame === "function") progressRaf = requestAnimationFrame(progressFrame);
+  }
+  function progressFrame() {
+    progressRaf = 0;
+    if (!progressWanted()) return;
+    const p = live.playback;
+    drawProgress(Math.min(progressDuration, Math.max(0, p && p.position || 0)));
+    runProgress();
+  }
+  function stopProgress() { if (progressRaf && typeof cancelAnimationFrame === "function") cancelAnimationFrame(progressRaf); progressRaf = 0; }
+
   applyMode(); render();
   return {
     get mode() { return mode; },
@@ -400,9 +469,20 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       plainPage = Math.max(0, Math.min(pages - 1, plainPage + by)); lyricsKey = ""; optionKey = ""; render();
       return { page: plainPage + 1, pages };
     },
-    reloadPrefs() { lyricsOffsetMs = loadPref("lyricsOffsetMs", 0); onlineLyrics = loadPref("onlineLyrics", true); const next = loadPref("viewMode", "track"); if (VIEW_MODES.indexOf(next) >= 0) mode = next; background = loadPref("playerBackground", false); overlay = loadPref("lyricsOverlay", false); applyMode(); },
+    reloadPrefs() {
+      lyricsOffsetMs = loadPref("lyricsOffsetMs", 0); onlineLyrics = loadPref("onlineLyrics", true); const next = loadPref("viewMode", "track"); if (VIEW_MODES.indexOf(next) >= 0) mode = next; background = loadPref("playerBackground", false);
+      overlay = overlayKind(loadPref(KIND_PREF, false)); looks.line = overlayLook("line", loadPref(LOOK_PREFS.line, null)); looks.stage = overlayLook("stage", loadPref(LOOK_PREFS.stage, null));
+      applyMode();
+    },
+    // What the lyric overlay keeps clear of: the track card's height (px, 0
+    // while it is hidden) and whether the "Waiting for music" line shows.
+    setOverlayContext(context) {
+      if (context.cardPx === overlayContext.cardPx && context.message === overlayContext.message) return;
+      overlayContext = { cardPx: context.cardPx || 0, message: !!context.message };
+      placeLyricOverlay();
+    },
     start() { model.start(); if (!timer) timer = setInterval(() => { model.tick(); render(); if (panel === "controls" && Date.now() > hideAt) close(); }, 250); },
-    stop() { clearInterval(timer); timer = 0; model.stop(); close(); },
+    stop() { clearInterval(timer); timer = 0; stopProgress(); model.stop(); close(); },
     handleKey(name) {
       const media = { playpause: "play_pause", play: "play", pause: "pause", stop: "pause", fastforward: "next", rewind: "previous" }[name];
       if (media) { command(media); return true; }

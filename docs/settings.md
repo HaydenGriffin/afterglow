@@ -46,12 +46,41 @@ playback.
     when the lookup failed or found nothing, and asks again (a manual retry
     also clears a remembered "no lyrics").
   - **Extras:** **MilkDrop behind artwork and lyrics** (off by default; off
-    stops GPU drawing in Album and Lyrics), **Lyrics over Visuals + track**,
-    and **Lyrics page** for untimed lyrics.
+    stops GPU drawing in Album and Lyrics), **Lyrics over Visuals + track**
+    (below), and **Lyrics page** for untimed lyrics.
+  - **Lyrics over Visuals + track:** **Off** (the default), **One line** (the
+    current timed line in the track card's corner) or **Stage** (the current
+    line large, centred). While One line or Stage is chosen, three rows follow
+    and act on that overlay only; each overlay keeps its own, saved on this TV
+    and synced with its settings on the account:
+
+    | Row | Values | One line default | Stage default |
+    |---|---|---|---|
+    | Position | Top / Middle / Bottom | Bottom | Middle |
+    | Background | Box / Shade / None | Box | Box |
+    | Size | Small / Medium / Large | Medium | Medium |
+
+    Box is the flat ink field; Shade a soft band of the ground that fades out
+    at its edges; None text only, with a soft dark edge to stay readable over
+    bright visuals. Small and Large are about 0.8x and 1.25x Medium; long lines
+    wrap. Top sits below the notices, Middle at the screen's vertical centre
+    (moved off the "Waiting for music" line or a tall track card), Bottom on
+    the lower margin, stacked above the track card while it shows. The overlay
+    steps aside while controls or a panel are open and is back, with the new
+    look, as soon as they close. **Dim track info** dims it with the card.
 - **Settings:** the settings menu below.
 
 Failed actions are shown; nothing is assumed to have worked while Music
 Assistant is unreachable.
+
+Lists longer than their sheet (Settings, Display, Queue and its Play on and
+Speakers together pages, Details, Browse) show **More** with a chevron at the
+lower edge, over a fade of the last visible row, and the same at the top once
+rows sit above; the focused row always keeps one row visible beyond it.
+
+The progress bar under Album and Lyrics moves every frame with the song;
+small corrections from Music Assistant are eased in rather than jumped, a seek
+or a new song moves it at once, and it holds still while paused.
 
 ### Idle poster
 

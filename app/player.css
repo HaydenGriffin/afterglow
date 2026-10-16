@@ -43,7 +43,8 @@
 .poster-next strong { font-weight: 500; }
 .poster-progress { position: absolute; left: 6vw; right: 6vw; top: 91vh; display: flex; align-items: center; font-size: 2.2vh; color: var(--paper-2); font-variant-numeric: tabular-nums; }
 .progress-track { flex: 1; height: var(--hair); margin: 0 1.25vw; background: var(--rule); }
-.progress-track div { height: 100%; background: var(--paper); }
+/* The fill is scaled, not sized: progress.js moves it every frame without layout. */
+.progress-track div { height: 100%; background: var(--paper); -webkit-transform-origin: 0 0; transform-origin: 0 0; -webkit-transform: scaleX(0); transform: scaleX(0); will-change: transform; }
 #player.controls-open .poster-progress, #player.controls-open .poster-up-next { visibility: hidden; }
 
 .poster-lyrics, .poster-song { display: none; }
@@ -61,9 +62,25 @@
 .lyric-now.karaoke span.sung { color: var(--paper); }
 .lyric-plain { font-size: 4.4vh; line-height: 1.25; font-weight: 600; white-space: pre-line; max-height: 40vh; overflow: hidden; }
 .lyric-note { margin-top: 2vh !important; font-size: 2.8vh; line-height: 1.4; color: var(--paper-2); max-width: 36ch; }
-/* The lyric overlay shares the track card's corner; main.js lifts it above the card while the card shows. */
-.lyric-overlay { position: absolute; left: 5vw; bottom: 6vh; max-width: 60vw; padding: 1.4vh 1.4vw; font-size: 4vh; line-height: 1.15; font-weight: 700; background: rgba(18,20,23,.9); color: var(--paper); transition: transform 4s linear; }
-.lyric-overlay:empty, #player[data-mode="visuals"] .lyric-overlay, .controls-open .lyric-overlay, .panel-open .lyric-overlay, .sheet-open .lyric-overlay { display: none; }
+/* Lyrics over Visuals + track: a screen-sized layer (the OLED drift and Dim track info act on it)
+   holding One line (the track card's corner) or Stage (centred, large). lyric-overlay.js places
+   the line top or bottom: at Bottom above the track card while it shows. --s is the Size. */
+.lyric-overlay { position: absolute; left: 0; top: 0; right: 0; bottom: 0; --s: 1; transition: transform 4s linear; }
+.lyric-overlay[data-size="small"] { --s: .8; }
+.lyric-overlay[data-size="large"] { --s: 1.25; }
+.lyric-overlay:not(.has-line), #player[data-mode="visuals"] .lyric-overlay { display: none; }
+/* Hidden, not removed, under a sheet: it keeps its size, so it shows in place the moment the sheet closes. */
+.controls-open .lyric-overlay, .panel-open .lyric-overlay, .sheet-open .lyric-overlay { visibility: hidden; }
+.lyric-overlay-line { position: absolute; z-index: 0; left: 5vw; max-width: calc(60vw * var(--s)); box-sizing: border-box; padding: calc(1.4vh * var(--s)) calc(1.4vw * var(--s));
+  font-size: calc(4vh * var(--s)); line-height: 1.15; font-weight: 700; color: var(--paper); overflow-wrap: break-word; }
+.lyric-overlay[data-kind="stage"] .lyric-overlay-line { left: 0; right: 0; margin: 0 auto !important; width: -webkit-fit-content; width: fit-content; max-width: 70vw; padding: calc(2vh * var(--s)) calc(2.2vw * var(--s));
+  font-size: calc(7.4vh * var(--s)); line-height: 1.05; font-weight: 800; font-stretch: 82%; letter-spacing: -.015em; text-align: center; }
+/* Box: the flat ink field. Shade: a soft band of the ground that fades out at its edges. None: text only, with a soft dark edge. */
+.lyric-overlay[data-background="box"] .lyric-overlay-line { background: rgba(18,20,23,.9); }
+.lyric-overlay[data-background="shade"] .lyric-overlay-line::before { content: ""; position: absolute; z-index: -1; left: -10vw; right: -10vw; top: -6vh; bottom: -6vh;
+  background: radial-gradient(closest-side, rgba(18,20,23,.84), rgba(18,20,23,.74) 40%, rgba(18,20,23,.44) 68%, rgba(18,20,23,.16) 86%, rgba(18,20,23,0)); }
+.lyric-overlay[data-background="shade"] .lyric-overlay-line { text-shadow: 0 0 .4vh rgba(18,20,23,.7); }
+.lyric-overlay[data-background="none"] .lyric-overlay-line { text-shadow: 0 0 .3vh rgba(18,20,23,.95), 0 .2vh 1.6vh rgba(18,20,23,.85), 0 0 3.2vh rgba(18,20,23,.5); }
 /* Controls, Browse, a panel or Settings open: the track card steps aside. */
 .sheet-open #track { visibility: hidden; }
 
@@ -96,7 +113,17 @@
 .player-panel header { padding-bottom: 2vh; border-bottom: var(--hair) solid var(--rule); }
 .player-panel h2 { font-size: 6vh; line-height: 1; font-weight: 820; font-stretch: 82%; letter-spacing: -.015em; }
 .panel-note { margin-top: 1.2vh !important; font-size: 2.2vh; color: var(--paper-2); }
-.panel-items { flex: 1; overflow-y: auto; padding-top: 1vh; }
+.panel-items { padding-top: 1vh; }
+/* A list longer than its sheet (scroll-cue.js): the ground fades over the edge row, with "More" and a chevron
+   under the values column. The scrollbar stays. */
+.scroll-frame { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.scroll-frame > .panel-items, .scroll-frame > .browse-list, .scroll-frame > .menu-rows { flex: 1; min-height: 0; overflow-y: auto; }
+.scroll-cue { display: none; position: absolute; z-index: 1; left: 0; right: 0; height: 8vh; padding: 0 1vw .4vh; box-sizing: border-box; justify-content: flex-end; pointer-events: none; color: var(--paper-2); }
+.scroll-cue-down { bottom: 0; align-items: flex-end; background: linear-gradient(to bottom, rgba(18,20,23,0), rgba(18,20,23,.8) 40%, var(--ground) 60%); }
+.scroll-cue-up { top: 0; align-items: flex-start; padding: .4vh 1vw 0; background: linear-gradient(to top, rgba(18,20,23,0), rgba(18,20,23,.8) 40%, var(--ground) 60%); }
+.more-below > .scroll-cue-down, .more-above > .scroll-cue-up { display: flex; }
+.scroll-cue-label { display: flex; align-items: center; font-size: 2.2vh; font-weight: 800; letter-spacing: .02em; }
+.scroll-cue-label svg { width: 2.6vh; height: 2.6vh; margin-left: .4vw; }
 .panel-items h3 { font-size: 2.2vh; font-weight: 800; letter-spacing: .02em; color: var(--paper-2); margin: 3vh 0 .6vh !important; }
 .player-option { width: 100%; min-height: 7vh; display: flex; align-items: center; justify-content: space-between; text-align: left; padding: 1.2vh 1vw; box-sizing: border-box; font-size: 2.6vh !important; font-weight: 600; border-bottom: var(--hair) solid var(--rule) !important; }
 .player-option span:first-child { flex: 1; margin-right: 1vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -109,7 +136,7 @@
 .details-facts dd:nth-of-type(2), .details-facts dd:nth-of-type(3) { font-variant-numeric: tabular-nums; }
 
 /* Browse: categories in columns 1–3, the list or an item's actions in 4–12. */
-.player-browse { display: none; position: absolute; left: 0; right: 0; top: 0; bottom: 0; z-index: 2; padding: 6vh 5vw 0; box-sizing: border-box; background: var(--ground); pointer-events: auto; flex-direction: column; }
+.player-browse { display: none; position: absolute; left: 0; right: 0; top: 0; bottom: 0; z-index: 2; padding: 6vh 5vw 4vh; box-sizing: border-box; background: var(--ground); pointer-events: auto; flex-direction: column; }
 #player[data-panel="browse"] .player-browse { display: flex; }
 #player[data-panel="browse"] .player-panel { display: none; }
 .player-browse header { padding-bottom: 2vh; border-bottom: var(--hair) solid var(--rule); }
@@ -120,7 +147,7 @@
 .browse-cats button { width: 100%; min-height: 6.4vh; padding: 0 1vw; text-align: left; font-size: 2.6vh !important; font-weight: 700; border-bottom: var(--hair) solid var(--rule) !important; }
 .browse-main { flex: 1; display: flex; flex-direction: column; min-height: 0; padding-top: 2vh; }
 .browse-title { font-size: 4.4vh; font-weight: 820; font-stretch: 84%; padding: 0 0 1.4vh !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.browse-list { flex: 1; overflow-y: auto; padding-bottom: 4vh !important; }
+.browse-list { padding-bottom: 1vh !important; }
 .browse-row { width: 100%; min-height: 9.4vh; display: flex; align-items: center; padding: 1vh 1vw 1vh 0; box-sizing: border-box; text-align: left; border-bottom: var(--hair) solid var(--rule) !important; }
 .browse-thumb { width: 7.4vh; height: 7.4vh; flex-shrink: 0; margin-right: 1.25vw; background: var(--field-b); overflow: hidden; }
 .browse-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -175,8 +202,9 @@
 .idle-word { display: flex; align-items: flex-end; height: 100%; box-sizing: border-box; padding: .4vh .3vw; font-size: 1.9vh; font-weight: 700; border-top: var(--hair) solid var(--rule); }
 .idle-tile.selected .idle-word { border-top-color: transparent; }
 
-#menu { z-index: 3; max-height: 100vh; overflow-y: auto; }
-#menu h2 { margin: 0 0 1vh; padding-bottom: 2vh; font-size: 9vh; line-height: .92; font-weight: 820; font-stretch: 80%; letter-spacing: -.02em; border-bottom: var(--hair) solid var(--rule); }
+#menu { z-index: 3; }
+.menu-body { height: 100%; display: flex; flex-direction: column; }
+#menu h2 { flex-shrink: 0; margin: 0 0 1vh; padding-bottom: 2vh; font-size: 9vh; line-height: .92; font-weight: 820; font-stretch: 80%; letter-spacing: -.02em; border-bottom: var(--hair) solid var(--rule); }
 #menu h3 { margin: 3.4vh 0 .6vh; font-size: 2.2vh; font-weight: 800; letter-spacing: .02em; color: var(--paper-2); }
 .sync-figure { padding: 6.4vh 1vw 1vh; border-bottom: var(--hair) solid var(--rule); }
 .sync-scale { position: relative; height: 5vh; border-top: var(--hair) solid var(--rule); margin: 0 1vw; top: 2.4vh; }
