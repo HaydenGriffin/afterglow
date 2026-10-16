@@ -30,6 +30,10 @@ This product bundles the following third-party software:
   https://github.com/Sendspin/sendspin-js
   Copyright Sendspin Protocol Authors. Apache License 2.0.
 
+- QR Code generator library 1.8.0 (TypeScript version, compiled to
+  JavaScript), https://github.com/nayuki/QR-Code-generator
+  Copyright (c) Project Nayuki. MIT License.
+
 - Archivo typeface
   https://github.com/Omnibus-Type/Archivo
   Copyright (c) 2020 The Archivo Project Authors. SIL Open Font License 1.1.

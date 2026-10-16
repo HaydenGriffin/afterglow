@@ -155,6 +155,7 @@ pull requests are just as welcome.
 - [butterchurn-presets](https://github.com/jberg/butterchurn-presets) (MIT),
   and the MilkDrop preset authors.
 - [sendspin-js](https://github.com/Sendspin/sendspin-js) (Apache-2.0).
+- [QR Code generator](https://github.com/nayuki/QR-Code-generator) by Project Nayuki (MIT), for Scan to save.
 - [Archivo](https://github.com/Omnibus-Type/Archivo) typeface (SIL OFL 1.1).
 - Lyrics fallback by [LRCLIB](https://lrclib.net).
 

@@ -10,6 +10,7 @@ This app includes code from the projects below under the MIT License and the Apa
 | [ecma-proposal-math-extensions](https://github.com/tc39/proposal-math-extensions) | (c) Rick Waldron | `Math.clamp`, `Math.scale` and friends; inlined in `vendor/butterchurn.min.js` | 0.0.2 |
 | [butterchurn-presets](https://github.com/jberg/butterchurn-presets) | (c) 2013-2018 Jordan Berg | MilkDrop presets, selected into `vendor/presets.js` | 2.4.7 |
 | [sendspin-js](https://github.com/Sendspin/sendspin-js) (Apache-2.0, full text in `sendspin-js-LICENSE.txt`) | Sendspin Protocol Authors | "Play on this TV" Sendspin player, bundled into `app.js` | 3.2.1 |
+| [QR Code generator](https://github.com/nayuki/QR-Code-generator) (TypeScript version, compiled to JavaScript) | (c) Project Nayuki | Scan to save codes in Details, bundled into `app.js` | 1.8.0 |
 | [Archivo](https://github.com/Omnibus-Type/Archivo) (SIL OFL 1.1, full text in `fonts/OFL.txt`) | (c) 2020 The Archivo Project Authors | Interface typeface, `fonts/archivo-*.woff2` (Google Fonts latin and latin-ext subsets, variable weight and width) | Google Fonts v25 |
 
 ## MIT License

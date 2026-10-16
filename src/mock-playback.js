@@ -46,10 +46,20 @@ function demoPlayers() {
 
 const cover = key => ({ type: "thumb", path: "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">' + COVERS[key] + "</svg>"), remotely_accessible: true });
 const albumOf = name => ALBUMS.find(a => a[0] === name);
+// Where a demo song lives on public services (Scan to save in Details); the
+// last one has none, so Details shows no code for it. Made-up ids, never fetched.
+function demoMappings(i) {
+  if (i === TRACKS.length - 1) return [{ provider_domain: "filesystem_local", provider_instance: "filesystem--demo", item_id: String(i + 1), url: null }];
+  const id = "afterglowdemo" + String(i + 1).padStart(4, "0");
+  return [
+    { provider_domain: "tidal", provider_instance: "tidal--demo", item_id: id, url: "https://tidal.com/browse/track/" + (900000 + i) },
+    { provider_domain: "spotify", provider_instance: "spotify--demo", item_id: id, url: "https://open.spotify.com/track/" + id },
+  ];
+}
 function track([name, artist, album, duration, art], i) {
   const year = (albumOf(album) || [])[3];
   return { item_id: String(i + 1), provider: "library", media_type: "track", uri: "library://track/" + (i + 1), name, duration, favorite: i % 2 === 0,
-    artists: [{ name: artist }], album: { name: album, year }, metadata: { images: [cover(art)] }, demoArt: art };
+    artists: [{ name: artist }], album: { name: album, year }, metadata: { images: [cover(art)] }, demoArt: art, provider_mappings: demoMappings(i) };
 }
 const LIBRARY = {
   track: TRACKS.map(track),
