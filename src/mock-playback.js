@@ -31,7 +31,8 @@ const TRACKS = [
 const ALBUMS = [["Made for the room", "Afterglow demo", "cobalt", 2025], ["Short evenings", "The Demo Ensemble", "green", 2023], ["Coastline (demo)", "Demo Field Recordings", "violet", 2024], ["Wieczór (demo)", "Zespół demo", "red", 2022]];
 const PLAYLISTS = [["Sunday kitchen (demo)", "sky"], ["Late, quiet (demo)", "cobalt"], ["Weekend picks (demo)", "red"]];
 // Speakers as Music Assistant describes them. The living room plays; the
-// kitchen and this TV can join it, the bedroom (another system) cannot.
+// kitchen, the hallway (fixed volume) and this TV can join it, the bedroom
+// (another system, paused on a song of its own) cannot.
 function demoPlayers() {
   const speaker = (id, name, extra) => Object.assign({ player_id: id, name, type: "player", provider: "sendspin--demo", available: true, enabled: true,
     volume_level: 30, group_members: [], can_group_with: ["sendspin--demo"], supported_features: ["set_members", "volume_set"] }, extra);
@@ -41,6 +42,7 @@ function demoPlayers() {
     "demo-kitchen": speaker("demo-kitchen", "Kitchen · Preview", { volume_level: 20 }),
     "demo-tv": speaker("demo-tv", "This TV · Preview", { volume_level: 50 }),
     "demo-bedroom": speaker("demo-bedroom", "Bedroom · Preview", { provider: "sonos--demo", can_group_with: ["sonos--demo"] }),
+    "demo-hallway": speaker("demo-hallway", "Hallway · Preview", { volume_level: null, volume_control: "none", supported_features: ["set_members"] }),
   };
 }
 
@@ -107,6 +109,7 @@ export function createMockPlayback() {
   // The music: one queue object, moved between speakers by a transfer.
   const queue = queues["demo-living"];
   Object.assign(queue, { current_index: 0, current_item: tracks[0], next_item: tracks[1], state: "playing" });
+  Object.assign(queues["demo-bedroom"], { current_item: queueItem(LIBRARY.track[5]), state: "paused", items: 1 });
   function select(index) { queue.current_index = Math.max(0, Math.min(tracks.length - 1, index)); refresh(); position = 0; at = Date.now(); }
   function refresh() {
     queue.current_item = tracks[queue.current_index]; queue.next_item = tracks[queue.current_index + 1] || null; queue.items = tracks.length;
@@ -130,7 +133,7 @@ export function createMockPlayback() {
     if (on) lead.group_members.push(id);
     if (lead.group_members.length) lead.group_members.unshift(leader);
     member.synced_to = on ? leader : null;
-    const levels = lead.group_members.map(m => players[m].volume_level);
+    const levels = lead.group_members.map(m => players[m].volume_level).filter(l => typeof l === "number");
     lead.group_volume = levels.length ? Math.round(levels.reduce((a, b) => a + b, 0) / levels.length) : lead.volume_level;
   }
   return {
@@ -151,6 +154,7 @@ export function createMockPlayback() {
     setPreferred(id) { preferred = id || ""; },
     groupOptions() { const t = target(); return t ? groupOptions(players, t.queueId) : []; },
     transferPlan(id, stopped) { const t = target(); return t ? transferPlan({ players, queues, from: t.queueId, to: id, stopped }) : null; },
+    speakerLists() { return { players, queues }; },
     async call(command, args) {
       args = args || {};
       const library = /^music\/(\w+)s\/library_items$/.exec(command);
@@ -176,7 +180,7 @@ export function createMockPlayback() {
       }
       if (command === "players/cmd/group_volume") {
         const lead = players[args.player_id];
-        lead.group_members.forEach(id => { players[id].volume_level = args.volume_level; });
+        lead.group_members.forEach(id => { if (typeof players[id].volume_level === "number") players[id].volume_level = args.volume_level; });
         lead.group_volume = args.volume_level;
         return null;
       }

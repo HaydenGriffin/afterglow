@@ -248,8 +248,15 @@ export function createPlayback({ live, host, now = Date.now, lyricsSearch = sear
       if (value.autoPlay != null) out.args.auto_play = value.autoPlay;
     } else if (action === "group") {
       if (!value || !(value.add || value.remove)) return "";
-      out.command = "players/cmd/set_members"; out.args = { target_player: id };
+      out.command = "players/cmd/set_members"; out.args = { target_player: value.leader || id };
       if (value.add) out.args.player_ids_to_add = [value.add]; else out.args.player_ids_to_remove = [value.remove];
+    }
+    else if (action === "member_volume") {
+      // One speaker of a group: steps build on the level last sent to that speaker.
+      if (!value || !value.id) return "";
+      const field = "volume:" + value.id;
+      out.command = "players/cmd/volume_set";
+      out.args = { player_id: value.id, volume_level: set(field, Math.max(0, Math.min(100, Math.round(assumedOr(field, value.level) + (value.by || 0))))) };
     }
     else if (["previous", "next", "play_pause", "play", "pause"].indexOf(action) < 0) return "Unsupported action";
     return out;

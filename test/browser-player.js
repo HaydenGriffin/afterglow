@@ -17,8 +17,8 @@
   await section(2);
   assert(document.querySelector('.player-panel h2').textContent === 'Queue', 'Queue opens from the top strip');
   const initial = title();
-  // Past Playing on / Play on this TV / Speakers together to the first song.
-  for (let i = 0; i < 5; i++) key(DOWN);
+  // Past Playing on / Join / Move here / Speakers together to the first song.
+  for (let i = 0; i < 6; i++) key(DOWN);
   key(UP); key(UP); await wait();
   assert(title() === initial, 'Queue arrows must not start playback');
   const song = selected().firstChild.textContent;
@@ -41,10 +41,33 @@
   assert(!row('Kitchen · Preview').classList.contains('chosen'), 'Kitchen starts on its own');
   row('Kitchen · Preview').click(); await wait(600);
   assert(row('Kitchen · Preview').classList.contains('chosen'), 'Kitchen joins the group');
+  // Volume for each speaker: the group's members with a volume of their own.
+  const volumes = () => rows().filter(b => /%$/.test(b.lastChild.textContent)).map(b => b.firstChild.textContent + ' ' + b.lastChild.textContent);
+  row('Hallway · Preview').click(); await wait(600);
+  assert(volumes().join() === 'Kitchen · Preview 20%,Living room · Preview 35%', 'One volume row per member, none for fixed volume: ' + volumes().join());
+  const kitchenVolume = () => rows().filter(b => b.firstChild.textContent === 'Kitchen · Preview')[1];
+  kitchenVolume().focus(); for (let i = 0; i < 30 && selected() !== kitchenVolume(); i++) { key(DOWN); await wait(40); }
+  key(RIGHT); await wait(600);
+  assert(kitchenVolume().lastChild.textContent === '25%', 'Right steps one speaker up by 5');
+  row('Hallway · Preview').click(); await wait(600);
   key(BACK); await wait();
 
-  // Play on this TV moves the music here.
-  row('Play on this TV').click(); await wait(600);
+  // Play on says what each speaker plays, and offers Join and Move here first.
+  row('Playing on').click(); await wait();
+  const detail = label => row(label).lastChild.textContent;
+  assert(detail('Bedroom · Preview').indexOf('Paused · Low tide — Demo Field Recordings') === 0, 'A paused speaker shows its song');
+  assert(detail('Kitchen · Preview') === detail('Living room · Preview'), 'A member plays its leader’s song');
+  assert(rows()[0].firstChild.textContent === 'Join Living room · Preview' && rows()[1].firstChild.textContent === 'Move here', 'Join, then Move here, on top');
+  // Join adds this TV to the group and picks it; neither offer stays.
+  rows()[0].click(); await wait(600);
+  assert(document.querySelector('.player-panel h2').textContent === 'Queue', 'Join goes back to the queue');
+  assert(row('Playing on').lastChild.textContent === 'This TV · Preview' && !row('Move here'), 'This TV now plays the living room’s music');
+  // Leave again and follow Automatic: Move here comes back.
+  row('Speakers together').click(); await wait(); row('This TV · Preview').click(); await wait(600); key(BACK); await wait();
+  row('Playing on').click(); await wait(); row('Automatic').click(); await wait(600);
+
+  // Move here moves the music to this TV.
+  row('Move here').click(); await wait(600);
   assert(document.querySelector('.poster-target').textContent === 'This TV · Preview', 'The music moves to this TV');
 
   // Display: Album stops GPU drawing; Visuals only hides captions and draws again.

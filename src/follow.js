@@ -569,6 +569,10 @@ export function createFollow({ host, token, pinned, preferred, relay, WebSocketI
       const pick = targetPick();
       return pick ? transferPlan({ players, queues, from: pick.queueId, to: playerId, stopped }) : null;
     },
+    // The player and queue lists as Music Assistant last gave them (speaker-group.js reads them).
+    speakerLists() {
+      return { players, queues };
+    },
     get playback() {
       const queue = queues[current];
       return queue ? { queue, player: players[current] || null, connected: authed,
