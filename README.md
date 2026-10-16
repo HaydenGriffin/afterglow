@@ -135,6 +135,12 @@ what the [browser demo](https://haydengriffin.github.io/afterglow/) is (built by
 [`scripts/showcase.mjs`](scripts/showcase.mjs) with Playwright. See [Development](docs/development.md) and the
 [changelog](CHANGELOG.md).
 
+## Support
+
+Afterglow is free and open source. If it made your setup better, you can
+[buy me a coffee](https://buymeacoffee.com/haydengriffin). Bug reports and
+pull requests are just as welcome.
+
 ## Credits
 
 - [viz-man](https://github.com/mnestrud/viz-man) by Michael Nestrud (MIT), the
