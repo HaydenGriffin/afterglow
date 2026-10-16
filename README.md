@@ -113,7 +113,8 @@ Assistant's image proxy, falling back to the image's own address when the
 proxy has none. The other exception is lyrics. They come from Music Assistant; when it has none for a
 song, the TV asks [lrclib.net](https://lrclib.net) directly, sending the song's
 title and artist (the album and length are only used on the TV to pick the
-best match). LRCLIB sees the request coming from your network. Turn
+best match). **Choose other lyrics** sends the same search, and a song whose
+lyrics you chose is fetched by that LRCLIB record's id. LRCLIB sees the request coming from your network. Turn
 **Online lyrics** off (OK → Display → Lyrics, shown in the Lyrics view) to
 stop it; it is on by default and synced with your other TVs.
 

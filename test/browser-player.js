@@ -153,7 +153,7 @@
   assert(shows('Lyrics timing') === 'With the music', 'Forget: back to the device timing');
   option('Choose other lyrics').click(); await wait(1200);
   assert(document.querySelector('.player-panel h2').textContent === 'Choose lyrics' && rows().length >= 4 && rows()[0].classList.contains('chosen'), 'Choose lyrics lists versions, Automatic ticked');
-  assert(rows().some(b => / longer$/.test(b.lastChild.textContent)), 'A much longer version says so');
+  assert(rows().some(b => / longer · /.test(b.lastChild.textContent)), 'A much longer version says so');
   rows()[1].click(); await wait(400);
   assert(shows('Choose other lyrics') === 'Chosen for this song', 'A pick is kept for the song');
   option('Choose other lyrics').click(); await wait(1200); rows()[0].click(); await wait(1500);

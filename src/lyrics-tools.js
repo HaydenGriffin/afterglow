@@ -14,13 +14,13 @@ export function timingLabel(ms) {
   return ms ? (Math.abs(ms) / 1000).toFixed(1) + " s " + (ms > 0 ? "later" : "earlier") : "With the music";
 }
 
-// A candidate's second line: album · length · Timed/Plain, and how far its
-// length is from the song's when that is more than a few seconds.
+// A candidate's second line: its length (and how far that is from the
+// song's, beyond a few seconds), Timed/Plain, then the album, which is the
+// part a narrow row may cut.
 export function candidateDetail(c, duration) {
-  const parts = [c.album, c.duration ? timeLabel(c.duration) : "", c.timed ? "Timed" : "Plain"].filter(Boolean);
   const gap = duration > 0 && c.duration > 0 ? Math.round(c.duration - duration) : 0;
-  if (Math.abs(gap) > LONGER_S) parts.push(timeLabel(Math.abs(gap)) + (gap > 0 ? " longer" : " shorter"));
-  return parts.join(" · ");
+  const far = Math.abs(gap) > LONGER_S ? timeLabel(Math.abs(gap)) + (gap > 0 ? " longer" : " shorter") : "";
+  return [c.duration ? timeLabel(c.duration) : "", far, c.timed ? "Timed" : "Plain", c.album].filter(Boolean).join(" · ");
 }
 
 // The song's identity for the store: its Music Assistant uri, "" for none.

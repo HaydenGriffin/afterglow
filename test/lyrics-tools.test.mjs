@@ -54,9 +54,9 @@ test("labels: timings as the Lyrics timing row says them, candidates with their 
   assert.equal(timingLabel(0), "With the music");
   assert.equal(timingLabel(300), "0.3 s later");
   assert.equal(timingLabel(-1200), "1.2 s earlier");
-  assert.equal(candidateDetail({ album: "Coast", duration: 201, timed: true }, 200), "Coast · 3:21 · Timed");
-  assert.equal(candidateDetail({ album: "Live", duration: 290, timed: false }, 200), "Live · 4:50 · Plain · 1:30 longer");
-  assert.equal(candidateDetail({ album: "", duration: 150, timed: true }, 200), "2:30 · Timed · 0:50 shorter");
+  assert.equal(candidateDetail({ album: "Coast", duration: 201, timed: true }, 200), "3:21 · Timed · Coast");
+  assert.equal(candidateDetail({ album: "Live", duration: 290, timed: false }, 200), "4:50 · 1:30 longer · Plain · Live");
+  assert.equal(candidateDetail({ album: "", duration: 150, timed: true }, 200), "2:30 · 0:50 shorter · Timed");
 });
 
 test("changing the timing offers to keep it; Keep keeps it for this song and puts the others back", async (t) => {
@@ -120,8 +120,8 @@ test("Choose other lyrics lists LRCLIB's versions; a pick is used and kept for t
   assert.equal(h.root.querySelector(".player-panel h2").textContent, "Choose lyrics");
   assert.deepEqual(labels, [
     ["Automatic", "Music Assistant, else the best match", true],
-    ["Low Tide · Demo Band", "Coast · 3:20 · Timed", false],
-    ["Low Tide (live) · Demo Band", "Live · 4:50 · Timed · 1:30 longer", false],
+    ["Low Tide · Demo Band", "3:20 · Timed · Coast", false],
+    ["Low Tide (live) · Demo Band", "4:50 · 1:30 longer · Timed · Live", false],
   ]);
   assert.match(h.fetched[h.fetched.length - 1], /^https:\/\/lrclib\.net\/api\/search\?track_name=low%20tide&artist_name=Demo%20Band$/);
   h.row("Low Tide (live) · Demo Band").click();

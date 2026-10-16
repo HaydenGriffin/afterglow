@@ -1,3 +1,17 @@
+# Unreleased
+
+- Display → Lyrics: changing **Lyrics timing** during a song offers once to
+  **Keep this timing for this song?** (Keep / Not now). A kept timing applies
+  to that song's lyrics only, the other songs keep theirs, and **Forget timing
+  for this song** drops it. Kept for the 100 most recently changed songs,
+  synced with this TV's account settings.
+- Display → Lyrics → **Choose other lyrics**: wrong lyrics can be swapped for
+  another version from lrclib.net (up to six, with length, Timed or Plain and
+  album; a much longer one says so). The pick is kept for the song and fetched
+  by its LRCLIB id on later plays; Automatic goes back.
+- Details → **Go to a line**: with timed lyrics, pick a line and the song
+  plays from it.
+
 # 1.5.5 — Lyric overlay looks and More cues (16 October 2026)
 
 - Long lists show that they continue: **More** with a chevron at the bottom

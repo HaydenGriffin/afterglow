@@ -28,7 +28,10 @@ playback.
   queue ends, volume (a group's volume for a group) and the sleep timer are
   here too.
 - **Details:** what the song is and how it is streamed (source, format,
-  quality), with Start radio from this song and Add to favourites.
+  quality), with Start radio from this song and Add to favourites. With timed
+  lyrics, **Go to a line** lists the song's lines (the one on screen focused)
+  with the time each plays at; picking one seeks there, allowing for the
+  lyrics timing, so that line is the one on screen, and closes the panel.
 - **Display** (saved on this TV):
   - The view: **Visuals only** (MilkDrop alone), **Visuals + track** (MilkDrop
     with the track card), **Album** (the complete artwork, song, artist and up
@@ -38,13 +41,25 @@ playback.
   - **Lyrics**, shown in the Lyrics view or while lyrics are over Visuals +
     track: **Lyrics timing** moves the words only, up to 10 s earlier or
     later in 100 ms steps (left/right; "With the music" at zero), and
-    **Reset lyrics timing** puts it back to zero. **Online lyrics** (On by
+    **Reset lyrics timing** puts it back to zero. Changing it during a song
+    offers once **Keep this timing for this song?**: **Keep** gives this song
+    (these lyrics of it) the new timing and puts the other songs back where
+    they were; **Not now** leaves the change for every song. While a song has
+    a kept timing, Lyrics timing changes that song's timing and **Forget
+    timing for this song** ("Timing: kept for this song") drops it. **Online lyrics** (On by
     default, synced with your other TVs): when Music Assistant has no lyrics
     for a song, the TV asks lrclib.net directly, sending the title and artist;
     Off keeps lyrics to what Music Assistant provides, and switching it back
     On looks up a song that had none again. **Retry lyrics** appears
     when the lookup failed or found nothing, and asks again (a manual retry
-    also clears a remembered "no lyrics").
+    also clears a remembered "no lyrics"). **Choose other lyrics** (Online
+    lyrics On) is for wrong lyrics: it searches lrclib.net for the song and
+    lists up to six versions (length, a much longer or shorter one saying so,
+    Timed or Plain, album) under **Automatic** (Music Assistant, else the best
+    match). A pick shows at once and is kept for the song; later plays fetch
+    that version from lrclib.net by its id, and Automatic goes back. Kept
+    timings and chosen lyrics are remembered for the 100 most recently
+    changed songs, with this TV's settings on the account.
   - **Extras:** **MilkDrop behind artwork and lyrics** (off by default; off
     stops GPU drawing in Album and Lyrics), **Lyrics over Visuals + track**
     (below), and **Lyrics page** for untimed lyrics.
