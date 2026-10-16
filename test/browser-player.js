@@ -141,6 +141,30 @@
   assert(/FLAC|OGG/.test(document.querySelector('.details-facts').textContent), 'Details show the stream format');
   await closeAll();
 
+  // Lyrics tools: keep a timing for this song, choose other lyrics, go to a line.
+  key(OK); await wait(); document.querySelector('[aria-label="Display"]').click(); await wait();
+  pick('Lyrics'); await wait(1500);
+  const heads = () => Array.from(document.querySelectorAll('.panel-items h3')).map(h => h.textContent);
+  option('Lyrics timing')._change(1); await wait(400);
+  assert(heads().indexOf('Keep this timing for this song?') >= 0 && option('Not now'), 'Changing the timing offers to keep it for the song');
+  option('Keep').click(); await wait(400);
+  assert(shows('Forget timing for this song') === 'Timing: kept for this song' && shows('Lyrics timing') === '0.1 s later', 'Keep: the song keeps its timing');
+  option('Forget timing for this song').click(); await wait(400);
+  assert(shows('Lyrics timing') === 'With the music', 'Forget: back to the device timing');
+  option('Choose other lyrics').click(); await wait(1200);
+  assert(document.querySelector('.player-panel h2').textContent === 'Choose lyrics' && rows().length >= 4 && rows()[0].classList.contains('chosen'), 'Choose lyrics lists versions, Automatic ticked');
+  assert(rows().some(b => / longer$/.test(b.lastChild.textContent)), 'A much longer version says so');
+  rows()[1].click(); await wait(400);
+  assert(shows('Choose other lyrics') === 'Chosen for this song', 'A pick is kept for the song');
+  option('Choose other lyrics').click(); await wait(1200); rows()[0].click(); await wait(1500);
+  await closeAll(); key(OK); await wait(); document.querySelector('[aria-label="Details"]').click(); await wait(800);
+  option('Go to a line').click(); await wait(400);
+  assert(document.querySelector('.player-panel h2').textContent === 'Go to a line' && selected() && selected().classList.contains('chosen'), 'Go to a line focuses the line on screen');
+  const last = rows()[rows().length - 1], target = last.lastChild.textContent;
+  last.click(); await wait(800);
+  assert(!player.classList.contains('panel-open') && document.querySelector('.elapsed').textContent === target, 'Picking a line plays from it');
+  key(OK); await wait(); document.querySelector('[aria-label="Display"]').click(); await wait(); pick('Visuals only'); await closeAll();
+
   // Idle: pause, and after half a minute the recent music is set as a poster; OK resumes.
   const idle = document.getElementById('idle'), paused = title();
   key(32); await wait(31500);
@@ -151,5 +175,5 @@
   key(LEFT); await wait(); key(OK); await wait(1500);
   assert(!idle.classList.contains('shown'), 'OK resumes and the poster leaves');
   assert(document.documentElement.scrollWidth <= innerWidth, 'Screen must not overflow horizontally');
-  return { passed: 35, viewport: [innerWidth, innerHeight] };
+  return { passed: 42, viewport: [innerWidth, innerHeight] };
 })()
