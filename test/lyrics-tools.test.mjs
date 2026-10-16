@@ -155,7 +155,7 @@ test("Go to a line lists the timed lines and seeks to the picked one, after the 
   assert.equal(h.root.querySelector(".player-panel h2").textContent, "Go to a line");
   assert.equal(h.root.querySelector(".player-panel .panel-note").textContent, "Low Tide · plays from the line you pick");
   const labels = h.rows().map((b) => [b.children[0].textContent, b.children[1].textContent, b.classList.contains("chosen")]);
-  assert.deepEqual(labels, [["First line", "0:01", false], ["Second line", "0:21", false], ["Third line", "0:36", false]], "blank lines left out");
+  assert.deepEqual(labels, [["First line", "0:01", true], ["Second line", "0:21", false], ["Third line", "0:36", false]], "blank lines left out; in the gap after the first line, it is ticked");
   // 21 s into the song with lyrics 1.5 s later: 19.5 s of lyrics, the blank line after the first.
   assert.ok(h.rows()[0].classList.contains("selected"), "the line on screen has the focus");
   h.row("Third line").click();

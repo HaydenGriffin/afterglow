@@ -108,15 +108,17 @@ export function createLyricsTools({ model, prefs, device, setDevice, online, onN
     ui.note(s.track.title + " · plays from the line you pick");
     const lines = s.lyrics.lines, offset = offsetFor(s.track, s.lyrics);
     const current = lyricIndex(lines, s.lyricPosition);
-    let focus = 0, shown = 0;
+    // The line on screen is ticked, or in a gap the last one sung before it.
+    const rows = [];
+    let sung = -1;
     lines.forEach((line, i) => {
       if (!line.text.trim()) return;
-      if (i <= current) focus = shown;
+      if (i <= current) sung = rows.length;
       const at = lineSeekPosition(line.at, offset, s.track.duration);
-      ui.addRow(line.text, timeLabel(at), () => { page = ""; seek(at); closePanel(); }, !s.connected).classList.toggle("chosen", i === current);
-      shown++;
+      rows.push(ui.addRow(line.text, timeLabel(at), () => { page = ""; seek(at); closePanel(); }, !s.connected));
     });
-    if (focusLine) { focusLine = false; ui.setFocus(focus); }
+    if (sung >= 0) rows[sung].classList.add("chosen");
+    if (focusLine) { focusLine = false; ui.setFocus(Math.max(0, sung)); }
   }
 
   return {
