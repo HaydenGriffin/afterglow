@@ -44,7 +44,7 @@ test("no public link: nothing to show", () => {
   assert.equal(shareLink({}), null);
   assert.equal(shareLink(item([map("filesystem_local", "filesystem--a", null)], "filesystem--a")), null);
   assert.equal(shareLink(item([map("plex", "plex--a", "https://plex.example/library/1")], "plex--a")), null, "not a listed service");
-  assert.equal(shareLink(item([map("spotify", "spotify--a", "http://192.168.0.9/track")], "spotify--a")), null);
+  assert.equal(shareLink(item([map("spotify", "spotify--a", "http://10.0.0.9/track")], "spotify--a")), null);
 });
 
 // The same url gives this grid in both apps (PS5 tests/unit/share_link_test.cpp).

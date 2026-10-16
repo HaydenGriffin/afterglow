@@ -30,8 +30,8 @@ async function flush() {
 }
 
 test("Sendspin is Music Assistant's host on its own port", () => {
-  assert.equal(sendspinUrl("192.168.0.4"), "http://192.168.0.4:8927");
-  assert.equal(sendspinUrl("192.168.0.4:8095"), "http://192.168.0.4:8927");
+  assert.equal(sendspinUrl("10.0.0.4"), "http://10.0.0.4:8927");
+  assert.equal(sendspinUrl("10.0.0.4:8095"), "http://10.0.0.4:8927");
   assert.equal(sendspinUrl("http://ma.local:8095/"), "http://ma.local:8927");
 });
 
@@ -42,7 +42,7 @@ test("player ids are made as the Sendspin Cinema app makes them", () => {
 
 test("off until a player is set; then one PCM player that keeps the given id", async () => {
   const { Player, made } = fakePlayer();
-  const speaker = createSpeaker({ host: "192.168.0.4", Player });
+  const speaker = createSpeaker({ host: "10.0.0.4", Player });
   speaker.start();
   assert.equal(made.length, 0);
   assert.equal(speaker.state, "off");
@@ -54,7 +54,7 @@ test("off until a player is set; then one PCM player that keeps the given id", a
   const c = made[0].config;
   assert.equal(c.playerId, "webos-living-room-lg-c1");
   assert.equal(c.clientName, "Living Room LG C1");
-  assert.equal(c.baseUrl, "http://192.168.0.4:8927");
+  assert.equal(c.baseUrl, "http://10.0.0.4:8927");
   assert.deepEqual(c.codecs, ["pcm"]);
   assert.equal(c.requiredLeadTimeMs, 1000);
   assert.equal(c.minBufferMs, 2000);
