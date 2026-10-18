@@ -1,4 +1,4 @@
-# Unreleased
+# 1.6.0 — Visual style Off (18 October 2026)
 
 - **Visual style Off** (user request). Display → Extras gains **Visual style**: **MilkDrop** (the default) or
   **Off**: no visuals, just the music on a black screen. With Visuals only nothing is drawn but the notices, which
