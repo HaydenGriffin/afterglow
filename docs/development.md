@@ -146,5 +146,6 @@ for a fork.
 `?mock=1` afresh and evaluate its contents in the page (DevTools, or a browser
 automation tool's evaluate with promise awaiting). It refuses a non-mock page.
 Through real remote events it checks the top strip, queue arrow safety and song
-actions, artwork draw suspension, pure visuals, visual style Off, Browse → Add
-to the queue, Details, and overflow.
+actions, artwork draw suspension, pure visuals, visual style Off (with cold
+starts in Off in a same-origin frame, whose storage changes are put back),
+Browse → Add to the queue, Details, and overflow.

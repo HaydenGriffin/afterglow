@@ -9,6 +9,12 @@
   // Waits for a condition rather than a fixed time, so a busy machine is not a failure.
   const until = async (check, ms = 5000) => { const end = Date.now() + ms; while (!check() && Date.now() < end) await wait(100); return check(); };
   const OK = 13, BACK = 27, LEFT = 37, UP = 38, RIGHT = 39, DOWN = 40;
+  // Animation frames a window asks for in `ms`.
+  const animationFrames = async (win, ms = 1000) => {
+    const own = win.requestAnimationFrame; let asked = 0;
+    win.requestAnimationFrame = fn => { asked++; return own.call(win, fn); };
+    await wait(ms); win.requestAnimationFrame = own; return asked;
+  };
   const player = document.querySelector('#player');
   const title = () => document.querySelector('.poster-title').textContent;
   const rows = () => Array.from(document.querySelectorAll('.panel-items button'));
@@ -99,6 +105,7 @@
   await styleTo('Off');
   const blank = window.afterglowDiagnostics().rendering.frames; await wait();
   assert(!window.afterglowDiagnostics().drawing && window.afterglowDiagnostics().rendering.frames === blank, 'Visual style Off must stop GPU drawing');
+  assert(window.afterglowDiagnostics().resting && await animationFrames(window) === 0, 'Visual style Off asks for no animation frames');
   assert(getComputedStyle(document.getElementById('gl')).display === 'none', 'Visual style Off leaves a blank screen');
   key(UP); await wait();
   assert(window.afterglowDiagnostics().rendering.frames === blank, 'Preset keys do nothing while Off');
@@ -351,6 +358,61 @@
     assert(shownPreset() === second, 'Previous returns to the preset shown before');
     key(DOWN); await wait();
     assert(shownPreset() === first, 'and the one before that');
+  }
+  // Cold starts with the visual style Off, in a same-origin frame (it shares this page's storage, put back after).
+  const stored = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.indexOf('afterglow.') === 0) stored[k] = localStorage.getItem(k); }
+  const putBack = () => { for (const k of Object.keys(localStorage)) if (k.indexOf('afterglow.') === 0 && !(k in stored)) localStorage.removeItem(k); for (const k in stored) localStorage.setItem(k, stored[k]); };
+  const shell = document.createElement('iframe');
+  shell.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;border:0;z-index:99;background:#000';
+  try {
+    const coldStart = async prefs => {
+      for (const k in prefs) localStorage.setItem('afterglow.' + k, JSON.stringify(prefs[k]));
+      shell.src = location.pathname + '?mock=1&cold=' + Date.now();
+      if (!shell.parentNode) document.body.appendChild(shell);
+      await wait(500);
+      assert(await until(() => shell.contentWindow.afterglowDiagnostics && shell.contentDocument.querySelector('[aria-label="Display"]'), 15000), 'Cold start loads');
+      await wait(1500);
+      return shell.contentWindow;
+    };
+    const press = (w, code) => w.dispatchEvent(new w.KeyboardEvent('keydown', { keyCode: code }));
+    const setStyle = async (w, value) => {
+      const d = w.document, open = () => d.getElementById('player').classList.contains('controls-open') || d.getElementById('player').classList.contains('panel-open');
+      press(w, OK); await wait(); d.querySelector('[aria-label="Display"]').click(); await wait();
+      const style = () => Array.from(d.querySelectorAll('.panel-items button')).find(b => b.firstChild.textContent === 'Visual style');
+      for (let i = 0; i < 2 && style().lastChild.textContent !== value; i++) { style().click(); await wait(); }
+      assert(style().lastChild.textContent === value, 'Cold start: Visual style steps to ' + value);
+      for (let i = 0; i < 4 && open(); i++) { press(w, BACK); await wait(); }
+    };
+    const banner = w => /MilkDrop can.t run/.test(w.document.getElementById('message').textContent) && w.document.getElementById('message').style.display === 'block';
+
+    // A saved Off after a start that never finished: blank, not the MilkDrop failure line.
+    let w = await coldStart({ visualStyle: 'off', viewMode: 'visuals', milkdropPending: true });
+    assert(w.afterglowDiagnostics().resting && w.afterglowDiagnostics().rendering.frames === 0 && !banner(w), 'Off with a failed MilkDrop start stays blank');
+    assert(await animationFrames(w) === 0, 'A cold start in Off asks for no animation frames');
+    await setStyle(w, 'MilkDrop');
+    assert(await until(() => banner(w), 3000), 'MilkDrop again shows why it cannot run');
+    await setStyle(w, 'Off');
+    assert(await until(() => !banner(w), 3000), 'Off after the failure takes the line away');
+
+    // A cold start in Off, then MilkDrop: it starts and draws.
+    w = await coldStart({ visualStyle: 'off', viewMode: 'visuals', milkdropPending: false });
+    assert(w.afterglowDiagnostics().resting && w.afterglowDiagnostics().rendering.frames === 0, 'A cold start in Off never starts MilkDrop');
+    await setStyle(w, 'MilkDrop');
+    assert(await until(() => { const g = w.afterglowDiagnostics(); return g.drawing && !g.resting && g.rendering.frames > 10 && g.preset && g.preset !== 'loading'; }, 15000), 'MilkDrop starts and draws after a cold start in Off');
+
+    // A preset scan started while Off runs MilkDrop, and Back puts Off back.
+    await setStyle(w, 'Off');
+    assert(w.afterglowDiagnostics().resting, 'Off rests again');
+    press(w, OK); await wait(); press(w, UP); press(w, LEFT); for (let i = 0; i < 3; i++) press(w, RIGHT); await wait(100); press(w, OK); await wait(700);
+    Array.from(w.document.querySelectorAll('#menu .row')).find(r => r.firstChild.textContent === 'Scan presets').click();
+    const scanFrames = w.afterglowDiagnostics().rendering.frames;
+    assert(await until(() => { const g = w.afterglowDiagnostics(); return !g.resting && g.drawing && g.rendering.frames > scanFrames + 10; }, 15000) && w.document.getElementById('scan').style.display === 'block', 'A scan started while Off draws');
+    press(w, BACK);
+    assert(await until(() => { const g = w.afterglowDiagnostics(); return g.resting && !g.drawing; }, 5000) && w.document.getElementById('scan').style.display === 'none', 'Stopping the scan puts Off back');
+    assert(await animationFrames(w) === 0, 'and no animation frames after it');
+  } finally {
+    shell.remove();
+    putBack();
   }
   return Object.assign({ passed, viewport: [innerWidth, innerHeight] }, milkdropOff ? { skipped: 'Visuals & presets checks: MilkDrop ' + milkdropOff } : {});
 })()

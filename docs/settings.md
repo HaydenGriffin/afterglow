@@ -107,11 +107,13 @@ playback.
     the account), **MilkDrop behind artwork and lyrics** (off by default; off
     stops GPU drawing in Album and Lyrics), **Lyrics over Visuals + track**
     (below), and **Lyrics page** for untimed lyrics. With the visual style
-    Off, MilkDrop is not drawn at all (except during a preset scan you start),
-    so it costs the TV nothing: Visuals only is true black (OLED pixels off)
-    with only the notices, which fade; Visuals + track is the track card on
-    black; Album and Lyrics show their posters whole, as with MilkDrop behind
-    them off; the lyric overlays still show, on black.
+    Off, MilkDrop is not drawn at all (except during a preset scan you start)
+    and the render loop stops; only a light check of the waveform, four times
+    a second, keeps "Waiting for music" current. Visuals only is true black
+    (OLED pixels off) with only the notices, which fade, and no line about
+    MilkDrop being unable to run; Visuals + track is the track card on black;
+    Album and Lyrics show their posters whole, as with MilkDrop behind them
+    off; the lyric overlays still show, on black.
   - **Lyrics over Visuals + track:** **Off** (the default), **One line** (the
     current timed line in the track card's corner) or **Stage** (the current
     line large, centred). While One line or Stage is chosen, three rows follow

@@ -169,6 +169,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     const visuals = style !== "off";
     root.classList.toggle("has-background", visuals && background && (mode === "album" || mode === "lyrics"));
     engine.setDrawing(visuals && (mode === "visuals" || mode === "track" || background));
+    engine.setResting(!visuals);
     model.wantLyrics(mode === "lyrics" || (overlay !== "off" && mode !== "visuals"));
     applyOverlayLook();
     onMode(mode);

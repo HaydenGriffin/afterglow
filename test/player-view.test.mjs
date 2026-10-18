@@ -9,7 +9,7 @@ const song = { queue_item_id: "i1", duration: 200, media_item: { media_type: "tr
 
 // The player view over a fake document and a Music Assistant that answers
 // every command at once (lyrics: none).
-function harness(t, engine = { setDrawing() {} }) {
+function harness(t, engine = { setDrawing() {}, setResting() {} }) {
   const doc = useFakeDocument(t);
   const calls = [];
   const live = {
@@ -106,12 +106,13 @@ test("Lyrics over Visuals + track: Off, One line, Stage; Position, Background an
 test("Display → Visual style: MilkDrop or Off; Off draws nothing in any view, even with MilkDrop behind", (t) => {
   t.after(() => { for (const key of ["visualStyle", "playerBackground", "viewMode", "lyricsOverlay"]) savePref(key, null); });
   savePref("visualStyle", null); savePref("playerBackground", true); savePref("viewMode", "visuals"); savePref("lyricsOverlay", "line");
-  const engine = { on: null, setDrawing(on) { this.on = on; } };
+  const engine = { on: null, resting: null, setDrawing(on) { this.on = on; }, setResting(on) { this.resting = on; } };
   const h = harness(t, engine);
   h.root.querySelector(".transport").children.find((b) => b.getAttribute("aria-label") === "Display").click();
   const value = () => h.row("Visual style").children[1].textContent;
   assert.equal(value(), "MilkDrop", "MilkDrop by default");
   assert.equal(engine.on, true);
+  assert.equal(engine.resting, false);
   h.row("Visual style").click();
   assert.equal(value(), "Off");
   assert.equal(loadPref("visualStyle", null), "off");
@@ -119,6 +120,7 @@ test("Display → Visual style: MilkDrop or Off; Off draws nothing in any view, 
   for (const mode of ["visuals", "track", "album", "lyrics"]) {
     h.view.setMode(mode);
     assert.equal(engine.on, false, mode + ": MilkDrop is not drawn");
+    assert.equal(engine.resting, true, mode + ": no animation frames either");
     assert.equal(h.root.classList.contains("has-background"), false, mode + ": the poster keeps its full ground");
   }
   assert.equal(h.root.querySelector(".lyric-overlay").getAttribute("data-kind"), "line", "the lyric overlay still shows, on black");
@@ -126,6 +128,7 @@ test("Display → Visual style: MilkDrop or Off; Off draws nothing in any view, 
   h.row("Visual style").click();
   assert.equal(value(), "MilkDrop", "OK wraps round to MilkDrop");
   assert.equal(engine.on, true, "Lyrics with MilkDrop behind draws again");
+  assert.equal(engine.resting, false);
   assert.equal(h.root.classList.contains("has-background"), true);
   h.row("Visual style")._change(-1);
   assert.equal(loadPref("visualStyle", null), "off", "left wraps round too: MilkDrop to Off");
@@ -137,7 +140,7 @@ test("Display → Visual style: MilkDrop or Off; Off draws nothing in any view, 
 test("visual style Off round-trips this TV's storage and the account mirror", (t) => {
   t.after(() => { for (const key of ["visualStyle", "viewMode"]) savePref(key, null); });
   savePref("visualStyle", null); savePref("viewMode", "visuals");
-  const engine = { on: null, setDrawing(on) { this.on = on; } };
+  const engine = { on: null, resting: null, setDrawing(on) { this.on = on; }, setResting(on) { this.resting = on; } };
   const h = harness(t, engine);
   h.root.querySelector(".transport").children.find((b) => b.getAttribute("aria-label") === "Display").click();
   h.row("Visual style").click();
@@ -160,7 +163,7 @@ test("visual style Off round-trips this TV's storage and the account mirror", (t
 test("a visual style this build does not know reads as MilkDrop; a synced change is picked up", (t) => {
   t.after(() => { for (const key of ["visualStyle", "viewMode"]) savePref(key, null); });
   savePref("visualStyle", "halo"); savePref("viewMode", "visuals");
-  const engine = { on: null, setDrawing(on) { this.on = on; } };
+  const engine = { on: null, resting: null, setDrawing(on) { this.on = on; }, setResting(on) { this.resting = on; } };
   const h = harness(t, engine);
   assert.equal(h.view.visualStyle, "milkdrop");
   assert.equal(engine.on, true);
@@ -192,7 +195,7 @@ async function demoQueue(t) {
   const live = createMockPlayback();
   const doc = globalThis.document, root = doc.createElement("div"), notices = [];
   doc.body.appendChild(root);
-  const view = createPlayerView({ root, live, host: "ma", engine: { setDrawing() {} }, onSettings() {}, onMode() {}, onNotice: (n) => notices.push(n) });
+  const view = createPlayerView({ root, live, host: "ma", engine: { setDrawing() {}, setResting() {} }, onSettings() {}, onMode() {}, onNotice: (n) => notices.push(n) });
   const rows = () => root.querySelector(".panel-items").querySelectorAll("button");
   const labels = () => rows().map((b) => [b.children[0].textContent, b.children[1].textContent]);
   const row = (label, at = 0) => rows().filter((b) => b.children[0].textContent === label)[at];

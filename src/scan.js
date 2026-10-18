@@ -74,6 +74,7 @@ export function createScan({ milkdrop, engine, source, overlay, onDone, onNotice
     } else savePref("scanCursor", queue);
     engine.setFpsCap(savedCap);
     engine.setSource(source);
+    engine.setScanning(false);
     if (overlay) overlay.style.display = "none";
     milkdrop.resume();
     if (onDone) onDone(complete);
@@ -126,6 +127,7 @@ export function createScan({ milkdrop, engine, source, overlay, onDone, onNotice
       savedCap = engine.fpsCap;
       engine.setFpsCap(60);
       engine.setSource(feed);
+      engine.setScanning(true);
       if (overlay) {
         overlay.style.display = "block";
         overlay.querySelector(".scan-title").textContent = "Scanning presets";

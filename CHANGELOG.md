@@ -5,9 +5,11 @@
   fade; with Visuals + track the track card sits on black; Album and Lyrics show their posters whole, as with
   MilkDrop behind them turned off; the lyric overlays still show. The black is true black (OLED pixels off), and
   MilkDrop does not render while Off (it is not even started when the app opens with Off), except during a preset
-  scan you start. In the Visuals modes the preset keys (↑ / ↓, Yellow, Blue) do nothing while Off. Saved on this
-  TV and synced with its settings on the account (`visualStyle`); a value this build does not know reads as
-  MilkDrop. LG has no Halo or Spectrum, so the PS5's four styles are two here.
+  scan you start. The render loop stops too: only a waveform check four times a second keeps "Waiting for music"
+  current. A MilkDrop that cannot run on this TV says nothing about it while Off. In the Visuals modes the preset
+  keys (↑ / ↓, Yellow, Blue) do nothing while Off. Saved on this TV and synced with its settings on the account
+  (`visualStyle`); a value this build does not know reads as MilkDrop. LG has no Halo or Spectrum, so the PS5's
+  four styles are two here.
 
 # 1.5.6 — New logo, playlists and cover art in the visuals (16 October 2026)
 

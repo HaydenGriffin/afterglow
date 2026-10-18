@@ -28,6 +28,7 @@ import { allPrefs, clearPref, favoriteNames, loadPref, mergeFavorites, mergePref
 import { LISTS, VALIDATE_CHOICES } from "./validation.js";
 import { createSetupCheck, demoProbes, liveProbes } from "./setup-check.js";
 import { createSetupOffer, createSetupView } from "./setup-view.js";
+import { milkdropProblem, screenMessage } from "./screen-message.js";
 
 const TRIM_STEP_MS = 25;
 const MESSAGE_REFRESH_MS = 1000;
@@ -233,7 +234,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     milkdropOff = reason;
     debug.record("MilkDrop off: " + reason);
     refreshMessage();
-    toast("MilkDrop off: " + reason);
+    if (milkdropProblem(reason, playerView && playerView.visualStyle)) toast("MilkDrop off: " + reason);
   }, toast);
   if (!milkdropOff) engine.setRenderer(milkdrop);
   if (live) {
@@ -649,6 +650,7 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
     canvas: [canvas.width, canvas.height],
     rendering: engine.metrics,
     drawing: engine.drawing,
+    resting: engine.resting,
     viewMode: playerView.mode,
     speaker: speaker ? speaker.stats : null,
     speakerState: speaker ? speaker.state + (speaker.error ? " (" + speaker.error + ")" : "") : null,
@@ -664,25 +666,17 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
 
   function refreshMessage() {
     showMessage();
-    setupOffer.show(message, message.style.display === "block" && !milkdropOff && !setupView.isOpen);
+    setupOffer.show(message, message.style.display === "block" && !milkdropProblem(milkdropOff, playerView.visualStyle) && !setupView.isOpen);
     stackLyricOverlay();
   }
   function showMessage() {
     idle.update(!(live && live.problem) && !playerView.isOpen && !menu.isOpen && !setupView.isOpen && !scan.running && !login.isOpen && !leaving);
     if (idle.showing) { message.style.display = "none"; return; }
-    if (playerView && (playerView.mode === "album" || playerView.mode === "lyrics")) { message.style.display = "none"; return; }
-    if (milkdropOff) {
-      message.classList.remove("waiting");
-      message.textContent = "MilkDrop can't run on this TV: " + milkdropOff + (hasWebGL2() ? " (OK, then MilkDrop, to retry)" : "");
-      message.style.display = "block";
-      return;
-    }
-    if (!engine.idle) {
-      message.style.display = "none";
-      return;
-    }
-    message.textContent = (live && live.problem) || "Waiting for music";
-    message.classList.toggle("waiting", !(live && live.problem));
+    const shown = screenMessage({ poster: playerView.mode === "album" || playerView.mode === "lyrics", milkdropOff,
+      visualStyle: playerView.visualStyle, webgl2: hasWebGL2, idle: engine.idle, problem: live && live.problem });
+    if (!shown) { message.style.display = "none"; return; }
+    message.textContent = shown.text;
+    message.classList.toggle("waiting", shown.waiting);
     message.style.display = "block";
   }
   engine.onIdleChange(refreshMessage);

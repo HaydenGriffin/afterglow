@@ -31,7 +31,7 @@ function harness(t, lrclib = async () => ({ ok: true, status: 200, json: async (
   };
   const root = doc.createElement("div");
   doc.body.appendChild(root);
-  const view = createPlayerView({ root, live, host: "ma", engine: { setDrawing() {} }, onSettings() {}, onMode() {}, onNotice: (n) => notices.push(n) });
+  const view = createPlayerView({ root, live, host: "ma", engine: { setDrawing() {}, setResting() {} }, onSettings() {}, onMode() {}, onNotice: (n) => notices.push(n) });
   view.setMode("lyrics");
   view.start();
   // The fake document is gone by now; stop() clears the timer before it needs one.

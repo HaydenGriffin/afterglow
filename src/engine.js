@@ -4,9 +4,14 @@
 //
 // A renderer is { scale, create({canvas}) -> { draw(frame) } }; `scale` is its
 // render size relative to the window.
+//
+// Resting (visual style Off) stops the animation-frame loop altogether: a
+// slow tick only reads the waveform, which keeps "is anything playing" current
+// and drains the feed. A preset scan always runs the loop and draws.
 
 const FPS_WINDOW_MS = 1000;
 const DEFAULT_SCALE = 0.5;
+const REST_TICK_MS = 250;
 
 export function createEngine({ canvas, analysis, source }) {
   const afterRender = [];
@@ -17,6 +22,9 @@ export function createEngine({ canvas, analysis, source }) {
   let raf = 0;
   let running = false;
   let drawing = true;
+  let resting = false;
+  let scanning = false;
+  let restTimer = 0;
   let lastFrameMs = 0;
   let fpsCap = 60;
   let fps = 0;
@@ -28,6 +36,44 @@ export function createEngine({ canvas, analysis, source }) {
   let renderOver50Ms = 0;
   let maxFrameGapMs = 0;
   let frameGapsOver100Ms = 0;
+
+  const draws = () => drawing || scanning;
+  const rests = () => resting && !scanning;
+
+  // Nothing is playing: blank the picture once and wait.
+  function noteWave(wave) {
+    if ((wave === null) === idle) return;
+    idle = wave === null;
+    canvas.style.visibility = idle ? "hidden" : "visible";
+    for (const fn of idleListeners) fn(idle);
+  }
+
+  function restTick() {
+    noteWave(feed.wave(performance.now()));
+  }
+
+  // The loop that suits the moment: animation frames, the rest tick, or neither.
+  function schedule() {
+    if (running && rests()) {
+      cancelAnimationFrame(raf);
+      raf = 0;
+      fps = 0;
+      if (!restTimer) restTimer = setInterval(restTick, REST_TICK_MS);
+      return;
+    }
+    clearInterval(restTimer);
+    restTimer = 0;
+    if (running && !raf) {
+      lastFrameMs = 0;
+      fpsSince = performance.now();
+      fpsFrames = 0;
+      raf = requestAnimationFrame(frame);
+    }
+  }
+
+  function applyCanvas() {
+    canvas.style.display = draws() ? "" : "none";
+  }
 
   function frame(nowMs) {
     raf = requestAnimationFrame(frame);
@@ -49,21 +95,11 @@ export function createEngine({ canvas, analysis, source }) {
     fpsFrames++;
 
     const wave = feed.wave(nowMs);
-    if (wave === null) {
-      // Nothing is playing: blank the picture once and wait.
-      if (!idle) {
-        idle = true;
-        canvas.style.visibility = "hidden";
-        for (const fn of idleListeners) fn(true);
-      }
-    } else {
-      if (idle) {
-        idle = false;
-        canvas.style.visibility = "visible";
-        for (const fn of idleListeners) fn(false);
-      }
-      if (drawing) analysis.setWave(wave, dt);
-      if (instance && drawing) {
+    noteWave(wave);
+    if (wave !== null) {
+      const drawNow = draws();
+      if (drawNow) analysis.setWave(wave, dt);
+      if (instance && drawNow) {
         const began = performance.now();
         instance.draw({ t: nowMs / 1000, dt, analysis });
         const cost = performance.now() - began;
@@ -77,8 +113,13 @@ export function createEngine({ canvas, analysis, source }) {
   }
 
   return {
-    setDrawing(on) { drawing = !!on; canvas.style.display = drawing ? "" : "none"; },
-    get drawing() { return drawing; },
+    setDrawing(on) { drawing = !!on; applyCanvas(); },
+    get drawing() { return draws(); },
+    // Visual style Off: no animation frames, only the slow waveform tick.
+    setResting(on) { resting = !!on; schedule(); },
+    get resting() { return running && rests(); },
+    // A preset scan draws and runs the loop whatever the view wants.
+    setScanning(on) { scanning = !!on; applyCanvas(); schedule(); },
     setRenderer(renderer) {
       const scale = renderer.scale || DEFAULT_SCALE;
       const w = Math.round(window.innerWidth * scale);
@@ -95,14 +136,14 @@ export function createEngine({ canvas, analysis, source }) {
     start() {
       if (running) return;
       running = true;
-      lastFrameMs = 0;
-      fpsSince = performance.now();
-      fpsFrames = 0;
-      raf = requestAnimationFrame(frame);
+      schedule();
     },
     stop() {
       running = false;
       cancelAnimationFrame(raf);
+      raf = 0;
+      clearInterval(restTimer);
+      restTimer = 0;
     },
     setFpsCap(cap) {
       fpsCap = cap;
