@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyPresentationTrim, createPlayback, parseLyrics, lyricIndex, trackInfo, timeLabel } from '../src/playback.js';
+import { applyPresentationTrim, createPlayback, parseLyrics, lyricIndex, stepVisualStyle, trackInfo, timeLabel, VISUAL_STYLES, visualStyle } from '../src/playback.js';
 
 function harness() {
   const pending = [], calls = [];
@@ -248,4 +248,15 @@ test('speed is sent as Music Assistant 2.10 takes it and shown from the queue', 
   const done = h.model.command('speed', 1.5);
   assert.deepEqual(h.calls[0], { command: 'player_queues/set_playback_speed', args: { queue_id: 'group', speed: 1.5 } });
   h.pending[0].resolve(null); assert.equal(await done, true);
+});
+
+test('visual style: MilkDrop or Off, unknown values read as MilkDrop, steps wrap both ways', () => {
+  assert.deepEqual(VISUAL_STYLES, ['milkdrop', 'off']);
+  for (const stored of [undefined, null, '', 'halo', 3, true]) assert.equal(visualStyle(stored), 'milkdrop');
+  assert.equal(visualStyle('off'), 'off');
+  assert.equal(stepVisualStyle('milkdrop', 1), 'off');
+  assert.equal(stepVisualStyle('off', 1), 'milkdrop');
+  assert.equal(stepVisualStyle('milkdrop', -1), 'off');
+  assert.equal(stepVisualStyle('off', -1), 'milkdrop');
+  assert.equal(stepVisualStyle('spectrum', 1), 'off', 'an unknown value steps on from MilkDrop');
 });

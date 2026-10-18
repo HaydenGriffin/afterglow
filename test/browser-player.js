@@ -88,6 +88,33 @@
   assert(getComputedStyle(document.querySelector('.lyric-overlay')).display === 'none', 'Pure visuals must hide lyric overlay');
   assert(window.afterglowDiagnostics().drawing, 'Visuals should resume drawing');
 
+  // Visual style Off: the music on a blank screen; MilkDrop is not drawn until it is back.
+  const styleTo = async value => {
+    key(OK); await wait(); document.querySelector('[aria-label="Display"]').click(); await wait();
+    const style = () => rows().find(b => b.firstChild.textContent === 'Visual style');
+    for (let i = 0; i < 2 && style().lastChild.textContent !== value; i++) { style().click(); await wait(); }
+    assert(style().lastChild.textContent === value, 'Visual style steps to ' + value);
+    await closeAll();
+  };
+  await styleTo('Off');
+  const blank = window.afterglowDiagnostics().rendering.frames; await wait();
+  assert(!window.afterglowDiagnostics().drawing && window.afterglowDiagnostics().rendering.frames === blank, 'Visual style Off must stop GPU drawing');
+  assert(getComputedStyle(document.getElementById('gl')).display === 'none', 'Visual style Off leaves a blank screen');
+  key(UP); await wait();
+  assert(window.afterglowDiagnostics().rendering.frames === blank, 'Preset keys do nothing while Off');
+  // Once the notices fade, Visuals only + Off paints nothing but true black (no MilkDrop frame left behind).
+  const faded = id => getComputedStyle(document.getElementById(id)).opacity === '0';
+  assert(await until(() => faded('toast') && faded('hint'), 6000), 'The notices fade');
+  const painted = [];
+  for (let x = 1; x < 10; x += 2) for (let y = 1; y < 10; y += 2) for (const e of document.elementsFromPoint(innerWidth * x / 10, innerHeight * y / 10)) {
+    const s = getComputedStyle(e), shows = s.visibility !== 'hidden' && s.opacity !== '0';
+    const fill = s.backgroundColor === 'rgba(0, 0, 0, 0)' || s.backgroundColor === 'rgb(0, 0, 0)' || s.backgroundColor === 'transparent';
+    if (shows && (!fill || e.tagName === 'CANVAS' || e.tagName === 'IMG' || e.tagName === 'SVG' || (e.children.length === 0 && e.textContent.trim()))) painted.push(e.id || e.className || e.tagName);
+  }
+  assert(getComputedStyle(document.body).backgroundColor === 'rgb(0, 0, 0)' && !painted.length, 'Visual style Off is true black: ' + painted.join());
+  await styleTo('MilkDrop');
+  assert(window.afterglowDiagnostics().drawing, 'MilkDrop draws again');
+
   // Lists longer than their sheet say so: "More" below, then above once scrolled; the focused row keeps a row beyond it.
   await section(2);
   const frame = document.querySelector('.player-panel .scroll-frame');

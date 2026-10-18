@@ -723,8 +723,9 @@ function start(settings, { byId, isTv, login, auth, deviceName }) {
   }
   function keyContext() {
     const mode = playerView.mode;
-    const visualsShown = !milkdropOff && (mode === "visuals" || mode === "track" || loadPref("playerBackground", false));
-    return { mode, visualsShown, milkdropReady: milkdrop.ready, milkdropOn: !milkdropOff, live: !!live, lyrics: playerView.snapshot().lyrics.status };
+    const milkdropOn = !milkdropOff && playerView.visualStyle !== "off";
+    const visualsShown = milkdropOn && (mode === "visuals" || mode === "track" || loadPref("playerBackground", false));
+    return { mode, visualsShown, milkdropReady: milkdrop.ready, milkdropOn, live: !!live, lyrics: playerView.snapshot().lyrics.status };
   }
   function seekBy(seconds) {
     const s = playerView.snapshot();

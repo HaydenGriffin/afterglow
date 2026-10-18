@@ -27,7 +27,8 @@ Afterglow is independent of, and not endorsed by, Music Assistant or LG. It bega
   the song, artist and up next. Lyrics adds timed lyrics with the current line
   leading, word-by-word karaoke when the lyrics carry word timing, and paged
   plain lyrics otherwise. Visuals is MilkDrop on its own or with a track card;
-  MilkDrop can also run behind the artwork and lyrics, or stop entirely.
+  MilkDrop can also run behind the artwork and lyrics, or stop entirely
+  (Display → Visual style Off: the music on a black screen).
 - **Lyrics from Music Assistant, with an online fallback.** When Music
   Assistant has none, the TV looks the song up on [LRCLIB](https://lrclib.net)
   itself (see [Privacy](#privacy)). A per-TV **Lyrics timing** control moves

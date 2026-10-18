@@ -2,14 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { useFakeDocument } from "./fake-dom-tree.mjs";
 import { createPlayerView } from "../src/player-view.js";
-import { allPrefs, loadPref, savePref } from "../src/settings.js";
+import { allPrefs, clearPref, loadPref, mergePrefs, savePref } from "../src/settings.js";
 
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 const song = { queue_item_id: "i1", duration: 200, media_item: { media_type: "track", uri: "library://track/1", name: "Song", artists: [{ name: "Artist" }], album: { name: "Album" } } };
 
 // The player view over a fake document and a Music Assistant that answers
 // every command at once (lyrics: none).
-function harness(t) {
+function harness(t, engine = { setDrawing() {} }) {
   const doc = useFakeDocument(t);
   const calls = [];
   const live = {
@@ -23,7 +23,7 @@ function harness(t) {
   };
   const root = doc.createElement("div");
   doc.body.appendChild(root);
-  const view = createPlayerView({ root, live, host: "ma", engine: { setDrawing() {} }, onSettings() {}, onMode() {}, onNotice() {} });
+  const view = createPlayerView({ root, live, host: "ma", engine, onSettings() {}, onMode() {}, onNotice() {} });
   const panelRows = () => root.querySelector(".panel-items").querySelectorAll("button");
   const row = (label) => panelRows().find((b) => b.children[0].textContent === label);
   return { doc, root, view, calls, row, live };
@@ -101,6 +101,73 @@ test("Lyrics over Visuals + track: Off, One line, Stage; Position, Background an
   h.row("Lyrics over Visuals + track").click();
   assert.equal(value("Lyrics over Visuals + track"), "Off");
   assert.equal(h.row("Size"), undefined);
+});
+
+test("Display → Visual style: MilkDrop or Off; Off draws nothing in any view, even with MilkDrop behind", (t) => {
+  t.after(() => { for (const key of ["visualStyle", "playerBackground", "viewMode", "lyricsOverlay"]) savePref(key, null); });
+  savePref("visualStyle", null); savePref("playerBackground", true); savePref("viewMode", "visuals"); savePref("lyricsOverlay", "line");
+  const engine = { on: null, setDrawing(on) { this.on = on; } };
+  const h = harness(t, engine);
+  h.root.querySelector(".transport").children.find((b) => b.getAttribute("aria-label") === "Display").click();
+  const value = () => h.row("Visual style").children[1].textContent;
+  assert.equal(value(), "MilkDrop", "MilkDrop by default");
+  assert.equal(engine.on, true);
+  h.row("Visual style").click();
+  assert.equal(value(), "Off");
+  assert.equal(loadPref("visualStyle", null), "off");
+  assert.ok("visualStyle" in allPrefs(), "synced with this TV's settings on the account");
+  for (const mode of ["visuals", "track", "album", "lyrics"]) {
+    h.view.setMode(mode);
+    assert.equal(engine.on, false, mode + ": MilkDrop is not drawn");
+    assert.equal(h.root.classList.contains("has-background"), false, mode + ": the poster keeps its full ground");
+  }
+  assert.equal(h.root.querySelector(".lyric-overlay").getAttribute("data-kind"), "line", "the lyric overlay still shows, on black");
+  assert.ok(h.row("Lyrics over Visuals + track"), "the overlay rows stay");
+  h.row("Visual style").click();
+  assert.equal(value(), "MilkDrop", "OK wraps round to MilkDrop");
+  assert.equal(engine.on, true, "Lyrics with MilkDrop behind draws again");
+  assert.equal(h.root.classList.contains("has-background"), true);
+  h.row("Visual style")._change(-1);
+  assert.equal(loadPref("visualStyle", null), "off", "left wraps round too: MilkDrop to Off");
+  assert.equal(h.view.visualStyle, "off");
+  h.row("Visual style")._change(-1);
+  assert.equal(loadPref("visualStyle", null), "milkdrop", "and Off to MilkDrop");
+});
+
+test("visual style Off round-trips this TV's storage and the account mirror", (t) => {
+  t.after(() => { for (const key of ["visualStyle", "viewMode"]) savePref(key, null); });
+  savePref("visualStyle", null); savePref("viewMode", "visuals");
+  const engine = { on: null, setDrawing(on) { this.on = on; } };
+  const h = harness(t, engine);
+  h.root.querySelector(".transport").children.find((b) => b.getAttribute("aria-label") === "Display").click();
+  h.row("Visual style").click();
+  const stored = harness(t, engine); // the next start on this TV
+  assert.equal(stored.view.visualStyle, "off");
+  assert.equal(engine.on, false);
+  // What follow.js saves as this TV's object under vizman.devices, read back
+  // by a fresh install (main.js mergePrefs), then applied.
+  const mirrored = JSON.parse(JSON.stringify(allPrefs()));
+  assert.equal(mirrored.visualStyle, "off");
+  clearPref("visualStyle");
+  const fresh = harness(t, engine);
+  assert.equal(fresh.view.visualStyle, "milkdrop", "nothing stored: MilkDrop");
+  assert.deepEqual(mergePrefs({ visualStyle: mirrored.visualStyle }), ["visualStyle"]);
+  fresh.view.reloadPrefs();
+  assert.equal(fresh.view.visualStyle, "off");
+  assert.equal(engine.on, false, "the mirrored Off stops drawing");
+});
+
+test("a visual style this build does not know reads as MilkDrop; a synced change is picked up", (t) => {
+  t.after(() => { for (const key of ["visualStyle", "viewMode"]) savePref(key, null); });
+  savePref("visualStyle", "halo"); savePref("viewMode", "visuals");
+  const engine = { on: null, setDrawing(on) { this.on = on; } };
+  const h = harness(t, engine);
+  assert.equal(h.view.visualStyle, "milkdrop");
+  assert.equal(engine.on, true);
+  savePref("visualStyle", "off");
+  h.view.reloadPrefs();
+  assert.equal(h.view.visualStyle, "off");
+  assert.equal(engine.on, false);
 });
 
 test("an overlay saved as On before Stage existed comes back as One line with its defaults", (t) => {

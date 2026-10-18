@@ -1,5 +1,5 @@
 import { loadPref, savePref } from "./settings.js";
-import { createPlayback, lyricIndex, timeLabel, trackInfo, VIEW_LABELS, VIEW_MODES, volumeOf } from "./playback.js";
+import { createPlayback, lyricIndex, stepVisualStyle, timeLabel, trackInfo, VIEW_LABELS, VIEW_MODES, VISUAL_STYLE_LABELS, VISUAL_STYLE_PREF, visualStyle, volumeOf } from "./playback.js";
 import { css, posterTheme } from "./poster-colour.js";
 import { createBrowse } from "./browse-view.js";
 import { describeStream } from "./stream-details.js";
@@ -35,6 +35,8 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   let mode = loadPref("viewMode", "track");
   if (VIEW_MODES.indexOf(mode) < 0) mode = "track";
   let background = loadPref("playerBackground", false);
+  // MilkDrop, or "off": the music on a blank screen, MilkDrop not drawn at all.
+  let style = visualStyle(loadPref(VISUAL_STYLE_PREF, "milkdrop"));
   // Lyrics over Visuals + track: "off", "line" or "stage", and each overlay's own look.
   let overlay = overlayKind(loadPref(KIND_PREF, false));
   const looks = { line: overlayLook("line", loadPref(LOOK_PREFS.line, null)), stage: overlayLook("stage", loadPref(LOOK_PREFS.stage, null)) };
@@ -164,8 +166,9 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   }
   function applyMode() {
     root.setAttribute("data-mode", mode);
-    root.classList.toggle("has-background", background && (mode === "album" || mode === "lyrics"));
-    engine.setDrawing(mode === "visuals" || mode === "track" || background);
+    const visuals = style !== "off";
+    root.classList.toggle("has-background", visuals && background && (mode === "album" || mode === "lyrics"));
+    engine.setDrawing(visuals && (mode === "visuals" || mode === "track" || background));
     model.wantLyrics(mode === "lyrics" || (overlay !== "off" && mode !== "visuals"));
     applyOverlayLook();
     onMode(mode);
@@ -226,7 +229,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     return button;
   }
   function display(s) {
-    const stateKey = JSON.stringify([panel, mode, background, overlay, looks[overlay], s.lyrics.status, plainPage, lyricsOffsetMs, onlineLyrics, lyricsTools.key(s)]);
+    const stateKey = JSON.stringify([panel, mode, style, background, overlay, looks[overlay], s.lyrics.status, plainPage, lyricsOffsetMs, onlineLyrics, lyricsTools.key(s)]);
     if (stateKey === optionKey) return false;
     optionKey = stateKey; el(".panel-items").textContent = "";
     if (lyricsTools.drawPage("display", s, panelUi)) return true;
@@ -244,6 +247,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
       if ((s.lyrics.status === "error" || s.lyrics.status === "missing") && !isSpokenWord(s.track && s.track.media)) addRow("Retry lyrics", "", () => model.retryLyrics());
     }
     heading("Extras");
+    addRow("Visual style", VISUAL_STYLE_LABELS[style], dir => { style = stepVisualStyle(style, dir); savePref(VISUAL_STYLE_PREF, style); applyMode(); }, false, true);
     addRow("MilkDrop behind artwork and lyrics", background ? "On" : "Off", () => { background = !background; savePref("playerBackground", background); applyMode(); }, false, true);
     addRow("Lyrics over Visuals + track", OVERLAY_LABELS[overlay], dir => { overlay = stepKind(overlay, dir); savePref(KIND_PREF, overlay); applyMode(); }, false, true);
     // Position, Background and Size act on the overlay chosen above.
@@ -559,6 +563,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
   applyMode(); render();
   return {
     get mode() { return mode; },
+    get visualStyle() { return style; },
     get isOpen() { return !!panel; },
     open: openControls, close,
     playMedia, resume: () => command("play"), openBrowse: () => openPanel("browse"),
@@ -576,6 +581,7 @@ export function createPlayerView({ root, live, host, engine, onSettings, onMode,
     },
     reloadPrefs() {
       lyricsOffsetMs = loadPref("lyricsOffsetMs", 0); onlineLyrics = loadPref("onlineLyrics", true); const next = loadPref("viewMode", "track"); if (VIEW_MODES.indexOf(next) >= 0) mode = next; background = loadPref("playerBackground", false);
+      style = visualStyle(loadPref(VISUAL_STYLE_PREF, "milkdrop"));
       lyricsTools.reload(); overlay = overlayKind(loadPref(KIND_PREF, false)); looks.line = overlayLook("line", loadPref(LOOK_PREFS.line, null)); looks.stage = overlayLook("stage", loadPref(LOOK_PREFS.stage, null));
       applyMode();
     },

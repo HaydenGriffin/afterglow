@@ -168,7 +168,7 @@ Every song is set as a Swiss International Style concert poster (Müller-Brockma
 
 The surface is a TV, a large OLED read from about 3 m in a dim room with a 5-way remote and Back. Density is low and the type is very large: the title owns the upper two thirds of the right side, panels slide in as full-height ink sheets over the right zone, and every interactive row is at least 6.4vh tall. The UI is drawn in viewport units (vh for type, vw for the grid) so 720p and 1080p panels render the same poster.
 
-MilkDrop stays the visual authority. In the two Visuals modes the poster is hidden and the only Afterglow element is a single flat field caption over the visualizer; the poster world never paints over MilkDrop with its own effects.
+MilkDrop stays the visual authority. In the two Visuals modes the poster is hidden and the only Afterglow element is a single flat field caption over the visualizer; the poster world never paints over MilkDrop with its own effects. With the visual style Off nothing takes MilkDrop's place: the canvas's pure black stays, under the same caption and lyric overlay.
 
 **Key Characteristics:**
 - Near-black ink ground, one warm paper white, two per-track flat fields from the artwork.

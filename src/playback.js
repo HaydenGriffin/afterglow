@@ -7,6 +7,17 @@ import { speedOf } from "./spoken-word.js";
 
 export const VIEW_MODES = ["visuals", "track", "album", "lyrics"];
 export const VIEW_LABELS = { visuals: "Visuals only", track: "Visuals + track", album: "Album", lyrics: "Lyrics" };
+// Display → Visual style: MilkDrop, or Off for the music on a blank screen
+// (nothing drawn behind the track card, the artwork or the lyrics). A stored
+// value this build does not know reads as MilkDrop.
+export const VISUAL_STYLES = ["milkdrop", "off"];
+export const VISUAL_STYLE_LABELS = { milkdrop: "MilkDrop", off: "Off" };
+export const VISUAL_STYLE_PREF = "visualStyle";
+export function visualStyle(stored) { return VISUAL_STYLES.indexOf(stored) >= 0 ? stored : "milkdrop"; }
+export function stepVisualStyle(style, direction) {
+  const at = VISUAL_STYLES.indexOf(visualStyle(style));
+  return VISUAL_STYLES[(at + (direction < 0 ? -1 : 1) + VISUAL_STYLES.length) % VISUAL_STYLES.length];
+}
 export function applyPresentationTrim(position, trimMs) { return Math.max(0, position - trimMs / 1000); }
 export function timeLabel(seconds) {
   const s = Math.max(0, Math.floor(Number(seconds) || 0));

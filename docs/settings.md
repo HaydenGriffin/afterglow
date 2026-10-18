@@ -102,9 +102,16 @@ playback.
     that version from lrclib.net by its id, and Automatic goes back. Kept
     timings and chosen lyrics are remembered for the 100 most recently
     changed songs, with this TV's settings on the account.
-  - **Extras:** **MilkDrop behind artwork and lyrics** (off by default; off
+  - **Extras:** **Visual style** (**MilkDrop**, the default, or **Off**: no
+    visuals, the music on a black screen; synced with this TV's settings on
+    the account), **MilkDrop behind artwork and lyrics** (off by default; off
     stops GPU drawing in Album and Lyrics), **Lyrics over Visuals + track**
-    (below), and **Lyrics page** for untimed lyrics.
+    (below), and **Lyrics page** for untimed lyrics. With the visual style
+    Off, MilkDrop is not drawn at all (except during a preset scan you start),
+    so it costs the TV nothing: Visuals only is true black (OLED pixels off)
+    with only the notices, which fade; Visuals + track is the track card on
+    black; Album and Lyrics show their posters whole, as with MilkDrop behind
+    them off; the lyric overlays still show, on black.
   - **Lyrics over Visuals + track:** **Off** (the default), **One line** (the
     current timed line in the track card's corner) or **Stage** (the current
     line large, centred). While One line or Stage is chosen, three rows follow
@@ -174,7 +181,7 @@ on its own, a TV input) is passed over.
 ## Remote
 
 With the playback controls and the menu closed, in Visuals only and Visuals +
-track:
+track (with the visual style Off, ↑ / ↓, Yellow and Blue do nothing):
 
 | Key | Action |
 |---|---|

@@ -41,6 +41,22 @@ test("Album with MilkDrop behind keeps preset keys on up/down but seeks on left/
   assert.deepEqual(remoteAction("yellow", ctx), { do: "favoriteSong" });
 });
 
+test("visual style Off: the preset keys do nothing in the Visuals modes; the poster keeps its keys", () => {
+  for (const mode of ["visuals", "track"]) {
+    const ctx = at({ mode, visualsShown: false, milkdropOn: false });
+    assert.equal(remoteAction("up", ctx), null);
+    assert.equal(remoteAction("down", ctx), null);
+    assert.equal(remoteAction("yellow", ctx), null);
+    assert.equal(remoteAction("blue", ctx), null);
+    assert.deepEqual(remoteAction("left", ctx), { do: "dim", by: -10 });
+    assert.deepEqual(remoteAction("ok", ctx), { do: "controls" });
+  }
+  const album = at({ mode: "album", visualsShown: false, milkdropOn: false });
+  assert.equal(remoteAction("up", album).do, "hint");
+  assert.deepEqual(remoteAction("yellow", album), { do: "favoriteSong" });
+  assert.equal(remoteAction("blue", album), null);
+});
+
 test("Lyrics: untimed lyrics page on every arrow, timed lyrics seek", () => {
   const plain = at({ mode: "lyrics", visualsShown: false, lyrics: "plain" });
   assert.deepEqual(remoteAction("left", plain), { do: "lyricsPage", by: -1 });
