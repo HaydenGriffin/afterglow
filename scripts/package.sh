@@ -7,5 +7,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PATH="$ROOT/node_modules/.bin:$PATH"
 "$ROOT/scripts/build.sh"
 ares-package --check "$ROOT/app"
-ares-package --no-minify -o "$ROOT/dist" "$ROOT/app"
+# The TV's launcher keeps showing the icon it first read from a path, so each
+# release packages its icons under a versioned name.
+STAGE="$(mktemp -d)/app"
+trap 'rm -rf "$(dirname "$STAGE")"' EXIT
+cp -R "$ROOT/app" "$STAGE"
+node "$ROOT/scripts/version-icons.mjs" "$STAGE"
+ares-package --no-minify -o "$ROOT/dist" "$STAGE"
 node "$ROOT/scripts/make-manifest.mjs"

@@ -1,3 +1,10 @@
+# 1.6.1 — Whole titles, the new icon on the TV (21 October 2026)
+
+- The idle poster's title keeps its descenders: a short title such as *Daylight* lost the foot of its y and g to
+  the box it sits in. The box now trims only the top, where a long title runs over.
+- The new logo reaches the TV's launcher. webOS keeps showing the icon it first read from a path, even after a
+  restart, so `npm run package` now packages the icons as `icon-<version>.png` and `largeIcon-<version>.png`.
+
 # 1.6.0 — Visual style Off (18 October 2026)
 
 - **Visual style Off** (user request). Display → Extras gains **Visual style**: **MilkDrop** (the default) or

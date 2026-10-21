@@ -187,7 +187,8 @@
 .idle-target, .idle-state { position: absolute; top: 6vh; font-size: 2.2vh; font-weight: 500; letter-spacing: .01em; color: var(--paper-2); }
 .idle-target { left: 35.42vw; right: 40vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .idle-state { right: 5vw; }
-.idle-title { position: absolute; left: 35.42vw; right: 5vw; top: 13vh; height: 46vh; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: .24em; box-sizing: border-box;
+/* Clip only the top, where a long title overflows; descenders hang below the box. */
+.idle-title { position: absolute; left: 35.42vw; right: 5vw; top: 13vh; height: 46vh; clip-path: inset(0 0 -.5em 0); display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: .24em; box-sizing: border-box;
   font-size: 13.6vh; line-height: .9; font-weight: 820; font-stretch: 80%; letter-spacing: -.02em; overflow-wrap: break-word; }
 .idle-title[data-length="short"] { font-size: 18vh; line-height: .86; }
 .idle-title[data-length="long"] { font-size: 9.8vh; line-height: .92; }
